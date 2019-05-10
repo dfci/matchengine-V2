@@ -1,0 +1,37 @@
+{
+  "trial_key_mappings": {
+    "genomic": {
+      "HUGO_SYMBOL": {
+        "sample_key": "TRUE_HUGO_SYMBOL",
+        "sample_value": "nomap"
+      },
+      "EXON": {
+        "sample_key": "TRUE_TRANSCRIPT_EXON",
+        "sample_value": "nomap"
+      },
+      "PROTEIN_CHANGE": {
+        "sample_key": "TRUE_PROTEIN_CHANGE",
+        "sample_value": "nomap"
+      },
+      "WILDCARD_PROTEIN_CHANGE": {
+        "sample_key": "TRUE_PROTEIN_CHANGE",
+        "sample_value": "nomap"
+      },
+      "VARIANT_CLASSIFICATION": {
+        "sample_key": "TRUE_VARIANT_CLASSIFICATION",
+        "sample_value": "nomap"
+      }
+    },
+    "clinical": {
+      "AGE_NUMERICAL": {
+        "sample_key": "BIRTH_DATE",
+        "sample_value": "age_range_to_date_query"
+      },
+      "ONCOTREE_PRIMARY_DIAGNOSIS": {
+        "sample_key": "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
+        "sample_value": "external_file_mapping",
+        "file": "oncotree_mapping.json"
+      }
+    }
+  }
+}
