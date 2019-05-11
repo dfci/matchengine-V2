@@ -1,17 +1,22 @@
-from collections import deque
-from typing import Any, Tuple, Union, NewType, List, Dict
+from collections import deque, defaultdict
+from typing import Any, Tuple, Union, NewType, List, Dict, AsyncGenerator
 from MatchCriteriaTransform import MatchCriteriaTransform
 
 import networkx as nx
 import pymongo
+import pymongo.database
 import json
+import asyncio
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 Trial = NewType("Trial", dict)
 ParentPath = NewType("ParentPath", Tuple[Union[str, int]])
 MatchClause = NewType("MatchClause", List[Dict[str, Any]])
 MatchTree = NewType("MatchTree", nx.DiGraph)
 MatchCriterion = NewType("MatchPath", List[Dict[str, Any]])
-MongoQuery = NewType("MongoQuery", dict)
+MultiCollectionQuery = NewType("MongoQuery", dict)
 NodeID = NewType("NodeID", int)
 
 
@@ -48,33 +53,36 @@ class MongoDBConnection(object):
         self.client.close()
 
 
-def find_matches(sample_ids: list = None, protocol_nos: list = None) -> dict:
-    trials: List[Trial] = list()
-    trial_find_query = dict()
+async def find_matches(sample_ids: list = None, protocol_nos: list = None) -> dict:
     with open("config/config.json") as config_file_handle:
         config = json.load(config_file_handle)
     match_criteria_transform = MatchCriteriaTransform(config)
+    log = logging.getLogger('asyncio')
+    with MongoDBConnection(read_only=True) as db:
+        async for trial in get_trials(db, protocol_nos):
+            async for parent_path, match_clause in extract_match_clauses_from_trial(trial):
+                async for match_path in get_match_paths(await create_match_tree(match_clause)):
+                    query = await translate_match_path(parent_path, match_path, match_criteria_transform)
+                    results = await perform_multi_collection_query(db, match_criteria_transform, query)
+                    log.info("Protocol No: {}, parent_path: {}, match_path: {}, query: {}, len(results): {}".format(
+                        trial['protocol_no'], parent_path, match_path, query, len(results)))
+
+
+async def get_trials(db: pymongo.database.Database,
+                     protocol_nos: list = None) -> AsyncGenerator[Trial, None]:
+    trial_find_query = dict()
     if protocol_nos is not None:
         trial_find_query['$in'] = [protocol_no for protocol_no in protocol_nos]
-    with MongoDBConnection(read_only=True) as db:
-        trials = [result for result in db.trial.find(trial_find_query)]
-    for trial in trials:
-        match_clauses = extract_match_clauses_from_trial(trial)
-        for parent_path, match_clause in match_clauses:
-            match_tree = create_match_tree(match_clause)
-            match_paths = get_match_paths(match_tree)
-            mongo_queries = [translate_match_path(parent_path, match_path, match_criteria_transform) for match_path in
-                             match_paths]
-            print(mongo_queries)
+    for trial in db.trial.find(trial_find_query):
+        yield Trial(trial)
 
 
-def extract_match_clauses_from_trial(trial: Trial) -> List[Tuple[ParentPath, MatchClause]]:
+async def extract_match_clauses_from_trial(trial: Trial) -> AsyncGenerator[List[Tuple[ParentPath, MatchClause]], None]:
     process_q = deque()
-    match_clauses = list()
     for k, v in trial.items():
         if k == 'match':
             parent_path = ParentPath(tuple())
-            match_clauses.append((parent_path, v))
+            yield parent_path, v
         else:
             process_q.append((tuple(), k, v))
     while process_q:
@@ -83,19 +91,18 @@ def extract_match_clauses_from_trial(trial: Trial) -> List[Tuple[ParentPath, Mat
             for inner_key, inner_value in parent_value.items():
                 if inner_key == 'match':
                     parent_path = ParentPath(path + (parent_key, inner_key))
-                    match_clauses.append((parent_path, inner_value))
+                    yield parent_path, inner_value
                 else:
                     process_q.append((path + (parent_key,), inner_key, inner_value))
         elif isinstance(parent_value, list):
             for index, item in enumerate(parent_value):
                 process_q.append((path + (parent_key,), index, item))
-    return match_clauses
 
 
-def create_match_tree(match_clause: MatchClause) -> MatchTree:
+async def create_match_tree(match_clause: MatchClause) -> MatchTree:
     process_q: deque[Tuple[NodeID, Dict[str, Any]]] = deque()
     graph = nx.DiGraph()
-    node_id: NodeID = 1
+    node_id: NodeID = NodeID(1)
     graph.add_node(0)  # root node is 0
     graph.nodes[0]['criteria_list'] = list()
     for item in match_clause:
@@ -123,9 +130,8 @@ def create_match_tree(match_clause: MatchClause) -> MatchTree:
     return MatchTree(graph)
 
 
-def get_match_paths(match_tree: MatchTree) -> List[MatchCriterion]:
+async def get_match_paths(match_tree: MatchTree) -> AsyncGenerator[MatchCriterion, None]:
     leaves = list()
-    match_paths: List[MatchCriterion] = list()
     for node in match_tree.nodes:
         if match_tree.out_degree(node) == 0:
             leaves.append(node)
@@ -134,14 +140,13 @@ def get_match_paths(match_tree: MatchTree) -> List[MatchCriterion]:
         match_path = MatchCriterion(list())
         for node in path:
             match_path.extend(match_tree.nodes[node]['criteria_list'])
-        match_paths.append(match_path)
-    return match_paths
+        yield match_path
 
 
-def translate_match_path(path: ParentPath,
-                         match_criterion: MatchCriterion,
-                         match_criteria_transformer: MatchCriteriaTransform) -> MongoQuery:
-    and_list = list()
+async def translate_match_path(path: ParentPath,
+                               match_criterion: MatchCriterion,
+                               match_criteria_transformer: MatchCriteriaTransform) -> MultiCollectionQuery:
+    categories = defaultdict(lambda: {"$and": list()})
     for criteria in match_criterion:
         for genomic_or_clinical, values in criteria.items():
             for trial_key, trial_value in values.items():
@@ -157,9 +162,28 @@ def translate_match_path(path: ParentPath,
                             trial_key=trial_key)
                 args.update(trial_key_settings)
                 and_query = sample_function(match_criteria_transformer, **args)
-                and_list.append(and_query)
-    return MongoQuery({"$and": and_list})
+                categories[genomic_or_clinical]["$and"].append(and_query)
+    return MultiCollectionQuery(categories)
+
+
+async def perform_multi_collection_query(db: pymongo.database.Database,
+                                         match_criteria_transformer: MatchCriteriaTransform,
+                                         multi_collection_query: MultiCollectionQuery) -> set:
+    primary_ids = set()
+    for index, items in enumerate(multi_collection_query.items()):
+        category, query = items
+        join_field = match_criteria_transformer.collection_mappings[category]['join_field']
+        projection = {join_field: 1}
+        results = [result for result in db[category].find(query, projection)]
+        if not results:
+            return set()
+        ids = {result[join_field] for result in results}
+        if index == 0:
+            primary_ids.update(ids)
+        else:
+            primary_ids.intersection_update(ids)
+    return primary_ids
 
 
 if __name__ == "__main__":
-    find_matches()
+    asyncio.run(find_matches())

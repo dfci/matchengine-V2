@@ -7,11 +7,17 @@ class MatchCriteriaTransform(object):
     resources: dict = None
     config: dict = None
     trial_key_mappings: dict = None
+    primary_collection: str = None
+    primary_collection_unique_field: str = None
+    collection_mappings: dict = None
 
     def __init__(self, config):
         self.resources = dict()
         self.config = config
         self.trial_key_mappings = config['trial_key_mappings']
+        self.primary_collection = config['primary_collection']
+        self.primary_collection_unique_field = config['primary_collection_unique_field']
+        self.collection_mappings = config['collection_mappings']
 
     def nomap(self, **kwargs):
         trial_path = kwargs['trial_path']
@@ -31,10 +37,11 @@ class MatchCriteriaTransform(object):
             "<": "$lt"
         }
         operator = ''.join([i for i in trial_value if not i.isdigit()])
-        years = int(''.join([i for i in trial_value if i.isdigit()]))
+        years = int(''.join([i for i in trial_value if i.isdigit() or i == '.']))
         current_date = datetime.date.today()
         query_date = current_date - relativedelta(years=years)
-        return {sample_key: {operator_map[operator]: query_date}}
+        query_datetime = datetime.datetime(query_date.year, query_date.month, query_date.day, 0, 0, 0, 0)
+        return {sample_key: {operator_map[operator]: query_datetime}}
 
     def external_file_mapping(self, **kwargs):
         trial_value = kwargs['trial_value']
