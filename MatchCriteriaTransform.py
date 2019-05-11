@@ -24,7 +24,10 @@ class MatchCriteriaTransform(object):
         sample_key = kwargs['sample_key']
         trial_key = kwargs['trial_key']
         trial_value = kwargs['trial_value']
-        return {sample_key: trial_value}
+        if isinstance(trial_value, str) and trial_value[0] == '!':
+            return {sample_key: {"$ne": trial_value[1::]}}
+        else:
+            return {sample_key: trial_value}
 
     def age_range_to_date_query(self, **kwargs):
         sample_key = kwargs['sample_key']
@@ -51,11 +54,20 @@ class MatchCriteriaTransform(object):
             with open(file) as file_handle:
                 self.resources[file] = json.load(file_handle)
         resource = self.resources[file]
+        negate = True if trial_value[0] == '!' else False
+        if negate:
+            trial_value = trial_value[1::]
         match_value = resource.setdefault(trial_value, trial_value)  # TODO: fix
         if isinstance(match_value, list):
-            return {sample_key: {"$in": match_value}}
+            if negate:
+                return {sample_key: {"$nin": match_value}}
+            else:
+                return {sample_key: {"$in": match_value}}
         else:
-            return {sample_key: match_value}
+            if negate:
+                return {sample_key: {"$ne": match_value}}
+            else:
+                return {sample_key: match_value}
 
     def bool_from_text(self, **kwargs):
         trial_value = kwargs['trial_value']
