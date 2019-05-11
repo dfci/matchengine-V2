@@ -1,4 +1,14 @@
 {
+  "primary_collection": "clinical",
+  "primary_collection_unique_field": "_id",
+  "collection_mappings": {
+    "clinical": {
+      "join_field": "_id"
+    },
+    "genomic": {
+      "join_field": "CLINICAL_ID"
+    }
+  },
   "trial_key_mappings": {
     "genomic": {
       "HUGO_SYMBOL": {
