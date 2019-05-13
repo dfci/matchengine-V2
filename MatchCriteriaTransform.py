@@ -7,17 +7,21 @@ class MatchCriteriaTransform(object):
     resources: dict = None
     config: dict = None
     trial_key_mappings: dict = None
-    primary_collection: str = None
-    primary_collection_unique_field: str = None
-    collection_mappings: dict = None
+    primary_collection: str = "clinical"
+    primary_collection_unique_field: str = "_id"
+    collection_mappings: dict = {
+        "genomic": {
+            "join_field": "CLINICAL_ID"
+        },
+        "clinical": {
+            "join_field": "_id"
+        }
+    }
 
     def __init__(self, config):
         self.resources = dict()
         self.config = config
         self.trial_key_mappings = config['trial_key_mappings']
-        self.primary_collection = config['primary_collection']
-        self.primary_collection_unique_field = config['primary_collection_unique_field']
-        self.collection_mappings = config['collection_mappings']
 
     def nomap(self, **kwargs):
         trial_path = kwargs['trial_path']
@@ -34,15 +38,19 @@ class MatchCriteriaTransform(object):
         trial_value = kwargs['trial_value']
         operator_map = {
             "==": "$eq",
-            "<=": "$lte",
-            ">=": "$gte",
-            ">": "$gt",
-            "<": "$lt"
+            "<=": "$gte",
+            ">=": "$lte",
+            ">": "$lt",
+            "<": "$gt"
         }
-        operator = ''.join([i for i in trial_value if not i.isdigit()])
-        years = int(''.join([i for i in trial_value if i.isdigit() or i == '.']))
+        # funky logic is because 1 month curation is curated as "0.083" (1/12 a year)
+        operator = ''.join([i for i in trial_value if not i.isdigit() and i != '.'])
+        split_time = trial_value.split('.')
+        years = int(split_time[0]) if trial_value[0].isdigit() else 0
+        months_fraction = float(split_time[1]) if len(split_time) > 1 else 0
+        months = int(months_fraction * 12)
         current_date = datetime.date.today()
-        query_date = current_date - relativedelta(years=years)
+        query_date = current_date - relativedelta(years=years, months=months)
         query_datetime = datetime.datetime(query_date.year, query_date.month, query_date.day, 0, 0, 0, 0)
         return {sample_key: {operator_map[operator]: query_datetime}}
 
@@ -76,3 +84,8 @@ class MatchCriteriaTransform(object):
             return {sample_key: True}
         elif trial_value.upper() == 'FALSE':
             return {sample_key: False}
+
+    def to_upper(self, **kwargs):
+        trial_value = kwargs['trial_value']
+        sample_key = kwargs['sample_key']
+        return {sample_key: trial_value.upper()}
