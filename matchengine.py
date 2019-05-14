@@ -1,5 +1,8 @@
 from collections import deque, defaultdict
 from typing import Any, Tuple, Union, NewType, List, Dict, AsyncGenerator, Generator
+
+from bson import ObjectId
+
 from MatchCriteriaTransform import MatchCriteriaTransform
 
 import networkx as nx
@@ -80,6 +83,7 @@ def find_matches(sample_ids: list = None, protocol_nos: list = None) -> dict:
                                     trial['protocol_no'], parent_path, match_path, query, len(results)))
                     except Exception as e:
                         logging.error("ERROR: {}".format(e))
+                        raise e
 
 
 def get_trials(db: pymongo.database.Database,
@@ -160,9 +164,10 @@ def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, No
 def translate_match_path(path: ParentPath,
                          match_criterion: MatchCriterion,
                          match_criteria_transformer: MatchCriteriaTransform) -> MultiCollectionQuery:
-    categories = defaultdict(lambda: {"$and": list()})
+    categories = defaultdict(list)
     for criteria in match_criterion:
         for genomic_or_clinical, values in criteria.items():
+            and_query = dict()
             for trial_key, trial_value in values.items():
                 trial_key_settings = match_criteria_transformer.trial_key_mappings[genomic_or_clinical].setdefault(
                     trial_key.upper(),
@@ -175,8 +180,8 @@ def translate_match_path(path: ParentPath,
                             trial_path=genomic_or_clinical,
                             trial_key=trial_key)
                 args.update(trial_key_settings)
-                and_query = sample_function(match_criteria_transformer, **args)
-                categories[genomic_or_clinical]["$and"].append(and_query)
+                and_query.update(sample_function(match_criteria_transformer, **args))
+            categories[genomic_or_clinical].append(and_query)
     return MultiCollectionQuery(categories)
 
 
@@ -184,9 +189,7 @@ def add_sample_ids_to_query(query: MultiCollectionQuery,
                             sample_ids: List[str],
                             match_criteria_transformer: MatchCriteriaTransform) -> MultiCollectionQuery:
     if sample_ids is not None:
-        if match_criteria_transformer.primary_collection not in query:
-            query.update({match_criteria_transformer.primary_collection: {"$and": []}})
-        query[match_criteria_transformer.primary_collection]["$and"].append({
+        query[match_criteria_transformer.clinical_collection].append({
             "SAMPLE_ID": {
                 "$in": sample_ids
             }
@@ -198,21 +201,64 @@ def run_query(db: pymongo.database.Database,
               match_criteria_transformer: MatchCriteriaTransform,
               multi_collection_query: MultiCollectionQuery) -> set:
     primary_ids = set()
-    for index, items in enumerate(multi_collection_query.items()):
-        category, query = items
+    all_results = defaultdict(lambda: defaultdict(list))
+    if match_criteria_transformer.clinical_collection in multi_collection_query:
+        collection = match_criteria_transformer.clinical_collection
+        join_field = match_criteria_transformer.primary_collection_unique_field
+        projection = {join_field: 1}
+        query = {"$and": multi_collection_query[collection]}
+        primary_ids.update([result[join_field] for result in db[collection].find(query, projection)])
+        if not primary_ids:
+            return set()
+    for items in multi_collection_query.items():
+        category, queries = items
+        if category == match_criteria_transformer.clinical_collection:
+            continue
         join_field = match_criteria_transformer.collection_mappings[category]['join_field']
         projection = {join_field: 1}
-        ids = [result[join_field] for result in db[category].find(query, projection)]
-        if not ids:
-            return set()
-        if index == 0:  # if this is the first run of the loop, save the IDs to the primary_ids set
-            primary_ids.update(ids)
-        else:  # otherwise, intersect the set
-            primary_ids.intersection_update(ids)
-            if not primary_ids:
+        if category == 'genomic':
+            projection.update({
+                "TIER": 1,
+                "VARIANT_CATEGORY": 1,
+                "WILDTYPE": 1,
+                "TRUE_HUGO_SYMBOL": 1,
+                "TRUE_PROTEIN_CHANGE": 1,
+                "CNV_CALL": 1,
+                "TRUE_VARIANT_CLASSIFICATION": 1,
+                "MMR_STATUS": 1
+            })
+        for query in queries:
+            if primary_ids:
+                query.update({join_field: {
+                    "$in": [  # ensure all clinical IDs are valid MongoDB ObjectIDs
+                        primary_id if isinstance(primary_id, ObjectId) else ObjectId(primary_id)
+                        for primary_id in primary_ids
+                    ]
+                }})
+            results = db[category].find(query, projection)
+            ids = {  # ensure all returned clinical IDs are valid ObjectIDs
+                result[join_field] if isinstance(result[join_field], ObjectId) else ObjectId(result[join_field])
+                for result in results
+            }
+            if not ids:
                 return set()
+            # if this is the first run of the loop, save the IDs to the primary_ids set
+            if not primary_ids:
+                primary_ids.update(ids)
+            else:  # otherwise, intersect the set
+                results_to_remove = ids - primary_ids
+                for result_to_remove in results_to_remove:
+                    del all_results[category][result_to_remove["_id"]]
+                primary_ids.intersection_update(ids)
+                if not primary_ids:
+                    return set()
+                else:
+                    for result in results:
+                        if result[join_field] in primary_ids:
+                            all_results[category][result['_id']].append(result)
     return primary_ids
 
 
 if __name__ == "__main__":
-    find_matches(sample_ids=["BL-17-W40535"], protocol_nos=["18-274"])
+    find_matches(protocol_nos=['17-251'])
+    # find_matches(sample_ids=["BL-17-W40535"], protocol_nos=None)

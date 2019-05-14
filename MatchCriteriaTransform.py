@@ -7,7 +7,7 @@ class MatchCriteriaTransform(object):
     resources: dict = None
     config: dict = None
     trial_key_mappings: dict = None
-    primary_collection: str = "clinical"
+    clinical_collection: str = "clinical"
     primary_collection_unique_field: str = "_id"
     collection_mappings: dict = {
         "genomic": {
