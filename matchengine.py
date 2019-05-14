@@ -24,6 +24,13 @@ MatchTree = NewType("MatchTree", nx.DiGraph)
 MatchCriterion = NewType("MatchPath", List[Dict[str, Any]])
 MultiCollectionQuery = NewType("MongoQuery", dict)
 NodeID = NewType("NodeID", int)
+MongoQueryResult = NewType("MongoQueryResult", Dict[str, Any])
+MongoQuery = NewType("MongoQuery", Dict[str, Any])
+GenomicID = NewType("GenomicID", ObjectId)
+ClinicalID = NewType("ClinicalID", ObjectId)
+RawQueryResult = NewType("RawQueryResult",
+                         Tuple[ClinicalID, Dict[GenomicID, Dict[str, Union[MongoQuery, MongoQueryResult]]]])
+TrialMatch = NewType("TrialMatch", Dict[str, Any])
 
 
 class MongoDBConnection(object):
@@ -74,7 +81,7 @@ def find_matches(sample_ids: list = None, protocol_nos: list = None) -> dict:
                                                                              match_criteria_transform),
                                                         sample_ids,
                                                         match_criteria_transform)
-                        results = run_query(db, match_criteria_transform, query)
+                        results = [result for result in run_query(db, match_criteria_transform, query)]
                         # log.info(
                         #     "query: {}".format(query))
                         if results:
@@ -199,20 +206,34 @@ def add_sample_ids_to_query(query: MultiCollectionQuery,
 
 def run_query(db: pymongo.database.Database,
               match_criteria_transformer: MatchCriteriaTransform,
-              multi_collection_query: MultiCollectionQuery) -> set:
+              multi_collection_query: MultiCollectionQuery) -> Generator[RawQueryResult, None, RawQueryResult]:
     primary_ids = set()
-    all_results = defaultdict(lambda: defaultdict(list))
+    all_results = defaultdict(lambda: defaultdict(dict))
     if match_criteria_transformer.clinical_collection in multi_collection_query:
         collection = match_criteria_transformer.clinical_collection
         join_field = match_criteria_transformer.primary_collection_unique_field
         projection = {join_field: 1}
+        projection.update({
+            "SAMPLE_ID": 1,
+            'ORD_PHYSICIAN_NAME': 1,
+            'ORD_PHYSICIAN_EMAIL': 1,
+            'ONCOTREE_PRIMARY_DIAGNOSIS_NAME': 1,
+            'REPORT_DATE': 1,
+            'VITAL_STATUS': 1,
+            'FIRST_LAST': 1,
+            'GENDER': 1
+
+        })
         query = {"$and": multi_collection_query[collection]}
-        primary_ids.update([result[join_field] for result in db[collection].find(query, projection)])
+        results = [result for result in db[collection].find(query, projection)]
+        primary_ids.update([result[join_field] for result in results])
+        for result in results:
+            all_results[result[join_field]][match_criteria_transformer.clinical_collection][result["_id"]] = result
         if not primary_ids:
-            return set()
+            return RawQueryResult(tuple())
     for items in multi_collection_query.items():
         category, queries = items
-        if category == match_criteria_transformer.clinical_collection:
+        if category == match_criteria_transformer.clinical_collection and primary_ids:
             continue
         join_field = match_criteria_transformer.collection_mappings[category]['join_field']
         projection = {join_field: 1}
@@ -230,35 +251,40 @@ def run_query(db: pymongo.database.Database,
         for query in queries:
             if primary_ids:
                 query.update({join_field: {
-                    "$in": [  # ensure all clinical IDs are valid MongoDB ObjectIDs
-                        primary_id if isinstance(primary_id, ObjectId) else ObjectId(primary_id)
-                        for primary_id in primary_ids
-                    ]
+                    "$in": list(primary_ids)
                 }})
-            results = db[category].find(query, projection)
+            results = [result for result in db[category].find(query, projection)]
             ids = {  # ensure all returned clinical IDs are valid ObjectIDs
-                result[join_field] if isinstance(result[join_field], ObjectId) else ObjectId(result[join_field])
+                result[join_field]
                 for result in results
             }
             if not ids:
-                return set()
+                return RawQueryResult(tuple())
             # if this is the first run of the loop, save the IDs to the primary_ids set
             if not primary_ids:
                 primary_ids.update(ids)
             else:  # otherwise, intersect the set
-                results_to_remove = ids - primary_ids
+                results_to_remove = primary_ids - ids
                 for result_to_remove in results_to_remove:
-                    del all_results[category][result_to_remove["_id"]]
+                    del all_results[result_to_remove]
                 primary_ids.intersection_update(ids)
                 if not primary_ids:
-                    return set()
+                    return RawQueryResult(tuple())
                 else:
                     for result in results:
                         if result[join_field] in primary_ids:
-                            all_results[category][result['_id']].append(result)
-    return primary_ids
+                            all_results[result[join_field]][category][result['_id']] = {
+                                "result": result,
+                                "query": query
+                            }
+    for clinical_id, result in all_results.items():
+        yield RawQueryResult((clinical_id, result))
+
+
+def create_trial_match(raw_query_result: RawQueryResult) -> TrialMatch:
+    pass
 
 
 if __name__ == "__main__":
-    find_matches(protocol_nos=['17-251'])
-    # find_matches(sample_ids=["BL-17-W40535"], protocol_nos=None)
+    # find_matches(protocol_nos=['17-251'])
+    find_matches(sample_ids=["BL-17-W40535"], protocol_nos=None)
