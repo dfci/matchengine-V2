@@ -266,7 +266,8 @@ def run_query(db: pymongo.database.Database,
             else:  # otherwise, intersect the set
                 results_to_remove = primary_ids - ids
                 for result_to_remove in results_to_remove:
-                    del all_results[result_to_remove]
+                    if result_to_remove in all_results:
+                        del all_results[result_to_remove]
                 primary_ids.intersection_update(ids)
                 if not primary_ids:
                     return RawQueryResult(tuple())
@@ -287,4 +288,5 @@ def create_trial_match(raw_query_result: RawQueryResult) -> TrialMatch:
 
 if __name__ == "__main__":
     # find_matches(protocol_nos=['***REMOVED***'])
-    find_matches(sample_ids=["***REMOVED***"], protocol_nos=None)
+    # find_matches(sample_ids=["***REMOVED***"], protocol_nos=None)
+    find_matches()
