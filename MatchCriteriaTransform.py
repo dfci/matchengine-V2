@@ -88,4 +88,7 @@ class MatchCriteriaTransform(object):
     def to_upper(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
-        return {sample_key: trial_value.upper()}
+        if isinstance(trial_value, str) and trial_value[0] == '!':
+            return {sample_key: {"$ne": trial_value[1::].upper()}}
+        else:
+            return {sample_key: trial_value.upper()}
