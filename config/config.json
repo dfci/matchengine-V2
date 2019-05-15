@@ -24,7 +24,24 @@
       "VARIANT_CATEGORY": {
         "sample_key": "VARIANT_CATEGORY",
         "sample_value": "to_upper"
+      },
+      "CNV_CALL": {
+        "sample_key": "CNV_CALL",
+        "sample_value": "nomap"
+      },
+      "WILDTYPE": {
+        "sample_key": "WILDTYPE",
+        "sample_value": "nomap"
+      },
+      "MMR_STATUS": {
+        "sample_key": "MMR_STATUS",
+        "sample_value": "nomap"
+      },
+      "MS_STATUS": {
+        "sample_key": "MS_STATUS",
+        "sample_value": "nomap"
       }
+
     },
     "clinical": {
       "AGE_NUMERICAL": {
@@ -35,6 +52,19 @@
         "sample_key": "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
         "sample_value": "external_file_mapping",
         "file": "oncotree_mapping.json"
+      },
+      "GENDER": {
+        "sample_key": "GENDER",
+        "sample_value": "nomap"
+      },
+      "HER2_STATUS": {
+        "ignore": true
+      },
+      "PR_STATUS": {
+        "ignore": true
+      },
+      "ER_STATUS": {
+        "ignore": true
       }
     }
   }

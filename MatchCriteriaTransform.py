@@ -4,10 +4,11 @@ from dateutil.relativedelta import relativedelta
 
 
 class MatchCriteriaTransform(object):
+    CLINICAL: str = "clinical"
+
     resources: dict = None
     config: dict = None
     trial_key_mappings: dict = None
-    clinical_collection: str = "clinical"
     primary_collection_unique_field: str = "_id"
     collection_mappings: dict = {
         "genomic": {
@@ -25,9 +26,9 @@ class MatchCriteriaTransform(object):
 
     def nomap(self, **kwargs):
         trial_path = kwargs['trial_path']
-        sample_key = kwargs['sample_key']
         trial_key = kwargs['trial_key']
         trial_value = kwargs['trial_value']
+        sample_key = kwargs['sample_key']
         if isinstance(trial_value, str) and trial_value[0] == '!':
             return {sample_key: {"$ne": trial_value[1::]}}
         else:
