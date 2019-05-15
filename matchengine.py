@@ -36,6 +36,8 @@ def find_matches(sample_ids: list = None, protocol_nos: list = None, debug=False
     :param debug:
     :return:
     """
+    log.info('Beginning trial matching. %s on closed trials. %s deceased patients.')
+
     with open("config/config.json") as config_file_handle:
         config = json.load(config_file_handle)
     match_criteria_transform = MatchCriteriaTransform(config)
@@ -51,27 +53,31 @@ def find_matches(sample_ids: list = None, protocol_nos: list = None, debug=False
                         query = add_sample_ids_to_query(translated_match_path, sample_ids, match_criteria_transform)
                         results = [result for result in run_query(db, match_criteria_transform, query)]
 
-                        if debug:
-                            log.info(
-                                "query: {}".format(query))
+                        if len(results) > 0:
+                            log.info(f'Protocol No: {protocol_no}')
+                            log.info(f'Parent_path: {parent_path}')
+                            log.info(f'Match_path: {match_path}')
+                            log.info(f'Query: {query}')
+                            log.info(f'len(results): {len(results)}')
+                            log.info('')
 
-                        if results:
-                            log.info(
-                                f'Protocol No: {protocol_no}, parent_path: {parent_path}, match_path: {match_path}, query: {query}, len(results): {len(results)}')
-
-                            create_trial_match(results)
+                            create_trial_match(results, parent_path, match_clause)
                     except Exception as e:
                         logging.error("ERROR: {}".format(e))
                         raise e
 
 
-def get_trials(db: pymongo.database.Database,
-               protocol_nos: list = None) -> Generator[Trial, None, None]:
+def get_trials(db: pymongo.database.Database, protocol_nos: list = None) -> Generator[Trial, None, None]:
     trial_find_query = dict()
     if protocol_nos is not None:
         trial_find_query['protocol_no'] = {"$in": [protocol_no for protocol_no in protocol_nos]}
+
     for trial in db.trial.find(trial_find_query):
-        yield Trial(trial)
+        # TODO toggle with flag
+        if trial['status'].lower().strip() not in {"open to accrual"}:
+            yield Trial(trial)
+        else:
+            logging.info('Trial %s is closed, skipping' % trial['protocol_no'])
 
 
 def extract_match_clauses_from_trial(trial: Trial) -> Generator[List[Tuple[ParentPath, MatchClause]], None, None]:
@@ -257,32 +263,26 @@ def run_query(db: pymongo.database.Database,
             results = [result for result in db[category].find(query, projection)]
 
             # ensure all returned clinical IDs are valid ObjectIDs
-            ids = {
-                result[join_field]
-                for result in results
-            }
+            ids = {result[join_field] for result in results}
 
+            # short circuit if no values are returned
             if not ids:
                 return RawQueryResult(tuple())
 
-            # if this is the first run of the loop, save the IDs to the primary_ids set
+            results_to_remove = clinical_ids - ids
+            for result_to_remove in results_to_remove:
+                if result_to_remove in all_results:
+                    del all_results[result_to_remove]
+            clinical_ids.intersection_update(ids)
             if not clinical_docs:
-                clinical_docs.update(ids)
+                return RawQueryResult(tuple())
             else:
-                results_to_remove = clinical_ids - ids
-                for result_to_remove in results_to_remove:
-                    if result_to_remove in all_results:
-                        del all_results[result_to_remove]
-                clinical_ids.intersection_update(ids)
-                if not clinical_docs:
-                    return RawQueryResult(tuple())
-                else:
-                    for doc in results:
-                        if doc[join_field] in clinical_docs:
-                            all_results[doc[join_field]][category][doc['_id']] = {
-                                "result": doc,
-                                "query": query
-                            }
+                for doc in results:
+                    if doc[join_field] in clinical_docs:
+                        all_results[doc[join_field]][category][doc['_id']] = {
+                            "result": doc,
+                            "query": query
+                        }
 
     for clinical_id, doc in all_results.items():
         yield RawQueryResult((clinical_id, doc))
@@ -319,8 +319,7 @@ def execute_genomic_query():
     pass
 
 
-def create_trial_match(raw_query_result: RawQueryResult) -> TrialMatch:
-    return
+def create_trial_match(raw_query_result: RawQueryResult, parent_path, match_clause) -> TrialMatch:
     for query in raw_query_result:
         trial_match = dict()
         trial_match['clinical_id'] = query[0]
@@ -346,5 +345,5 @@ def create_trial_match(raw_query_result: RawQueryResult) -> TrialMatch:
 if __name__ == "__main__":
     # find_matches(protocol_nos=['***REMOVED***'])
     # find_matches(sample_ids=["***REMOVED***"], protocol_nos=None)
-    find_matches(sample_ids=["***REMOVED***"], protocol_nos=['***REMOVED***'])
+    find_matches(sample_ids=["***REMOVED***"], protocol_nos=['***REMOVED***'], debug=True)
     # find_matches(sample_ids=None, protocol_nos=None)
