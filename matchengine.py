@@ -54,7 +54,7 @@ def find_matches(sample_ids: list = None, protocol_nos: list = None, debug=False
                         query = add_sample_ids_to_query(translated_match_path, sample_ids, match_criteria_transform)
                         results = [result for result in run_query(db, match_criteria_transform, query)]
 
-                        if len(results) > 0:
+                        if debug:
                             log.info("Protocol No: {}".format(trial['protocol_no']))
                             log.info("Parent_path: {}".format(parent_path))
                             log.info("Match_path: {}".format(match_path))
@@ -70,12 +70,13 @@ def find_matches(sample_ids: list = None, protocol_nos: list = None, debug=False
 
 def get_trials(db: pymongo.database.Database, protocol_nos: list = None) -> Generator[Trial, None, None]:
     trial_find_query = dict()
+    projection = {'protocol_no': 1, 'nct_id': 1, 'treatment_list': 1, '_summary': 1, 'status': 1}
     if protocol_nos is not None:
         trial_find_query['protocol_no'] = {"$in": [protocol_no for protocol_no in protocol_nos]}
 
-    for trial in db.trial.find(trial_find_query):
+    for trial in db.trial.find(trial_find_query, projection):
         # TODO toggle with flag
-        if trial['_summary']['status'][0]['value'].lower().strip() in "open to accrual":
+        if trial['status'].lower().strip() in {"open to accrual"}:
             yield Trial(trial)
         else:
             logging.info('Trial %s is closed, skipping' % trial['protocol_no'])
@@ -95,7 +96,7 @@ def extract_match_clauses_from_trial(trial: Trial) -> Generator[List[Tuple[Paren
 
         # include top level match clauses
         if key == 'match':
-            # TODO remove, don't match on top level match clauses
+            # TODO uncomment, for now don't match on top level match clauses
             continue
         #     parent_path = ParentPath(tuple())
         #     yield parent_path, val
@@ -108,8 +109,16 @@ def extract_match_clauses_from_trial(trial: Trial) -> Generator[List[Tuple[Paren
         if isinstance(parent_value, dict):
             for inner_key, inner_value in parent_value.items():
                 if inner_key == 'match':
-                    parent_path = ParentPath(path + (parent_key, inner_key))
-                    yield parent_path, inner_value
+                    # skip closed dose and arm levels
+                    if 'dose' in path and 'arm' in path and 'step' in path \
+                            and parent_value['level_suspended'].lower().strip() == 'y':
+                        continue
+                    elif 'arm' in path and 'step' in path \
+                            and parent_value['arm_suspended'].lower().strip() == 'y':
+                        continue
+                    else:
+                        parent_path = ParentPath(path + (parent_key, inner_key))
+                        yield parent_path, inner_value
                 else:
                     process_q.append((path + (parent_key,), inner_key, inner_value))
         elif isinstance(parent_value, list):
@@ -310,18 +319,83 @@ def create_trial_match(db: pymongo.database.Database,
 
             genomic_doc = result[1]['genomic'][genomic_id]['result']
             query = result[1]['genomic'][genomic_id]['query']
-            del query['CLINICAL_ID']
+            if 'CLINICAL_ID' in query:
+                del query['CLINICAL_ID']
+
+        genomic_details = get_genomic_details(format_details(genomic_doc), query)
 
         trial_match = {
             **get_trial_details(parent_path, trial),
             **format_details(clinical_doc),
-            **format_details(genomic_doc),
+            **genomic_details,
             'genomic_id': genomic_id,
             'match_type': '',
             'sort_order': '',
             'query': query
         }
         db.trial_match_test.insert(trial_match)
+
+
+def get_genomic_details(genomic_doc, query):
+    if genomic_doc is None:
+        return {}
+
+    mmr_map_rev = {
+        'Proficient (MMR-P / MSS)': 'MMR-P/MSS',
+        'Deficient (MMR-D / MSI-H)': 'MMR-D/MSI-H'
+    }
+
+    # for clarity
+    hugo_symbol = 'TRUE_HUGO_SYMBOL'
+    true_protein = 'TRUE_PROTEIN_CHANGE'
+    cnv = 'CNV_CALL'
+    variant_classification = 'TRUE_VARIANT_CLASSIFICATION'
+    variant_category = 'VARIANT_CATEGORY'
+    wildtype = 'WILDTYPE'
+    mmr_status = 'MMR_STATUS'
+
+    alteration = ''
+    is_variant = 'gene'
+
+    # determine if match was gene- or variant-level
+    if true_protein in query and query[true_protein] is not None:
+        is_variant = 'variant'
+
+    # add wildtype calls
+    if wildtype in genomic_doc and genomic_doc[wildtype] is True:
+        alteration += 'wt '
+
+    # add gene
+    if hugo_symbol in genomic_doc and genomic_doc[hugo_symbol] is not None:
+        alteration += genomic_doc[hugo_symbol]
+
+    # add mutation
+    if true_protein in genomic_doc and genomic_doc[true_protein] is not None:
+        alteration += ' %s' % genomic_doc[true_protein]
+
+    # add cnv call
+    elif cnv in genomic_doc and genomic_doc[cnv] is not None:
+        alteration += ' %s' % genomic_doc[cnv]
+
+    # add variant classification
+    elif variant_classification in genomic_doc and genomic_doc[variant_classification] is not None:
+        alteration += ' %s' % genomic_doc[variant_classification]
+
+    # add structural variation
+    elif variant_category in genomic_doc and genomic_doc[variant_category] == 'SV':
+        alteration += ' Structural Variation'
+
+    # add mutational signtature
+    elif variant_category in genomic_doc \
+            and genomic_doc[variant_category] == 'SIGNATURE' \
+            and mmr_status in genomic_doc \
+            and genomic_doc[mmr_status] is not None:
+        alteration += mmr_map_rev[genomic_doc[mmr_status]]
+
+    return {
+        'match_type': is_variant,
+        'genomic_alteration': alteration
+    }
 
 
 def format_details(clinical_doc):
@@ -363,5 +437,5 @@ def get_trial_details(parent_path: ParentPath, trial: Trial) -> TrialMatch:
 if __name__ == "__main__":
     # find_matches(protocol_nos=['***REMOVED***'])
     # find_matches(sample_ids=["***REMOVED***"], protocol_nos=None)
-    # find_matches(sample_ids=["***REMOVED***"], protocol_nos=['***REMOVED***'])
-    find_matches(sample_ids=None, protocol_nos=None)
+    find_matches(protocol_nos=['***REMOVED***'])
+    # find_matches(sample_ids=None, protocol_nos=None)
