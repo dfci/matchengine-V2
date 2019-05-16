@@ -9,6 +9,8 @@ import networkx as nx
 import json
 import logging
 
+from settings import CLINICAL_PROJECTION, GENOMIC_PROJECTION
+
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
 
@@ -28,7 +30,7 @@ RawQueryResult = NewType("RawQueryResult",
 TrialMatch = NewType("TrialMatch", Dict[str, Any])
 
 
-def find_matches(sample_ids: list = None, protocol_nos: list = None, debug=False) -> dict:
+def find_matches(sample_ids: list = None, protocol_nos: list = None, debug=False):
     """
     Take a list of sample ids and trial protocol numbers, return a dict of trial matches
     :param sample_ids:
@@ -48,18 +50,17 @@ def find_matches(sample_ids: list = None, protocol_nos: list = None, debug=False
             for parent_path, match_clause in extract_match_clauses_from_trial(trial):
                 for match_path in get_match_paths(create_match_tree(match_clause)):
                     try:
-                        protocol_no = trial['protocol_no']
                         translated_match_path = translate_match_path(parent_path, match_path, match_criteria_transform)
                         query = add_sample_ids_to_query(translated_match_path, sample_ids, match_criteria_transform)
                         results = [result for result in run_query(db, match_criteria_transform, query)]
 
                         if len(results) > 0:
-                            log.info(f'Protocol No: {protocol_no}')
-                            log.info(f'Parent_path: {parent_path}')
-                            log.info(f'Match_path: {match_path}')
-                            log.info(f'Query: {query}')
-                            log.info(f'len(results): {len(results)}')
-                            log.info('')
+                            log.info("Protocol No: {}".format(trial['protocol_no']))
+                            log.info("Parent_path: {}".format(parent_path))
+                            log.info("Match_path: {}".format(match_path))
+                            log.info("Query: {}".format(query))
+                            log.info("Results: {}".format(len(results)))
+                            log.info("")
 
                             create_trial_match(db, results, parent_path, match_clause, trial)
                     except Exception as e:
@@ -99,7 +100,7 @@ def extract_match_clauses_from_trial(trial: Trial) -> Generator[List[Tuple[Paren
         #     parent_path = ParentPath(tuple())
         #     yield parent_path, val
         else:
-             process_q.append((tuple(), key, val))
+            process_q.append((tuple(), key, val))
 
     # process nested dicts to find more match clauses
     while process_q:
@@ -223,10 +224,8 @@ def run_query(db: pymongo.database.Database,
     # get clinical docs first
     clinical_docs, clinical_ids = execute_clinical_query(db, match_criteria_transformer, multi_collection_query)
 
-    # set on all_results to return later
     for doc in clinical_docs:
-        clinical_id = doc['_id']
-        all_results[clinical_id][match_criteria_transformer.CLINICAL][clinical_id] = doc
+        all_results[doc['_id']][match_criteria_transformer.CLINICAL][doc['_id']] = doc
 
     # If no clinical docs are returned, skip executing genomic portion of the query
     if not clinical_docs:
@@ -242,18 +241,8 @@ def run_query(db: pymongo.database.Database,
 
         join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
         projection = {join_field: 1}
-
         if genomic_or_clinical == 'genomic':
-            projection.update({
-                "TIER": 1,
-                "VARIANT_CATEGORY": 1,
-                "WILDTYPE": 1,
-                "TRUE_HUGO_SYMBOL": 1,
-                "TRUE_PROTEIN_CHANGE": 1,
-                "CNV_CALL": 1,
-                "TRUE_VARIANT_CLASSIFICATION": 1,
-                "MMR_STATUS": 1
-            })
+            projection.update(GENOMIC_PROJECTION)
 
         for query in queries:
             if clinical_docs:
@@ -266,7 +255,6 @@ def run_query(db: pymongo.database.Database,
             if not result_ids:
                 return RawQueryResult(tuple())
 
-            # remove clinical
             results_to_remove = clinical_ids - result_ids
             for result_to_remove in results_to_remove:
                 if result_to_remove in all_results:
@@ -287,7 +275,8 @@ def run_query(db: pymongo.database.Database,
         yield RawQueryResult((clinical_id, doc))
 
 
-def execute_clinical_query(db, match_criteria_transformer: MatchCriteriaTransform,
+def execute_clinical_query(db: pymongo.database.Database,
+                           match_criteria_transformer: MatchCriteriaTransform,
                            multi_collection_query: MultiCollectionQuery):
     clinical_docs = dict()
     clinical_ids = set()
@@ -295,18 +284,7 @@ def execute_clinical_query(db, match_criteria_transformer: MatchCriteriaTransfor
         collection = match_criteria_transformer.CLINICAL
         join_field = match_criteria_transformer.primary_collection_unique_field
         projection = {join_field: 1}
-        projection.update({
-            "SAMPLE_ID": 1,
-            'MRN': 1,
-            'ORD_PHYSICIAN_NAME': 1,
-            'ORD_PHYSICIAN_EMAIL': 1,
-            'ONCOTREE_PRIMARY_DIAGNOSIS_NAME': 1,
-            'REPORT_DATE': 1,
-            'VITAL_STATUS': 1,
-            'FIRST_LAST': 1,
-            'GENDER': 1
-
-        })
+        projection.update(CLINICAL_PROJECTION)
         query = {"$and": multi_collection_query[collection]}
         clinical_docs = [doc for doc in db[collection].find(query, projection)]
         clinical_ids = set([doc['_id'] for doc in clinical_docs])
@@ -314,45 +292,76 @@ def execute_clinical_query(db, match_criteria_transformer: MatchCriteriaTransfor
     return clinical_docs, clinical_ids
 
 
-def execute_genomic_query():
-    pass
-
-
-def create_trial_match(db, raw_query_result: RawQueryResult, parent_path, match_clause, trial) -> TrialMatch:
+def create_trial_match(db: pymongo.database.Database,
+                       raw_query_result: List[RawQueryResult],
+                       parent_path: ParentPath,
+                       match_clause: MatchClause,
+                       trial: Trial):
     for result in raw_query_result:
-
-        # genomic criteria
-        # code = trial['arm code']
-        if 'genomic' in result[1]:
-            match_reason = 'GENE'
-            for genomic_id, initial_query in result[1]['genomic'].items():
-                result = initial_query['result']
-                result = initial_query['query']
-                if result['TRUE_PROTEIN_CHANGE'] is not None and result['TRUE_PROTEIN_CHANGE'] in result:
-                    match_reason = 'VARIANT'
-                    print(match_reason)
-
-        # clinical criteria
-        # must be placed on every genomic trial_match
-        trial_match = dict()
         clinical_id = result[0]
-        clinical_obj = result[1]
-        trial_match['clinical_id'] = clinical_id
-        trial_match['mrn'] = clinical_obj['clinical'][clinical_id]['MRN']
-        trial_match['gender'] = clinical_obj['clinical'][clinical_id]['GENDER']
-        trial_match['ord_physician_name'] = clinical_obj['clinical'][clinical_id]['ORD_PHYSICIAN_NAME']
-        trial_match['ord_physician_email'] = clinical_obj['clinical'][clinical_id]['ORD_PHYSICIAN_EMAIL']
-        trial_match['first_last'] = clinical_obj['clinical'][clinical_id]['FIRST_LAST']
-        trial_match['report_date'] = clinical_obj['clinical'][clinical_id]['REPORT_DATE']
-        trial_match['oncotree_primary_diagnosis_name'] = clinical_obj['clinical'][clinical_id][
-            'ONCOTREE_PRIMARY_DIAGNOSIS_NAME']
-        trial_match['match_clause'] = match_clause
+        clinical_doc = result[1]['clinical'][clinical_id]
+
+        genomic_id = None
+        genomic_doc = dict()
+        query = dict()
+        if len(result[1]['genomic']) > 0:
+            for key in result[1]['genomic']:
+                genomic_id = key
+
+            genomic_doc = result[1]['genomic'][genomic_id]['result']
+            query = result[1]['genomic'][genomic_id]['query']
+            del query['CLINICAL_ID']
+
+        trial_match = {
+            **get_trial_details(parent_path, trial),
+            **format_details(clinical_doc),
+            **format_details(genomic_doc),
+            'genomic_id': genomic_id,
+            'match_type': '',
+            'sort_order': '',
+            'query': query
+        }
         db.trial_match_test.insert(trial_match)
 
+
+def format_details(clinical_doc):
+    return {key.lower(): val for key, val in clinical_doc.items() if key != "_id"}
+
+
+def get_trial_details(parent_path: ParentPath, trial: Trial) -> TrialMatch:
+    """
+    Extract relevant details from a trial curation to include in the trial_match document
+    :param parent_path:
+    :param trial:
+    :return:
+    """
+    treatment_list = parent_path[0] if 'treatment_list' in parent_path else None
+    step = parent_path[1] if 'step' in parent_path else None
+    step_no = parent_path[2] if 'step' in parent_path else None
+    arm = parent_path[3] if 'arm' in parent_path else None
+    arm_no = parent_path[4] if 'arm' in parent_path else None
+    dose = parent_path[5] if 'dose' in parent_path else None
+
+    trial_match = dict()
+    trial_match['protocol_no'] = trial['protocol_no']
+    trial_match['coordinating_center'] = trial['_summary']['coordinating_center']
+    trial_match['nct_id'] = trial['nct_id']
+
+    if 'step' in parent_path and 'arm' in parent_path and 'dose' in parent_path:
+        trial_match['code'] = trial[treatment_list][step][step_no][dose]['level_code']
+        trial_match['internal_id'] = trial[treatment_list][step][step_no][dose]['level_internal_id']
+    elif 'step' in parent_path and 'arm' in parent_path:
+        trial_match['code'] = trial[treatment_list][step][step_no][arm][arm_no]['arm_code']
+        trial_match['internal_id'] = trial[treatment_list][step][step_no][arm][arm_no]['arm_internal_id']
+    elif 'step' in parent_path:
+        trial_match['code'] = trial[treatment_list][step][step_no]['step_code']
+        trial_match['internal_id'] = trial[treatment_list][step][step_no][dose]['step_internal_id']
+
+    return TrialMatch(trial_match)
 
 
 if __name__ == "__main__":
     # find_matches(protocol_nos=['17-251'])
     # find_matches(sample_ids=["BL-17-W40535"], protocol_nos=None)
-    find_matches(sample_ids=["BL-17-J08441"], protocol_nos=['16-265'])
-    # find_matches(sample_ids=None, protocol_nos=None)
+    # find_matches(sample_ids=["BL-17-J08441"], protocol_nos=['16-265'])
+    find_matches(sample_ids=None, protocol_nos=None)
