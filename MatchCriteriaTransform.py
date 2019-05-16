@@ -93,3 +93,33 @@ class MatchCriteriaTransform(object):
             return {sample_key: {"$ne": trial_value[1::].upper()}}
         else:
             return {sample_key: trial_value.upper()}
+
+    def cnv_map(self, **kwargs):
+        # Heterozygous deletion,
+        # Gain,
+        # Homozygous deletion,
+        # High level amplification,
+        # Neu
+
+        trial_value = kwargs['trial_value']
+        sample_key = kwargs['sample_key']
+        cnv_map = {
+            "High Amplification": "High level amplification"
+        }
+
+        if trial_value in cnv_map:
+            return {sample_key: cnv_map[trial_value]}
+        else:
+            return {sample_key: trial_value}
+
+    def variant_category_map(self, **kwargs):
+        trial_value = kwargs['trial_value']
+        sample_key = kwargs['sample_key']
+        vc_map = {
+            "Copy Number Variation": "CNV"
+        }
+
+        if trial_value in vc_map:
+            return {sample_key: vc_map[trial_value]}
+        else:
+            return {sample_key: trial_value.upper()}

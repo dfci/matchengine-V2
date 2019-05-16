@@ -23,11 +23,11 @@
       },
       "VARIANT_CATEGORY": {
         "sample_key": "VARIANT_CATEGORY",
-        "sample_value": "to_upper"
+        "sample_value": "variant_category_map"
       },
       "CNV_CALL": {
         "sample_key": "CNV_CALL",
-        "sample_value": "nomap"
+        "sample_value": "cnv_map"
       },
       "WILDTYPE": {
         "sample_key": "WILDTYPE",
