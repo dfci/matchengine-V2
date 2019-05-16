@@ -74,7 +74,7 @@ def get_trials(db: pymongo.database.Database, protocol_nos: list = None) -> Gene
 
     for trial in db.trial.find(trial_find_query):
         # TODO toggle with flag
-        if trial['status'].lower().strip() not in {"open to accrual"}:
+        if trial['_summary']['status'][0]['value'].lower().strip() in "open to accrual":
             yield Trial(trial)
         else:
             logging.info('Trial %s is closed, skipping' % trial['protocol_no'])
@@ -92,14 +92,10 @@ def extract_match_clauses_from_trial(trial: Trial) -> Generator[List[Tuple[Paren
     process_q = deque()
     for key, val in trial.items():
 
-        # skip top level match clauses
+        # include top level match clauses
         if key == 'match':
-            continue
-            # if val[0]['clinical']['disease_status']:
-            #     continue
-            # else:
-            #     parent_path = ParentPath(tuple())
-            #     yield parent_path, val
+            parent_path = ParentPath(tuple())
+            yield parent_path, val
         else:
             process_q.append((tuple(), key, val))
 

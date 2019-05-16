@@ -65,6 +65,9 @@
       },
       "ER_STATUS": {
         "ignore": true
+      },
+      "DISEASE_STATUS": {
+        "ignore": true
       }
     }
   }
