@@ -61,7 +61,7 @@ def find_matches(sample_ids: list = None, protocol_nos: list = None, debug=False
                             log.info("Query: {}".format(query))
                         log.info("")
 
-                        create_trial_match(db, results, parent_path, match_clause, trial)
+                        create_trial_match(db, results, parent_path, trial)
                     except Exception as e:
                         logging.error("ERROR: {}".format(e))
                         raise e
@@ -315,9 +315,8 @@ def execute_clinical_query(db: pymongo.database.Database,
 def create_trial_match(db: pymongo.database.Database,
                        raw_query_result: List[RawQueryResult],
                        parent_path: ParentPath,
-                       match_clause: MatchClause,
                        trial: Trial):
-    # TODO missing attributes
+
     for result in raw_query_result:
         clinical_id = result[0]
         clinical_doc = result[1]['clinical'][clinical_id]
@@ -340,6 +339,7 @@ def create_trial_match(db: pymongo.database.Database,
             **get_trial_details(parent_path, trial),
             **format_details(clinical_doc),
             **genomic_details,
+            'clinical_id': clinical_id,
             'genomic_id': genomic_id,
             'sort_order': '',
             'query': query
@@ -405,7 +405,8 @@ def get_genomic_details(genomic_doc, query):
 
     return {
         'match_type': is_variant,
-        'genomic_alteration': alteration
+        'genomic_alteration': alteration,
+        **genomic_doc
     }
 
 
