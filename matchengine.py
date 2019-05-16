@@ -220,7 +220,8 @@ def add_sample_ids_to_query(query: MultiCollectionQuery,
             },
         })
     else:
-        # TODO add flag, default to matching on alive patients only
+        # TODO add flag
+        # default to matching on alive patients only
         query[match_criteria_transformer.CLINICAL].append({
             "VITAL_STATUS": "alive",
         })
@@ -237,6 +238,7 @@ def run_query(db: pymongo.database.Database,
     :param multi_collection_query:
     :return:
     """
+    # TODO refactor into smaller functions
     all_results = defaultdict(lambda: defaultdict(dict))
 
     # get clinical docs first
@@ -315,6 +317,7 @@ def create_trial_match(db: pymongo.database.Database,
                        parent_path: ParentPath,
                        match_clause: MatchClause,
                        trial: Trial):
+    # TODO missing attributes
     for result in raw_query_result:
         clinical_id = result[0]
         clinical_doc = result[1]['clinical'][clinical_id]
@@ -338,7 +341,6 @@ def create_trial_match(db: pymongo.database.Database,
             **format_details(clinical_doc),
             **genomic_details,
             'genomic_id': genomic_id,
-            'match_type': '',
             'sort_order': '',
             'query': query
         }
