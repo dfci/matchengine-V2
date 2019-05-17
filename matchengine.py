@@ -1,6 +1,6 @@
 from typing import Generator, Set
-from MatchCriteriaTransform import MatchCriteriaTransform
-from MongoDBConnection import MongoDBConnection
+from match_criteria_transform import MatchCriteriaTransform
+from mongo_connection import MongoDBConnection
 from collections import deque, defaultdict
 
 import pymongo.database
@@ -10,6 +10,7 @@ import logging
 
 from settings import CLINICAL_PROJECTION, GENOMIC_PROJECTION
 from matchengine_types import *
+from sort import Sort
 from trial_match_utils import *
 
 logging.basicConfig(level=logging.INFO)
@@ -51,6 +52,7 @@ def find_matches(sample_ids: list = None,
                     if debug:
                         log.info("Query: {}".format(query))
                     log.info("")
+                    # TODO match_clause_data is always an iteration off from a higher level
                     yield TrialMatch(trial, match_clause_data, match_path, query, results)
 
 
@@ -295,51 +297,31 @@ def run_query(db: pymongo.database.Database,
         yield RawQueryResult(multi_collection_query, ClinicalID(clinical_id), clinical_doc, genomic_docs)
 
 
-def create_trial_match(db: pymongo.database.Database,
-                       raw_query_results: List[RawQueryResult],
-                       parent_path: ParentPath,
-                       trial: Trial):
-    for clinical_id, collection_results in raw_query_results:
-        clinical_query, clinical_doc = collection_results['clinical'][clinical_id]
-
-        genomic_id = None
-        genomic_doc = dict()
-        for genomic_id, genomic_result_with_query in collection_results.setdefault('genomic', dict()).items():
-            genomic_query, genomic_doc = genomic_result_with_query
-            if 'CLINICAL_ID' in genomic_query:
-                del genomic_doc['CLINICAL_ID']
-
-            genomic_details = get_genomic_details(format_details(genomic_doc), genomic_query)
-
-            trial_match = {
-                **get_trial_details(parent_path, trial),
-                **format_details(clinical_doc),
-                **genomic_details,
-                'clinical_id': clinical_id,
-                'genomic_id': genomic_id,
-                'sort_order': '',
-                'query': genomic_query
+def create_trial_match(trial_match: TrialMatch):
+    for results in trial_match.raw_query_results:
+        for genomic_doc in results.genomic_docs:
+            new_trial_match = {
+                **format(results.clinical_doc),
+                **format(get_genomic_details(genomic_doc, trial_match.multi_collection_query['genomic'])),
+                **trial_match.match_clause_data.match_clause_additional_attributes,
+                'protocol_no': trial_match.trial['protocol_no'],
+                'coordinating_center': trial_match.trial['_summary']['coordinating_center'],
+                'nct_id': trial_match.trial['nct_id'],
+                "query": trial_match.match_criterion
             }
-            db.trial_match_test.insert(trial_match)
-        if collection_results.setdefault('genomic', None) is None:
-            genomic_details = get_genomic_details(format_details(genomic_doc), dict())
 
-            trial_match = {
-                **get_trial_details(parent_path, trial),
-                **format_details(clinical_doc),
-                **genomic_details,
-                'clinical_id': clinical_id,
-                'genomic_id': genomic_id,
-                'sort_order': '',
-                'query': dict()
-            }
-            db.trial_match_test.insert(trial_match)
+            yield new_trial_match
+
+
+def add_sort_order(new_trial_match, trial_match):
+    with open("config/config.json") as config_file_handle:
+        config = json.load(config_file_handle)
+
+    sort = Sort(config)
+    yield sort.sort(new_trial_match, trial_match)
 
 
 if __name__ == "__main__":
-    # find_matches(protocol_nos=['***REMOVED***'])
-    list(find_matches(sample_ids=["***REMOVED***"], protocol_nos=["18-626"]))
-    # for trial_match in find_matches(protocol_nos=['***REMOVED***']):
-    #     pass
-    # print(trial_match)
-    # find_matches(sample_ids=None, protocol_nos=None)
+    for trial_match in find_matches(sample_ids=['***REMOVED***'], protocol_nos=['***REMOVED***']):
+        for new_trial_match in create_trial_match(trial_match):
+            add_sort_order(new_trial_match, trial_match)
