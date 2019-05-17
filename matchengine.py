@@ -245,8 +245,8 @@ def run_query(db: pymongo.database.Database,
     # get clinical docs first
     clinical_docs, clinical_ids = execute_clinical_query(db, match_criteria_transformer, multi_collection_query)
 
-    for doc in clinical_docs:
-        all_results[doc['_id']][match_criteria_transformer.CLINICAL][doc['_id']] = doc
+    for key, doc in clinical_docs.items():
+        all_results[key][match_criteria_transformer.CLINICAL][key] = doc
 
     # If no clinical docs are returned, skip executing genomic portion of the query
     if not clinical_docs:
@@ -307,8 +307,8 @@ def execute_clinical_query(db: pymongo.database.Database,
         projection = {join_field: 1}
         projection.update(CLINICAL_PROJECTION)
         query = {"$and": multi_collection_query[collection]}
-        clinical_docs = [doc for doc in db[collection].find(query, projection)]
-        clinical_ids = set([doc['_id'] for doc in clinical_docs])
+        clinical_docs = {doc['_id'] : doc for doc in db[collection].find(query, projection)}
+        clinical_ids = set(clinical_docs.keys())
 
     return clinical_docs, clinical_ids
 
