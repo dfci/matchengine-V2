@@ -7,6 +7,7 @@ import pymongo.database
 import networkx as nx
 import json
 import logging
+import argparse
 
 from settings import CLINICAL_PROJECTION, GENOMIC_PROJECTION
 from matchengine_types import *
@@ -337,8 +338,97 @@ def create_trial_match(db: pymongo.database.Database,
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-trials",
+        nargs="*",
+        type=str,
+        default=None
+    )
+    parser.add_argument(
+        "-samples",
+        nargs="*",
+        type=str,
+        default=None
+    )
+    parser.add_argument(
+        '-serve',
+        nargs="*",
+        type=str,
+        default=None
+    )
+    parser.add_argument(
+        '-client',
+        nargs="*",
+        type=str,
+        default=None
+    )
+    parser.add_argument(
+        '-serve_batch',
+        nargs=1,
+        type=int,
+        default=20
+    )
+    args = parser.parse_args()
+    if args.serve is not None:
+        host = args.serve[0]
+        port = int(args.serve[1]) if len(args.serve) > 1 else 6379
+        password = args.serve[2] if len(args.serve) > 2 else None
+        import redis
+
+        r = redis.Redis(host=host, port=port, password=password if password else None)
+        trials = list()
+        samples = list()
+        if args.trials is None:
+            with MongoDBConnection(read_only=True) as db:
+                for protocol_no in db.trial.distinct('protocol_no'):
+                    trials.append(protocol_no)
+        if args.samples is None:
+            with MongoDBConnection(read_only=True) as db:
+                for sample_id in db.clinical.distinct("SAMPLE_ID"):
+                    samples.append(sample_id)
+        pipe = r.pipeline()
+        # for trial in trials:
+        #     pipe.sadd('trial-{}'.format(trial), samples)
+        #     pipe.hset('trials', trial, 'trial-{}'.format(trial))
+        # for sample in samples:
+        #     pipe.sadd('sample-{}'.format(sample), trials)
+        #     pipe.hset('samples', sample, 'sample-{}'.format(sample))
+
+
+        def chunks(l, n):
+            """Yield successive n-sized chunks from l."""
+            for i in range(0, len(l), n):
+                yield l[i:i + n]
+
+
+        for protocol_no in trials:
+            for sample_ids in chunks(samples, args.serve_batch):
+                run_args = json.dumps({'protocol_nos': [protocol_no], 'sample_ids': sample_ids})
+                pipe.lpush('job_queue', run_args)
+        pipe.execute()
+
+    elif args.client is not None:
+        host = args.client[0]
+        port = int(args.client[1]) if len(args.client) > 1 else 6379
+        password = args.client[2] if len(args.client) > 2 else None
+        import redis
+        import time
+
+        r = redis.Redis(host=host, port=port, password=password if password else None)
+        while True:
+            while not r.llen('job_queue'):
+                print(1)
+                time.sleep(1)
+            run_args = json.loads(r.lpop('job_queue'))
+            matches = [match for match in find_matches(**run_args)]
+            result_str = "{}".format(matches)
+            r.lpush('results', result_str)
+    else:
+        for match in find_matches(sample_ids=args.samples, protocol_nos=args.trials):
+            logging.info("{}".format(match))
     # find_matches(protocol_nos=['17-251'])
-    list(find_matches(sample_ids=["BL-17-W40535"], protocol_nos=["18-626"]))
+    # list(find_matches(sample_ids=["BL-17-W40535"], protocol_nos=["18-626"]))
     # for trial_match in find_matches(protocol_nos=['16-265']):
     #     pass
     # print(trial_match)
