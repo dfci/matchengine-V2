@@ -1,7 +1,7 @@
-from typing import Any, Tuple, Union, NewType, List, Dict, AsyncGenerator, Generator
+from typing import Any, Tuple, Union, NewType, List, Dict, AsyncGenerator, Generator, Set
 from MatchCriteriaTransform import MatchCriteriaTransform
 from MongoDBConnection import MongoDBConnection
-from collections import deque, defaultdict
+from collections import deque, defaultdict, namedtuple
 from bson import ObjectId
 
 import pymongo.database
@@ -26,8 +26,10 @@ MongoQueryResult = NewType("MongoQueryResult", Dict[str, Any])
 MongoQuery = NewType("MongoQuery", Dict[str, Any])
 GenomicID = NewType("GenomicID", ObjectId)
 ClinicalID = NewType("ClinicalID", ObjectId)
+Collection = NewType("Collection", str)
+ResultWithQuery = namedtuple("ResultWithQuery", ["query", "result"])
 RawQueryResult = NewType("RawQueryResult",
-                         Tuple[ClinicalID, Dict[GenomicID, Dict[str, Union[MongoQuery, MongoQueryResult]]]])
+                         Tuple[ClinicalID, Dict[Collection, Dict[ObjectId, ResultWithQuery]]])
 TrialMatch = NewType("TrialMatch", Dict[str, Any])
 
 
@@ -240,13 +242,18 @@ def run_query(db: pymongo.database.Database,
     :return:
     """
     # TODO refactor into smaller functions
-    all_results = defaultdict(lambda: defaultdict(dict))
+    all_results: Dict[ObjectId, Dict[Collection, Dict[ObjectId, ResultWithQuery]]] = defaultdict(
+        lambda: defaultdict(dict))
 
     # get clinical docs first
     clinical_docs, clinical_ids = execute_clinical_query(db, match_criteria_transformer, multi_collection_query)
 
     for key, doc in clinical_docs.items():
-        all_results[key][match_criteria_transformer.CLINICAL][key] = doc
+        collection = Collection(match_criteria_transformer.CLINICAL)
+        query = multi_collection_query[collection]
+        doc_id = doc["_id"]
+        result_with_query = ResultWithQuery(query, doc)
+        all_results[key][collection][doc_id] = result_with_query
 
     # If no clinical docs are returned, skip executing genomic portion of the query
     if not clinical_docs:
@@ -287,18 +294,17 @@ def run_query(db: pymongo.database.Database,
             else:
                 for doc in results:
                     if doc[join_field] in clinical_ids:
-                        all_results[doc[join_field]][genomic_or_clinical][doc['_id']] = {
-                            "result": doc,
-                            "query": query
-                        }
+                        doc_id = doc["_id"]
+                        all_results[doc[join_field]][genomic_or_clinical][doc_id] = ResultWithQuery(query, doc)
 
     for clinical_id, doc in all_results.items():
-        yield RawQueryResult((clinical_id, doc))
+        yield RawQueryResult((ClinicalID(clinical_id), doc))
 
 
 def execute_clinical_query(db: pymongo.database.Database,
                            match_criteria_transformer: MatchCriteriaTransform,
-                           multi_collection_query: MultiCollectionQuery):
+                           multi_collection_query: MultiCollectionQuery) -> Tuple[Dict[ObjectId, MongoQueryResult],
+                                                                                  Set[ObjectId]]:
     clinical_docs = dict()
     clinical_ids = set()
     if match_criteria_transformer.CLINICAL in multi_collection_query:
@@ -307,48 +313,27 @@ def execute_clinical_query(db: pymongo.database.Database,
         projection = {join_field: 1}
         projection.update(CLINICAL_PROJECTION)
         query = {"$and": multi_collection_query[collection]}
-        clinical_docs = {doc['_id'] : doc for doc in db[collection].find(query, projection)}
+        clinical_docs = {doc['_id']: doc for doc in db[collection].find(query, projection)}
         clinical_ids = set(clinical_docs.keys())
 
     return clinical_docs, clinical_ids
 
 
 def create_trial_match(db: pymongo.database.Database,
-                       raw_query_result: List[RawQueryResult],
+                       raw_query_results: List[RawQueryResult],
                        parent_path: ParentPath,
                        trial: Trial):
-    for result in raw_query_result:
-        clinical_id = result[0]
-        clinical_doc = result[1]['clinical'][clinical_id]
+    for clinical_id, collection_results in raw_query_results:
+        clinical_query, clinical_doc = collection_results['clinical'][clinical_id]
 
         genomic_id = None
         genomic_doc = dict()
-        query = dict()
-        if len(result[1]['genomic']) > 0:
-            # TODO clean up for docs with multiple genomic results, clean
-            for key in result[1]['genomic']:
-                genomic_id = key
+        for genomic_id, genomic_result_with_query in collection_results.setdefault('genomic', dict()).items():
+            genomic_query, genomic_doc = genomic_result_with_query
+            if 'CLINICAL_ID' in genomic_query:
+                del genomic_doc['CLINICAL_ID']
 
-                genomic_doc = result[1]['genomic'][genomic_id]['result']
-                query = result[1]['genomic'][genomic_id]['query']
-                if 'CLINICAL_ID' in query:
-                    del query['CLINICAL_ID']
-
-                genomic_details = get_genomic_details(format_details(genomic_doc), query)
-
-                trial_match = {
-                    **get_trial_details(parent_path, trial),
-                    **format_details(clinical_doc),
-                    **genomic_details,
-                    'clinical_id': clinical_id,
-                    'genomic_id': genomic_id,
-                    'sort_order': '',
-                    'query': query
-                }
-                db.trial_match_test.insert(trial_match)
-        else:
-
-            genomic_details = get_genomic_details(format_details(genomic_doc), query)
+            genomic_details = get_genomic_details(format_details(genomic_doc), genomic_query)
 
             trial_match = {
                 **get_trial_details(parent_path, trial),
@@ -357,7 +342,20 @@ def create_trial_match(db: pymongo.database.Database,
                 'clinical_id': clinical_id,
                 'genomic_id': genomic_id,
                 'sort_order': '',
-                'query': query
+                'query': genomic_query
+            }
+            db.trial_match_test.insert(trial_match)
+        if collection_results.setdefault('genomic', None) is None:
+            genomic_details = get_genomic_details(format_details(genomic_doc), dict())
+
+            trial_match = {
+                **get_trial_details(parent_path, trial),
+                **format_details(clinical_doc),
+                **genomic_details,
+                'clinical_id': clinical_id,
+                'genomic_id': genomic_id,
+                'sort_order': '',
+                'query': dict()
             }
             db.trial_match_test.insert(trial_match)
 
