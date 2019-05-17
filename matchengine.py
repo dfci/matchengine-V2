@@ -1,8 +1,7 @@
-from typing import Any, Tuple, Union, NewType, List, Dict, AsyncGenerator, Generator, Set
+from typing import Generator, Set
 from MatchCriteriaTransform import MatchCriteriaTransform
 from MongoDBConnection import MongoDBConnection
-from collections import deque, defaultdict, namedtuple
-from bson import ObjectId
+from collections import deque, defaultdict
 
 import pymongo.database
 import networkx as nx
@@ -10,30 +9,18 @@ import json
 import logging
 
 from settings import CLINICAL_PROJECTION, GENOMIC_PROJECTION
+from matchengine_types import *
 from trial_match_utils import *
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
 
-Trial = NewType("Trial", dict)
-ParentPath = NewType("ParentPath", Tuple[Union[str, int]])
-MatchClause = NewType("MatchClause", List[Dict[str, Any]])
-MatchTree = NewType("MatchTree", nx.DiGraph)
-MatchCriterion = NewType("MatchPath", List[Dict[str, Any]])
-MultiCollectionQuery = NewType("MongoQuery", dict)
-NodeID = NewType("NodeID", int)
-MongoQueryResult = NewType("MongoQueryResult", Dict[str, Any])
-MongoQuery = NewType("MongoQuery", Dict[str, Any])
-GenomicID = NewType("GenomicID", ObjectId)
-ClinicalID = NewType("ClinicalID", ObjectId)
-Collection = NewType("Collection", str)
-ResultWithQuery = namedtuple("ResultWithQuery", ["query", "result"])
-RawQueryResult = NewType("RawQueryResult",
-                         Tuple[ClinicalID, Dict[Collection, Dict[ObjectId, ResultWithQuery]]])
-TrialMatch = NewType("TrialMatch", Dict[str, Any])
 
-
-def find_matches(sample_ids: list = None, protocol_nos: list = None, debug=False):
+def find_matches(sample_ids: list = None,
+                 protocol_nos: list = None,
+                 debug=False) -> Generator[TrialMatch,
+                                           None,
+                                           None]:
     """
     Take a list of sample ids and trial protocol numbers, return a dict of trial matches
     :param sample_ids:
@@ -50,24 +37,21 @@ def find_matches(sample_ids: list = None, protocol_nos: list = None, debug=False
     with MongoDBConnection(read_only=True) as db:
         for trial in get_trials(db, protocol_nos):
             log.info("Begin Protocol No: {}".format(trial["protocol_no"]))
-            for parent_path, match_clause in extract_match_clauses_from_trial(trial):
-                for match_path in get_match_paths(create_match_tree(match_clause)):
-                    try:
-                        translated_match_path = translate_match_path(parent_path, match_path, match_criteria_transform)
-                        query = add_sample_ids_to_query(translated_match_path, sample_ids, match_criteria_transform)
-                        results = [result for result in run_query(db, match_criteria_transform, query)]
-                        log.info("Protocol No: {}".format(trial["protocol_no"]))
-                        log.info("Parent_path: {}".format(parent_path))
-                        log.info("Match_path: {}".format(match_path))
-                        log.info("Results: {}".format(len(results)))
-                        if debug:
-                            log.info("Query: {}".format(query))
-                        log.info("")
-
-                        create_trial_match(db, results, parent_path, trial)
-                    except Exception as e:
-                        logging.error("ERROR: {}".format(e))
-                        raise e
+            for match_clause_data in extract_match_clauses_from_trial(trial):
+                for match_path in get_match_paths(create_match_tree(match_clause_data.match_clause)):
+                    translated_match_path = translate_match_path(match_clause_data,
+                                                                 match_path,
+                                                                 match_criteria_transform)
+                    query = add_sample_ids_to_query(translated_match_path, sample_ids, match_criteria_transform)
+                    results = [result for result in run_query(db, match_criteria_transform, query)]
+                    log.info("Protocol No: {}".format(trial["protocol_no"]))
+                    log.info("Parent_path: {}".format(match_clause_data.parent_path))
+                    log.info("Match_path: {}".format(match_path))
+                    log.info("Results: {}".format(len(results)))
+                    if debug:
+                        log.info("Query: {}".format(query))
+                    log.info("")
+                    yield TrialMatch(trial, match_clause_data, match_path, query, results)
 
 
 def get_trials(db: pymongo.database.Database, protocol_nos: list = None) -> Generator[Trial, None, None]:
@@ -84,7 +68,7 @@ def get_trials(db: pymongo.database.Database, protocol_nos: list = None) -> Gene
             logging.info('Trial %s is closed, skipping' % trial['protocol_no'])
 
 
-def extract_match_clauses_from_trial(trial: Trial) -> Generator[List[Tuple[ParentPath, MatchClause]], None, None]:
+def extract_match_clauses_from_trial(trial: Trial) -> Generator[MatchClauseData, None, None]:
     """
     Pull out all of the matches from a trial curation.
     Return the parent path and the values of that match clause
@@ -111,21 +95,19 @@ def extract_match_clauses_from_trial(trial: Trial) -> Generator[List[Tuple[Paren
         if isinstance(parent_value, dict):
             for inner_key, inner_value in parent_value.items():
                 if inner_key == 'match':
-                    # TODO toggle with flag
-                    # skip closed dose and arm levels
-                    if 'dose' in path and 'arm' in path and 'step' in path \
-                            and parent_value['level_suspended'].lower().strip() == 'y':
-                        log.info('Dose level suspended {0}'.format(path))
-                        continue
-
-                    # TODO don't match on open arms inside closed steps
-                    elif 'arm' in path and 'step' in path \
-                            and parent_value['arm_suspended'].lower().strip() == 'y':
-                        log.info('Arm suspended {0}'.format(path))
-                        continue
-                    else:
-                        parent_path = ParentPath(path + (parent_key, inner_key))
-                        yield parent_path, inner_value
+                    if path[-1] == 'arm':
+                        if parent_value.setdefault('arm_suspended', 'n').lower().strip() == 'y':
+                            continue
+                    elif path[-1] == 'dose':
+                        if parent_value.setdefault('level_suspended', 'n').lower().strip() == 'y':
+                            continue
+                    elif path[-1] == 'step':
+                        if all([arm.setdefault('arm_suspended', 'n').lower().strip() == 'y'
+                                for arm in parent_value.setdefault('arm', list({'arm_suspended': 'y'}))]):
+                            continue
+                    parent_path = ParentPath(path + (parent_key, inner_key))
+                    level = MatchClauseLevel([item for item in parent_path[::-1] if not isinstance(item, int)][0])
+                    yield MatchClauseData(inner_value, parent_path, level, parent_value)
                 else:
                     process_q.append((path + (parent_key,), inner_key, inner_value))
         elif isinstance(parent_value, list):
@@ -177,13 +159,13 @@ def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, No
         yield match_path
 
 
-def translate_match_path(path: ParentPath,
+def translate_match_path(match_clause_data: MatchClauseData,
                          match_criterion: MatchCriterion,
                          match_criteria_transformer: MatchCriteriaTransform) -> MultiCollectionQuery:
     """
     Translate the keys/values from the trial curation into keys/values used in a genomic/clinical document.
     Uses an external config file ./config/config.json
-    :param path:
+    :param match_clause_data:
     :param match_criterion:
     :param match_criteria_transformer:
     :return:
@@ -204,7 +186,7 @@ def translate_match_path(path: ParentPath,
                 sample_function = MatchCriteriaTransform.__dict__[sample_value_function_name]
                 args = dict(sample_key=trial_key.upper(),
                             trial_value=trial_value,
-                            parent_path=path,
+                            parent_path=match_clause_data.parent_path,
                             trial_path=genomic_or_clinical,
                             trial_key=trial_key)
                 args.update(trial_key_settings)
@@ -231,76 +213,6 @@ def add_sample_ids_to_query(query: MultiCollectionQuery,
     return query
 
 
-def run_query(db: pymongo.database.Database,
-              match_criteria_transformer: MatchCriteriaTransform,
-              multi_collection_query: MultiCollectionQuery) -> Generator[RawQueryResult, None, RawQueryResult]:
-    """
-    Execute mongo query
-    :param db:
-    :param match_criteria_transformer:
-    :param multi_collection_query:
-    :return:
-    """
-    # TODO refactor into smaller functions
-    all_results: Dict[ObjectId, Dict[Collection, Dict[ObjectId, ResultWithQuery]]] = defaultdict(
-        lambda: defaultdict(dict))
-
-    # get clinical docs first
-    clinical_docs, clinical_ids = execute_clinical_query(db, match_criteria_transformer, multi_collection_query)
-
-    for key, doc in clinical_docs.items():
-        collection = Collection(match_criteria_transformer.CLINICAL)
-        query = multi_collection_query[collection]
-        doc_id = doc["_id"]
-        result_with_query = ResultWithQuery(query, doc)
-        all_results[key][collection][doc_id] = result_with_query
-
-    # If no clinical docs are returned, skip executing genomic portion of the query
-    if not clinical_docs:
-        return RawQueryResult(tuple())
-
-    # iterate over all queries
-    for items in multi_collection_query.items():
-        genomic_or_clinical, queries = items
-
-        # skip clinical queries as they've already been executed
-        if genomic_or_clinical == match_criteria_transformer.CLINICAL and clinical_docs:
-            continue
-
-        join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
-        projection = {join_field: 1}
-        if genomic_or_clinical == 'genomic':
-            projection.update(GENOMIC_PROJECTION)
-
-        for query in queries:
-            if clinical_docs:
-                query.update({join_field: {"$in": list(clinical_ids)}})
-
-            results = [result for result in db[genomic_or_clinical].find(query, projection)]
-            result_ids = {result[join_field] for result in results}
-
-            # short circuit if no values are returned
-            if not result_ids:
-                return RawQueryResult(tuple())
-
-            results_to_remove = clinical_ids - result_ids
-            for result_to_remove in results_to_remove:
-                if result_to_remove in all_results:
-                    del all_results[result_to_remove]
-            clinical_ids.intersection_update(result_ids)
-
-            if not clinical_docs:
-                return RawQueryResult(tuple())
-            else:
-                for doc in results:
-                    if doc[join_field] in clinical_ids:
-                        doc_id = doc["_id"]
-                        all_results[doc[join_field]][genomic_or_clinical][doc_id] = ResultWithQuery(query, doc)
-
-    for clinical_id, doc in all_results.items():
-        yield RawQueryResult((ClinicalID(clinical_id), doc))
-
-
 def execute_clinical_query(db: pymongo.database.Database,
                            match_criteria_transformer: MatchCriteriaTransform,
                            multi_collection_query: MultiCollectionQuery) -> Tuple[Dict[ObjectId, MongoQueryResult],
@@ -317,6 +229,70 @@ def execute_clinical_query(db: pymongo.database.Database,
         clinical_ids = set(clinical_docs.keys())
 
     return clinical_docs, clinical_ids
+
+
+def run_query(db: pymongo.database.Database,
+              match_criteria_transformer: MatchCriteriaTransform,
+              multi_collection_query: MultiCollectionQuery) -> Generator[RawQueryResult, None, RawQueryResult]:
+    """
+    Execute mongo query
+    :param db:
+    :param match_criteria_transformer:
+    :param multi_collection_query:
+    :return:
+    """
+    # TODO refactor into smaller functions
+    all_results: Dict[ObjectId, Dict[Collection, Dict[ObjectId, Dict[Any, Any]]]] = defaultdict(
+        lambda: defaultdict(dict))
+
+    # get clinical docs first
+    clinical_docs, clinical_ids = execute_clinical_query(db, match_criteria_transformer, multi_collection_query)
+
+    for key, doc in clinical_docs.items():
+        collection = Collection(match_criteria_transformer.CLINICAL)
+        all_results[key][collection] = doc
+
+    # If no clinical docs are returned, skip executing genomic portion of the query
+    if not clinical_docs:
+        return RawQueryResult(multi_collection_query, None, None, None)
+
+    # iterate over all queries
+    for items in multi_collection_query.items():
+        genomic_or_clinical, queries = items
+
+        # skip clinical queries as they've already been executed
+        if genomic_or_clinical == match_criteria_transformer.CLINICAL and clinical_docs:
+            continue
+
+        join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
+        projection = {join_field: 1}
+        if genomic_or_clinical == 'genomic':
+            projection.update(GENOMIC_PROJECTION)
+
+        for query in queries:
+            query.update({join_field: {"$in": list(clinical_ids)}})
+
+            results = [result for result in db[genomic_or_clinical].find(query, projection)]
+            result_ids = {result[join_field] for result in results}
+
+            results_to_remove = clinical_ids - result_ids
+            for result_to_remove in results_to_remove:
+                if result_to_remove in all_results:
+                    del all_results[result_to_remove]
+            clinical_ids.intersection_update(result_ids)
+
+            if not clinical_docs:
+                return RawQueryResult(multi_collection_query, None, None, None)
+            else:
+                for doc in results:
+                    if doc[join_field] in clinical_ids:
+                        doc_id = doc["_id"]
+                        all_results[doc[join_field]][genomic_or_clinical][doc_id] = doc
+
+    for clinical_id, doc in all_results.items():
+        clinical_doc = doc['clinical']
+        genomic_docs = [genomic_doc for genomic_doc in doc['genomic'].values()]
+        yield RawQueryResult(multi_collection_query, ClinicalID(clinical_id), clinical_doc, genomic_docs)
 
 
 def create_trial_match(db: pymongo.database.Database,
@@ -362,6 +338,8 @@ def create_trial_match(db: pymongo.database.Database,
 
 if __name__ == "__main__":
     # find_matches(protocol_nos=['17-251'])
-    # find_matches(sample_ids=["BL-17-W40535"], protocol_nos=None)
-    find_matches(protocol_nos=['16-265'])
+    list(find_matches(sample_ids=["BL-17-W40535"], protocol_nos=["18-626"]))
+    # for trial_match in find_matches(protocol_nos=['16-265']):
+    #     pass
+    # print(trial_match)
     # find_matches(sample_ids=None, protocol_nos=None)

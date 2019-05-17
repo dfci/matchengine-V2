@@ -68,7 +68,7 @@ def format_details(clinical_doc):
     return {key.lower(): val for key, val in clinical_doc.items() if key != "_id"}
 
 
-def get_trial_details(parent_path: ParentPath, trial: Trial) -> TrialMatch:
+def get_trial_details(parent_path: ParentPath, trial: Trial) -> object:
     """
     Extract relevant details from a trial curation to include in the trial_match document
     :param parent_path:
@@ -97,4 +97,4 @@ def get_trial_details(parent_path: ParentPath, trial: Trial) -> TrialMatch:
         trial_match['code'] = trial[treatment_list][step][step_no]['step_code']
         trial_match['internal_id'] = trial[treatment_list][step][step_no][dose]['step_internal_id']
 
-    return TrialMatch(trial_match)
+    return trial_match
