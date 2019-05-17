@@ -41,7 +41,6 @@
         "sample_key": "MS_STATUS",
         "sample_value": "nomap"
       }
-
     },
     "clinical": {
       "AGE_NUMERICAL": {
