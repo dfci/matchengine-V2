@@ -71,7 +71,11 @@ def get_trials(db: pymongo.database.Database, protocol_nos: list = None) -> Gene
 def extract_match_clauses_from_trial(trial: Trial) -> Generator[MatchClauseData, None, None]:
     """
     Pull out all of the matches from a trial curation.
-    Return the parent path and the values of that match clause
+    Return the parent path and the values of that match clause.
+
+    Default to only extracting match clauses on steps, arms or dose levels which are open to accrual unless otherwise
+    specified
+
     :param trial:
     :return:
     """
@@ -165,6 +169,7 @@ def translate_match_path(match_clause_data: MatchClauseData,
     """
     Translate the keys/values from the trial curation into keys/values used in a genomic/clinical document.
     Uses an external config file ./config/config.json
+
     :param match_clause_data:
     :param match_criterion:
     :param match_criteria_transformer:
@@ -198,6 +203,15 @@ def translate_match_path(match_clause_data: MatchClauseData,
 def add_sample_ids_to_query(query: MultiCollectionQuery,
                             sample_ids: List[str],
                             match_criteria_transformer: MatchCriteriaTransform) -> MultiCollectionQuery:
+    """
+    If any sample ids are passed in as command line arguments, add them to clinical queries.
+    Default all clinical queries to return only patients who are alive.
+
+    :param query:
+    :param sample_ids:
+    :param match_criteria_transformer:
+    :return:
+    """
     if sample_ids is not None:
         query[match_criteria_transformer.CLINICAL].append({
             "SAMPLE_ID": {
@@ -235,7 +249,9 @@ def run_query(db: pymongo.database.Database,
               match_criteria_transformer: MatchCriteriaTransform,
               multi_collection_query: MultiCollectionQuery) -> Generator[RawQueryResult, None, RawQueryResult]:
     """
-    Execute mongo query
+    Execute a mongo query on the clinical and genomic collections to find trial matches.
+    First execute the clinical query. If no records are returned short-circuit and return.
+
     :param db:
     :param match_criteria_transformer:
     :param multi_collection_query:
@@ -296,6 +312,10 @@ def run_query(db: pymongo.database.Database,
 
 
 def create_trial_match(trial_match: TrialMatch):
+    """
+    Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
+    in config.json
+    """
     # todo add trial data from config instead of hardcoding
     for results in trial_match.raw_query_results:
         for genomic_doc in results.genomic_docs:
@@ -312,16 +332,11 @@ def create_trial_match(trial_match: TrialMatch):
             yield new_trial_match
 
 
-def add_sort_order(new_trial_match, trial_match):
+if __name__ == "__main__":
     with open("config/config.json") as config_file_handle:
         config = json.load(config_file_handle)
 
     sort = Sort(config)
-    yield sort.sort(new_trial_match, trial_match)
-
-
-if __name__ == "__main__":
     for trial_match in find_matches(sample_ids=['***REMOVED***'], protocol_nos=['***REMOVED***']):
-        for new_trial_match in create_trial_match(trial_match):
-            add_sort_order(new_trial_match, trial_match)
-
+        for trial_match_doc in create_trial_match(trial_match):
+            sort.sort(trial_match_doc, trial_match)
