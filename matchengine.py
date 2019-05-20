@@ -1,17 +1,16 @@
-from typing import Generator, Set
 from match_criteria_transform import MatchCriteriaTransform
 from mongo_connection import MongoDBConnection
 from collections import deque, defaultdict
+from typing import Generator, Set
 
 import pymongo.database
 import networkx as nx
-import json
 import logging
+import json
 
-from settings import CLINICAL_PROJECTION, GENOMIC_PROJECTION
 from matchengine_types import *
-from sort import Sort
 from trial_match_utils import *
+from sort import Sort
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
@@ -52,7 +51,6 @@ def find_matches(sample_ids: list = None,
                     if debug:
                         log.info("Query: {}".format(query))
                     log.info("")
-                    # TODO match_clause_data is always an iteration off from a higher level
                     yield TrialMatch(trial, match_clause_data, match_path, query, results)
 
 
@@ -225,7 +223,7 @@ def execute_clinical_query(db: pymongo.database.Database,
         collection = match_criteria_transformer.CLINICAL
         join_field = match_criteria_transformer.primary_collection_unique_field
         projection = {join_field: 1}
-        projection.update(CLINICAL_PROJECTION)
+        projection.update(match_criteria_transformer.clinical_projection)
         query = {"$and": multi_collection_query[collection]}
         clinical_docs = {doc['_id']: doc for doc in db[collection].find(query, projection)}
         clinical_ids = set(clinical_docs.keys())
@@ -269,7 +267,7 @@ def run_query(db: pymongo.database.Database,
         join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
         projection = {join_field: 1}
         if genomic_or_clinical == 'genomic':
-            projection.update(GENOMIC_PROJECTION)
+            projection.update(match_criteria_transformer.genomic_projection)
 
         for query in queries:
             query.update({join_field: {"$in": list(clinical_ids)}})
@@ -298,6 +296,7 @@ def run_query(db: pymongo.database.Database,
 
 
 def create_trial_match(trial_match: TrialMatch):
+    # todo add trial data from config instead of hardcoding
     for results in trial_match.raw_query_results:
         for genomic_doc in results.genomic_docs:
             new_trial_match = {
@@ -325,3 +324,4 @@ if __name__ == "__main__":
     for trial_match in find_matches(sample_ids=['***REMOVED***'], protocol_nos=['***REMOVED***']):
         for new_trial_match in create_trial_match(trial_match):
             add_sort_order(new_trial_match, trial_match)
+

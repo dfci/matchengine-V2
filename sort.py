@@ -4,16 +4,16 @@ class Sort(object):
 
     def sort(self, new_trial_match, trial_match):
         """
-        Sort trial matches based on sorting order specified in config.json
+        Sort trial matches based on sorting order specified in config.json under the key 'trial_match_sorting'.
 
-        MMR > Tier 1 > Tier 2 > CNV > Tier 3 > Tier 4 > wild type
-        Current thinking:
-        Structured SVs are tiered, so include those in the existing Tier order
-        TMB and signatures probably come between MMR & Tier 1
-        Split out MMR-D vs MMR-P??
+        The function will iterate over the objects in the 'trial_match_sorting', and then assess each trial match key
+        to determine a final sort string e.g. 001010111000
+
+        The sorting is multi-dimensional and currently organized as follows:
+        MMR status > Tier 1 > Tier 2 > CNV > Tier 3 > Tier 4 > wild type
         Variant-level  > gene-level
         Exact cancer match > all solid/liquid
-        Co-ordinating center: DFCI > others
+        DFCI > Coordinating centers
 
         :param new_trial_match:
         :param trial_match:

@@ -23,6 +23,8 @@ class MatchCriteriaTransform(object):
         self.resources = dict()
         self.config = config
         self.trial_key_mappings = config['trial_key_mappings']
+        self.clinical_projection = {proj: 1 for proj in config["trial_match_document"]['clinical']}
+        self.genomic_projection = {proj: 1 for proj in config["trial_match_document"]['genomic']}
 
     def nomap(self, **kwargs):
         trial_path = kwargs['trial_path']
