@@ -45,9 +45,9 @@ def find_matches(sample_ids: list = None,
                                                                  match_criteria_transform)
                     query = add_sample_ids_to_query(translated_match_path, sample_ids, match_criteria_transform)
                     results = [result for result in run_query(db, match_criteria_transform, query)]
-                    log.info("Protocol No: {}".format(trial["protocol_no"]))
-                    log.info("Parent_path: {}".format(match_clause_data.parent_path))
-                    log.info("Match_path: {}".format(match_path))
+                    # log.info("Protocol No: {}".format(trial["protocol_no"]))
+                    # log.info("Parent_path: {}".format(match_clause_data.parent_path))
+                    # log.info("Match_path: {}".format(match_path))
                     log.info("Results: {}".format(len(results)))
                     if debug:
                         log.info("Query: {}".format(query))
@@ -271,7 +271,7 @@ def run_query(db: pymongo.database.Database,
             projection.update(GENOMIC_PROJECTION)
 
         for query in queries:
-            query.update({join_field: {"$in": list(clinical_ids)}})
+            # query.update({join_field: {"$in": list(clinical_ids)}})
 
             results = [result for result in db[genomic_or_clinical].find(query, projection)]
             result_ids = {result[join_field] for result in results}
@@ -425,8 +425,12 @@ if __name__ == "__main__":
             result_str = "{}".format(matches)
             r.lpush('results', result_str)
     else:
+        count = 0
         for match in find_matches(sample_ids=args.samples, protocol_nos=args.trials):
-            logging.info("{}".format(match))
+            count += 1
+            if count == 100:
+                exit()
+            # logging.info("{}".format(match))
     # find_matches(protocol_nos=['***REMOVED***'])
     # list(find_matches(sample_ids=["***REMOVED***"], protocol_nos=["18-626"]))
     # for trial_match in find_matches(protocol_nos=['***REMOVED***']):
