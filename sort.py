@@ -37,11 +37,11 @@ class Sort(object):
                         # lastly, sort on protocol_no
                         if new_trial_val is not None:
                             if trial_key == 'protocol_no':
-                                sort_string_prepend_val = new_trial_val
+                                to_append = new_trial_val
                             else:
-                                sort_string_prepend_val = sort_level_keys[sort_key][str(new_trial_val)]
+                                to_append = sort_level_keys[sort_key][str(new_trial_val)]
 
-                            sort_string = sort_string_prepend_val + sort_string
+                            sort_string = sort_string + to_append
 
         sort_string = ''.join([digit for digit in sort_string if digit.isdigit()])
         new_trial_match['sort_order'] = sort_string
