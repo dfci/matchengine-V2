@@ -3,6 +3,7 @@ from typing import NewType, Tuple, Union, List, Dict, Any
 from bson import ObjectId
 from networkx import DiGraph
 
+
 Trial = NewType("Trial", dict)
 ParentPath = NewType("ParentPath", Tuple[Union[str, int]])
 MatchClause = NewType("MatchClause", List[Dict[str, Any]])
@@ -26,6 +27,8 @@ class MatchClauseData:
     match_clause_additional_attributes: dict
 
 
+
+
 @dataclass
 class RawQueryResult:
     query: MultiCollectionQuery
@@ -40,4 +43,12 @@ class TrialMatch:
     match_clause_data: MatchClauseData
     match_criterion: MatchCriterion
     multi_collection_query: MultiCollectionQuery
-    raw_query_results: List[RawQueryResult]
+    raw_query_result: RawQueryResult
+
+@dataclass
+class QueueTask:
+    match_criteria_transform: object
+    trial: Trial
+    match_clause_data: MatchClauseData
+    match_path: MatchCriterion
+    query: MultiCollectionQuery

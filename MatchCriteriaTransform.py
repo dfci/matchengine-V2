@@ -119,7 +119,11 @@ class MatchCriteriaTransform(object):
             "Copy Number Variation": "CNV"
         }
 
+        negate = False
+        if isinstance(trial_value, str) and trial_value[0] == '!':
+            negate = True
+            trial_value = trial_value[1::]
         if trial_value in vc_map:
-            return {sample_key: vc_map[trial_value]}
+            return {sample_key: vc_map[trial_value]} if not negate else {sample_key: {"$ne": vc_map[trial_value]}}
         else:
-            return {sample_key: trial_value.upper()}
+            return {sample_key: trial_value.upper()} if not negate else {sample_key: {"$ne": trial_value.upper()}}
