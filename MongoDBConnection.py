@@ -1,4 +1,5 @@
 import pymongo
+import motor.motor_asyncio
 
 
 class MongoDBConnection(object):
@@ -25,7 +26,7 @@ class MongoDBConnection(object):
             self.uri = uri
 
     def __enter__(self):
-        self.client = pymongo.MongoClient(
+        self.client = motor.motor_asyncio.AsyncIOMotorClient(
             self.uri.format(username=self.SECRETS["MONGO_USERNAME"],
                             password=self.SECRETS["MONGO_PW"],
                             hostname=self.SECRETS["MONGO_HOST"],
