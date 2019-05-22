@@ -35,7 +35,7 @@ def find_matches(sample_ids: list = None,
     match_criteria_transform = MatchCriteriaTransform(config)
 
     with MongoDBConnection(read_only=True) as db:
-        for trial in get_trials(db, protocol_nos):
+        for trial in get_trials(db, match_criteria_transform, protocol_nos):
             log.info("Begin Protocol No: {}".format(trial["protocol_no"]))
             for match_clause_data in extract_match_clauses_from_trial(trial):
                 for match_path in get_match_paths(create_match_tree(match_clause_data.match_clause)):
@@ -54,9 +54,15 @@ def find_matches(sample_ids: list = None,
                     yield TrialMatch(trial, match_clause_data, match_path, query, results)
 
 
-def get_trials(db: pymongo.database.Database, protocol_nos: list = None) -> Generator[Trial, None, None]:
+def get_trials(db: pymongo.database.Database,
+               match_criteria_transform: MatchCriteriaTransform,
+               protocol_nos: list = None) -> Generator[Trial, None, None]:
     trial_find_query = dict()
-    projection = {'protocol_no': 1, 'nct_id': 1, 'treatment_list': 1, '_summary': 1, 'status': 1}
+
+    # the minimum criteria needed in a trial projection. add extra values in config.json
+    projection = {'protocol_no': 1, 'nct_id': 1, 'treatment_list': 1, 'status': 1}
+    projection.update(match_criteria_transform.trial_projection)
+
     if protocol_nos is not None:
         trial_find_query['protocol_no'] = {"$in": [protocol_no for protocol_no in protocol_nos]}
 
@@ -236,7 +242,16 @@ def execute_clinical_query(db: pymongo.database.Database,
     if match_criteria_transformer.CLINICAL in multi_collection_query:
         collection = match_criteria_transformer.CLINICAL
         join_field = match_criteria_transformer.primary_collection_unique_field
-        projection = {join_field: 1}
+
+        # minimum projection necessary for matching. Append extra values from config if desired
+        projection = {
+            join_field: 1,
+            "SAMPLE_ID": 1,
+            "MRN": 1,
+            "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": 1,
+            "VITAL_STATUS": 1,
+            "FIRST_LAST": 1
+        }
         projection.update(match_criteria_transformer.clinical_projection)
         query = {"$and": multi_collection_query[collection]}
         clinical_docs = {doc['_id']: doc for doc in db[collection].find(query, projection)}
@@ -281,7 +296,22 @@ def run_query(db: pymongo.database.Database,
             continue
 
         join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
-        projection = {join_field: 1}
+
+        # minimum fields required to execute matching. Extra matching fields can be added in config.json
+        projection = {
+            join_field: 1,
+            "SAMPLE_ID": 1,
+            "CLINICAL_ID": 1,
+            "VARIANT_CATEGORY": 1,
+            "WILDTYPE": 1,
+            "TIER": 1,
+            "TRUE_HUGO_SYMBOL": 1,
+            "TRUE_PROTEIN_CHANGE": 1,
+            "CNV_CALL": 1,
+            "TRUE_VARIANT_CLASSIFICATION": 1,
+            "MMR_STATUS": 1,
+        }
+
         if genomic_or_clinical == 'genomic':
             projection.update(match_criteria_transformer.genomic_projection)
 
@@ -316,16 +346,21 @@ def create_trial_match(trial_match: TrialMatch):
     Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
     in config.json
     """
-    # todo add trial data from config instead of hardcoding
+    # remove extra fields from trial_match output
+    trial = dict()
+    for key in trial_match.trial:
+        if key in ['treatment_list', '_summary', 'status', '_id']:
+            continue
+        else:
+            trial[key] = trial_match.trial[key]
+
     for results in trial_match.raw_query_results:
         for genomic_doc in results.genomic_docs:
             new_trial_match = {
                 **format(results.clinical_doc),
                 **format(get_genomic_details(genomic_doc, trial_match.multi_collection_query['genomic'])),
                 **trial_match.match_clause_data.match_clause_additional_attributes,
-                'protocol_no': trial_match.trial['protocol_no'],
-                'coordinating_center': trial_match.trial['_summary']['coordinating_center'],
-                'nct_id': trial_match.trial['nct_id'],
+                **trial,
                 "query": trial_match.match_criterion
             }
 
