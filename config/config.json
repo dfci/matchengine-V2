@@ -118,44 +118,23 @@
       }
     }
   ],
-  "trial_match_document": {
+  "trial_match_doc": {
     "genomic": [
-      "TIER",
-      "VARIANT_CATEGORY",
-      "WILDTYPE",
-      "TRUE_HUGO_SYMBOL",
-      "TRUE_PROTEIN_CHANGE",
-      "CNV_CALL",
-      "TRUE_VARIANT_CLASSIFICATION",
-      "MMR_STATUS",
-      "SAMPLE_ID",
-      "CHROMOSOME",
-      "POSITION",
       "TRUE_CDNA_CHANGE",
       "REFERENCE_ALLELE",
       "TRUE_TRANSCRIPT_EXON",
       "CANONICAL_STRAND",
       "ALLELE_FRACTION",
-      "CLINICAL_ID",
-      "ACTIONABILITY",
       "STRUCTURAL_VARIANT_COMMENT"
     ],
     "clinical": [
-      "SAMPLE_ID",
-      "MRN",
-      "CHROMOSOME",
       "ORD_PHYSICIAN_NAME",
       "ORD_PHYSICIAN_EMAIL",
-      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
       "REPORT_DATE",
-      "VITAL_STATUS",
-      "FIRST_LAST",
       "GENDER"
     ],
     "trial": [
-      "protocol_no",
-      "coordinating_center",
-      "nct_id"
+      "_summary"
     ]
   }
 }
