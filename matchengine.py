@@ -65,7 +65,7 @@ async def find_matches(sample_ids: list = None,
     match_criteria_transform = MatchCriteriaTransform(config)
 
     with MongoDBConnection(read_only=True) as db:
-        trials = [trial async for trial in get_trials(db, protocol_nos)]
+        trials = [trial async for trial in get_trials(db, match_criteria_transform, protocol_nos)]
         _ids = await get_clinical_ids_from_sample_ids(db, sample_ids)
     for trial in trials:
         log.info("Begin Protocol No: {}".format(trial["protocol_no"]))
@@ -87,7 +87,9 @@ async def find_matches(sample_ids: list = None,
         yield TrialMatch(task.trial, task.match_clause_data, task.match_path, task.query, result)
 
 
-async def get_trials(db: pymongo.database.Database, protocol_nos: list = None) -> Generator[Trial, None, None]:
+async def get_trials(db: pymongo.database.Database,
+                     match_criteria_transform: MatchCriteriaTransform,
+                     protocol_nos: list = None) -> Generator[Trial, None, None]:
     trial_find_query = dict()
 
     # the minimum criteria needed in a trial projection. add extra values in config.json
