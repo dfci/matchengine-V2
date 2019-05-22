@@ -1,5 +1,7 @@
 from matchengine import ParentPath, Trial, TrialMatch
 
+from matchengine_types import MongoQuery
+
 
 def get_genomic_details(genomic_doc, query):
     if genomic_doc is None:
@@ -64,37 +66,5 @@ def get_genomic_details(genomic_doc, query):
     }
 
 
-def format_details(clinical_doc):
+def format(clinical_doc):
     return {key.lower(): val for key, val in clinical_doc.items() if key != "_id"}
-
-
-def get_trial_details(parent_path: ParentPath, trial: Trial) -> object:
-    """
-    Extract relevant details from a trial curation to include in the trial_match document
-    :param parent_path:
-    :param trial:
-    :return:
-    """
-    treatment_list = parent_path[0] if 'treatment_list' in parent_path else None
-    step = parent_path[1] if 'step' in parent_path else None
-    step_no = parent_path[2] if 'step' in parent_path else None
-    arm = parent_path[3] if 'arm' in parent_path else None
-    arm_no = parent_path[4] if 'arm' in parent_path else None
-    dose = parent_path[5] if 'dose' in parent_path else None
-
-    trial_match = dict()
-    trial_match['protocol_no'] = trial['protocol_no']
-    trial_match['coordinating_center'] = trial['_summary']['coordinating_center']
-    trial_match['nct_id'] = trial['nct_id']
-
-    if 'step' in parent_path and 'arm' in parent_path and 'dose' in parent_path:
-        trial_match['code'] = trial[treatment_list][step][step_no][dose]['level_code']
-        trial_match['internal_id'] = trial[treatment_list][step][step_no][dose]['level_internal_id']
-    elif 'step' in parent_path and 'arm' in parent_path:
-        trial_match['code'] = trial[treatment_list][step][step_no][arm][arm_no]['arm_code']
-        trial_match['internal_id'] = trial[treatment_list][step][step_no][arm][arm_no]['arm_internal_id']
-    elif 'step' in parent_path:
-        trial_match['code'] = trial[treatment_list][step][step_no]['step_code']
-        trial_match['internal_id'] = trial[treatment_list][step][step_no][dose]['step_internal_id']
-
-    return trial_match

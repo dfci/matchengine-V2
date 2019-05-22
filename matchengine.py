@@ -1,18 +1,18 @@
-from typing import Generator, Set
-from MatchCriteriaTransform import MatchCriteriaTransform
-from MongoDBConnection import MongoDBConnection
+from match_criteria_transform import MatchCriteriaTransform
+from mongo_connection import MongoDBConnection
 from collections import deque, defaultdict
+from typing import Generator, Set
 
 import pymongo.database
 import networkx as nx
-import json
 import logging
+import json
 import argparse
 import asyncio
 
-from settings import CLINICAL_PROJECTION, GENOMIC_PROJECTION
 from matchengine_types import *
 from trial_match_utils import *
+from sort import Sort
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
@@ -89,7 +89,11 @@ async def find_matches(sample_ids: list = None,
 
 async def get_trials(db: pymongo.database.Database, protocol_nos: list = None) -> Generator[Trial, None, None]:
     trial_find_query = dict()
-    projection = {'protocol_no': 1, 'nct_id': 1, 'treatment_list': 1, '_summary': 1, 'status': 1}
+
+    # the minimum criteria needed in a trial projection. add extra values in config.json
+    projection = {'protocol_no': 1, 'nct_id': 1, 'treatment_list': 1, 'status': 1}
+    projection.update(match_criteria_transform.trial_projection)
+
     if protocol_nos is not None:
         trial_find_query['protocol_no'] = {"$in": [protocol_no for protocol_no in protocol_nos]}
 
@@ -113,7 +117,11 @@ async def get_clinical_ids_from_sample_ids(db, sample_ids: List[str]) -> List[Cl
 def extract_match_clauses_from_trial(trial: Trial) -> Generator[MatchClauseData, None, None]:
     """
     Pull out all of the matches from a trial curation.
-    Return the parent path and the values of that match clause
+    Return the parent path and the values of that match clause.
+
+    Default to only extracting match clauses on steps, arms or dose levels which are open to accrual unless otherwise
+    specified
+
     :param trial:
     :return:
     """
@@ -207,6 +215,7 @@ def translate_match_path(match_clause_data: MatchClauseData,
     """
     Translate the keys/values from the trial curation into keys/values used in a genomic/clinical document.
     Uses an external config file ./config/config.json
+
     :param match_clause_data:
     :param match_criterion:
     :param match_criteria_transformer:
@@ -259,8 +268,17 @@ async def execute_clinical_query(db: pymongo.database.Database,
     if match_criteria_transformer.CLINICAL in multi_collection_query:
         collection = match_criteria_transformer.CLINICAL
         join_field = match_criteria_transformer.primary_collection_unique_field
-        projection = {join_field: 1}
-        projection.update(CLINICAL_PROJECTION)
+
+        # minimum projection necessary for matching. Append extra values from config if desired
+        projection = {
+            join_field: 1,
+            "SAMPLE_ID": 1,
+            "MRN": 1,
+            "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": 1,
+            "VITAL_STATUS": 1,
+            "FIRST_LAST": 1
+        }
+        projection.update(match_criteria_transformer.clinical_projection)
         query = {"$and": multi_collection_query[collection]}
         cursor = await db[collection].find(query, projection).to_list(None)
         clinical_docs = {doc['_id']: doc for doc in cursor}
@@ -273,7 +291,9 @@ async def run_query(db: pymongo.database.Database,
                     match_criteria_transformer: MatchCriteriaTransform,
                     multi_collection_query: MultiCollectionQuery) -> Generator[RawQueryResult, None, RawQueryResult]:
     """
-    Execute mongo query
+    Execute a mongo query on the clinical and genomic collections to find trial matches.
+    First execute the clinical query. If no records are returned short-circuit and return.
+
     :param db:
     :param match_criteria_transformer:
     :param multi_collection_query:
@@ -302,9 +322,24 @@ async def run_query(db: pymongo.database.Database,
             continue
 
         join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
-        projection = {join_field: 1}
+
+        # minimum fields required to execute matching. Extra matching fields can be added in config.json
+        projection = {
+            join_field: 1,
+            "SAMPLE_ID": 1,
+            "CLINICAL_ID": 1,
+            "VARIANT_CATEGORY": 1,
+            "WILDTYPE": 1,
+            "TIER": 1,
+            "TRUE_HUGO_SYMBOL": 1,
+            "TRUE_PROTEIN_CHANGE": 1,
+            "CNV_CALL": 1,
+            "TRUE_VARIANT_CLASSIFICATION": 1,
+            "MMR_STATUS": 1,
+        }
+
         if genomic_or_clinical == 'genomic':
-            projection.update(GENOMIC_PROJECTION)
+            projection.update(match_criteria_transformer.genomic_projection)
 
         for query in queries:
             query.update({join_field: {"$in": list(clinical_ids)}})
@@ -341,45 +376,30 @@ async def run_query(db: pymongo.database.Database,
         yield RawQueryResult(multi_collection_query, ClinicalID(clinical_id), clinical_doc, genomic_docs)
 
 
-def create_trial_match(db: pymongo.database.Database,
-                       raw_query_results: List[RawQueryResult],
-                       parent_path: ParentPath,
-                       trial: Trial):
-    for clinical_id, collection_results in raw_query_results:
-        clinical_query, clinical_doc = collection_results['clinical'][clinical_id]
+def create_trial_match(trial_match: TrialMatch):
+    """
+    Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
+    in config.json
+    """
+    # remove extra fields from trial_match output
+    trial = dict()
+    for key in trial_match.trial:
+        if key in ['treatment_list', '_summary', 'status', '_id']:
+            continue
+        else:
+            trial[key] = trial_match.trial[key]
 
-        genomic_id = None
-        genomic_doc = dict()
-        for genomic_id, genomic_result_with_query in collection_results.setdefault('genomic', dict()).items():
-            genomic_query, genomic_doc = genomic_result_with_query
-            if 'CLINICAL_ID' in genomic_query:
-                del genomic_doc['CLINICAL_ID']
-
-            genomic_details = get_genomic_details(format_details(genomic_doc), genomic_query)
-
-            trial_match = {
-                **get_trial_details(parent_path, trial),
-                **format_details(clinical_doc),
-                **genomic_details,
-                'clinical_id': clinical_id,
-                'genomic_id': genomic_id,
-                'sort_order': '',
-                'query': genomic_query
+    for results in trial_match.raw_query_results:
+        for genomic_doc in results.genomic_docs:
+            new_trial_match = {
+                **format(results.clinical_doc),
+                **format(get_genomic_details(genomic_doc, trial_match.multi_collection_query['genomic'])),
+                **trial_match.match_clause_data.match_clause_additional_attributes,
+                **trial,
+                "query": trial_match.match_criterion
             }
-            db.trial_match_test.insert(trial_match)
-        if collection_results.setdefault('genomic', None) is None:
-            genomic_details = get_genomic_details(format_details(genomic_doc), dict())
 
-            trial_match = {
-                **get_trial_details(parent_path, trial),
-                **format_details(clinical_doc),
-                **genomic_details,
-                'clinical_id': clinical_id,
-                'genomic_id': genomic_id,
-                'sort_order': '',
-                'query': dict()
-            }
-            db.trial_match_test.insert(trial_match)
+            yield new_trial_match
 
 
 async def main(args):

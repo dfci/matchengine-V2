@@ -69,5 +69,72 @@
         "ignore": true
       }
     }
+  },
+  "trial_match_sorting": [
+    {
+      "mmr_status": {
+        "Proficient(MMR - P / MSS)": "0000",
+        "Deficient(MMR - D / MSI - H)": "0010"
+      },
+      "tier": {
+        "1": "0020",
+        "2": "0030",
+        "3": "0040",
+        "4": "0050"
+      },
+      "cnv_call": {
+        "Heterozygous deletion": "0060",
+        "Gain": "0070",
+        "Homozygous deletion": "0080",
+        "High level amplification": "0090"
+      },
+      "wildtype": {
+        "False": "0100",
+        "True": "0200"
+      }
+    },
+    {
+      "match_type": {
+        "variant": "0000",
+        "gene": "0001"
+      }
+    },
+    {
+      "oncotree_primary_diagnosis_name": {
+        "_SOLID_": "0009",
+        "_LIQUID_": "0009",
+        "__default": "0000"
+      }
+    },
+    {
+      "coordinating_center": {
+        "Dana Farber Cancer Institute": "0000",
+        "": "0001"
+      }
+    },
+    {
+      "protocol_no": {
+        "any": ""
+      }
+    }
+  ],
+  "trial_match_doc": {
+    "genomic": [
+      "TRUE_CDNA_CHANGE",
+      "REFERENCE_ALLELE",
+      "TRUE_TRANSCRIPT_EXON",
+      "CANONICAL_STRAND",
+      "ALLELE_FRACTION",
+      "STRUCTURAL_VARIANT_COMMENT"
+    ],
+    "clinical": [
+      "ORD_PHYSICIAN_NAME",
+      "ORD_PHYSICIAN_EMAIL",
+      "REPORT_DATE",
+      "GENDER"
+    ],
+    "trial": [
+      "_summary"
+    ]
   }
 }
