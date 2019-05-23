@@ -2,6 +2,8 @@ from match_criteria_transform import MatchCriteriaTransform
 from mongo_connection import MongoDBConnection
 from collections import deque, defaultdict
 from typing import Generator, Set
+from frozendict import frozendict
+from multiprocessing import cpu_count
 
 import pymongo.database
 import networkx as nx
@@ -9,7 +11,6 @@ import logging
 import json
 import argparse
 import asyncio
-from frozendict import frozendict
 
 from matchengine_types import *
 from trial_match_utils import *
@@ -451,7 +452,7 @@ def create_trial_match(trial_match: TrialMatch):
 
 
 async def main(args):
-    async for match in find_matches(sample_ids=args.samples, protocol_nos=args.trials):
+    async for match in find_matches(sample_ids=args.samples, protocol_nos=args.trials, num_workers=args.workers):
         pass
 
 
@@ -468,6 +469,12 @@ if __name__ == "__main__":
         nargs="*",
         type=str,
         default=None
+    )
+    parser.add_argument(
+        "-workers",
+        nargs=1,
+        type=int,
+        default=cpu_count() * 5
     )
     args = parser.parse_args()
     asyncio.run(main(args))
