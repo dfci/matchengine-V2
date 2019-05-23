@@ -363,7 +363,6 @@ async def run_query(cache: Cache,
             projection = {join_field: 1}
 
             if genomic_or_clinical == 'genomic':
-
                 # minimum fields required to execute matching. Extra matching fields can be added in config.json
                 projection.update({
                     "SAMPLE_ID": 1,
@@ -425,7 +424,7 @@ async def run_query(cache: Cache,
             yield RawQueryResult(multi_collection_query, ClinicalID(clinical_id), clinical_doc, genomic_docs)
 
 
-def create_trial_match(trial_match: TrialMatch):
+def create_trial_match(trial_match: TrialMatch) -> Dict:
     """
     Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
     in config.json
@@ -438,8 +437,7 @@ def create_trial_match(trial_match: TrialMatch):
         else:
             trial[key] = trial_match.trial[key]
 
-    for results in trial_match.raw_query_results:
-        for genomic_doc in results.genomic_docs:
+        for genomic_doc in trial.genomic_docs:
             new_trial_match = {
                 **format(results.clinical_doc),
                 **format(get_genomic_details(genomic_doc, trial_match.multi_collection_query['genomic'])),
@@ -451,30 +449,21 @@ def create_trial_match(trial_match: TrialMatch):
             yield new_trial_match
 
 
+def update_trial_match(trial_match: TrialMatch):
+    pass
+
+
 async def main(args):
-    async for match in find_matches(sample_ids=args.samples, protocol_nos=args.trials, num_workers=args.workers):
-        pass
+    trial_matches = find_matches(sample_ids=args.samples, protocol_nos=args.trials, num_workers=args.workers[0])
+    async for match in trial_matches:
+        for inner_match in create_trial_match(match):
+            update_trial_match(inner_match)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-trials",
-        nargs="*",
-        type=str,
-        default=None
-    )
-    parser.add_argument(
-        "-samples",
-        nargs="*",
-        type=str,
-        default=None
-    )
-    parser.add_argument(
-        "-workers",
-        nargs=1,
-        type=int,
-        default=cpu_count() * 5
-    )
+    parser.add_argument("-trials", nargs="*", type=str, default=None)
+    parser.add_argument("-samples", nargs="*", type=str, default=None)
+    parser.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
     args = parser.parse_args()
     asyncio.run(main(args))
