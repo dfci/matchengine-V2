@@ -393,26 +393,30 @@ async def run_query(cache: Cache,
                 cacheable_query = frozendict(new_query)
                 if cacheable_query not in cache.queries:
                     result_ids = set()
+                    clinical_result_ids = set()
                     cursor = await db[genomic_or_clinical].find(new_query, projection).to_list(None)
                     for result in cursor:
                         cache.docs[result["_id"]] = result
                         result_ids.add(result["_id"])
+                        clinical_result_ids.add(
+                            result[match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']]
+                        )
                     cache.queries[cacheable_query] = result_ids
                     cache.genomic_non_hits += 1
                 else:
                     cache.genomic_hits += 1
 
-                result_ids = cache.queries[cacheable_query]
-                results_to_remove = clinical_ids - result_ids
+                genomic_result_ids = cache.queries[cacheable_query]
+                results_to_remove = clinical_ids - clinical_result_ids
                 for result_to_remove in results_to_remove:
                     if result_to_remove in all_results:
                         del all_results[result_to_remove]
-                clinical_ids.intersection_update(result_ids)
+                clinical_ids.intersection_update(clinical_result_ids)
 
                 if not clinical_ids:
                     return
                 else:
-                    for result_id in result_ids:
+                    for result_id in genomic_result_ids:
                         doc = cache.docs[result_id]
                         if doc[join_field] in clinical_ids:
                             doc_id = doc["_id"]
@@ -437,15 +441,17 @@ def create_trial_match(trial_match: TrialMatch) -> Dict:
         else:
             trial[key] = trial_match.trial[key]
 
-        for genomic_doc in trial.genomic_docs:
+    for genomic_doc in trial_match.raw_query_result.genomic_docs:
+        for genomic_query in [{k: v for k, v in genomic_query.items() if k != "CLINICAL_ID"}
+                              for query in trial_match.multi_collection_queries if 'genomic' in query
+                              for genomic_query in query['genomic']]:
             new_trial_match = {
-                **format(results.clinical_doc),
-                **format(get_genomic_details(genomic_doc, trial_match.multi_collection_query['genomic'])),
+                **format(trial_match.raw_query_result.clinical_doc),
+                **format(get_genomic_details(genomic_doc, genomic_query)),
                 **trial_match.match_clause_data.match_clause_additional_attributes,
                 **trial,
                 "query": trial_match.match_criterion
             }
-
             yield new_trial_match
 
 
@@ -455,9 +461,12 @@ def update_trial_match(trial_match: TrialMatch):
 
 async def main(args):
     trial_matches = find_matches(sample_ids=args.samples, protocol_nos=args.trials, num_workers=args.workers[0])
+    output = list()
     async for match in trial_matches:
         for inner_match in create_trial_match(match):
+            output.append(inner_match)
             update_trial_match(inner_match)
+    log.info("{}".format(len(output)))
 
 
 if __name__ == "__main__":
