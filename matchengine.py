@@ -360,23 +360,23 @@ async def run_query(cache: Cache,
                 continue
 
             join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
-
-            # minimum fields required to execute matching. Extra matching fields can be added in config.json
-            projection = {
-                join_field: 1,
-                "SAMPLE_ID": 1,
-                "CLINICAL_ID": 1,
-                "VARIANT_CATEGORY": 1,
-                "WILDTYPE": 1,
-                "TIER": 1,
-                "TRUE_HUGO_SYMBOL": 1,
-                "TRUE_PROTEIN_CHANGE": 1,
-                "CNV_CALL": 1,
-                "TRUE_VARIANT_CLASSIFICATION": 1,
-                "MMR_STATUS": 1,
-            }
+            projection = {join_field: 1}
 
             if genomic_or_clinical == 'genomic':
+
+                # minimum fields required to execute matching. Extra matching fields can be added in config.json
+                projection.update({
+                    "SAMPLE_ID": 1,
+                    "CLINICAL_ID": 1,
+                    "VARIANT_CATEGORY": 1,
+                    "WILDTYPE": 1,
+                    "TIER": 1,
+                    "TRUE_HUGO_SYMBOL": 1,
+                    "TRUE_PROTEIN_CHANGE": 1,
+                    "CNV_CALL": 1,
+                    "TRUE_VARIANT_CLASSIFICATION": 1,
+                    "MMR_STATUS": 1
+                })
                 projection.update(match_criteria_transformer.genomic_projection)
 
             for query in queries:
