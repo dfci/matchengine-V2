@@ -393,20 +393,18 @@ async def run_query(cache: Cache,
                 cacheable_query = frozendict(new_query)
                 if cacheable_query not in cache.queries:
                     result_ids = set()
-                    clinical_result_ids = set()
                     cursor = await db[genomic_or_clinical].find(new_query, projection).to_list(None)
                     for result in cursor:
                         cache.docs[result["_id"]] = result
                         result_ids.add(result["_id"])
-                        clinical_result_ids.add(
-                            result[match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']]
-                        )
                     cache.queries[cacheable_query] = result_ids
                     cache.genomic_non_hits += 1
                 else:
                     cache.genomic_hits += 1
 
                 genomic_result_ids = cache.queries[cacheable_query]
+                clinical_result_ids = {cache.docs[genomic_id][join_field]
+                                       for genomic_id in genomic_result_ids}
                 results_to_remove = clinical_ids - clinical_result_ids
                 for result_to_remove in results_to_remove:
                     if result_to_remove in all_results:
