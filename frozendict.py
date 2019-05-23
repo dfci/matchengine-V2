@@ -3,7 +3,6 @@ From http://code.activestate.com/recipes/414283-frozen-dictionaries/
 This recursive solution is fine since queries themselves aren't nested arbitrarily deep
 - Eric
 """
-
 import copy
 
 
@@ -41,8 +40,15 @@ class frozendict(dict):
         dict.__init__(new, *args_, **kw)
         return new
 
+    def __init__(self, *args, **kw):
+        super().__init__(**kw)
+
     def __hash__(self):
-        return hash(frozenset(self.items()))
+        try:
+            return self._cached_hash
+        except AttributeError:
+            h = self._cached_hash = hash(frozenset(self.items()))
+            return h
 
     def __repr__(self):
-        return dict.__repr__(self)
+        return "frozendict(%s)" % dict.__repr__(self)
