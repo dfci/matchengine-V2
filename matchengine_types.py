@@ -1,14 +1,15 @@
 from dataclasses import dataclass
-from typing import NewType, Tuple, Union, List, Dict, Any
+from typing import NewType, Tuple, Union, List, Dict, Any, Set
 from bson import ObjectId
 from networkx import DiGraph
 
+from frozendict import frozendict
 
 Trial = NewType("Trial", dict)
 ParentPath = NewType("ParentPath", Tuple[Union[str, int]])
 MatchClause = NewType("MatchClause", List[Dict[str, Any]])
 MatchTree = NewType("MatchTree", DiGraph)
-MatchCriterion = NewType("MatchPath", List[Dict[str, Any]])
+MatchCriterion = NewType("MatchPath", List[List[Dict[str, Any]]])
 MultiCollectionQuery = NewType("MultiCollectionQuery", dict)
 NodeID = NewType("NodeID", int)
 MatchClauseLevel = NewType("MatchClauseLevel", str)
@@ -27,8 +28,6 @@ class MatchClauseData:
     match_clause_additional_attributes: dict
 
 
-
-
 @dataclass
 class RawQueryResult:
     query: MultiCollectionQuery
@@ -42,8 +41,19 @@ class TrialMatch:
     trial: Trial
     match_clause_data: MatchClauseData
     match_criterion: MatchCriterion
-    multi_collection_query: MultiCollectionQuery
+    multi_collection_queries: List[MultiCollectionQuery]
     raw_query_result: RawQueryResult
+
+
+@dataclass
+class Cache:
+    genomic_hits: int
+    clinical_hits: int
+    genomic_non_hits: int
+    clinical_non_hits: int
+    docs: Dict[ObjectId, MongoQueryResult]
+    queries: Dict[frozendict, Set[ObjectId]]
+
 
 @dataclass
 class QueueTask:
@@ -51,4 +61,6 @@ class QueueTask:
     trial: Trial
     match_clause_data: MatchClauseData
     match_path: MatchCriterion
-    query: MultiCollectionQuery
+    queries: List[MultiCollectionQuery]
+    clinical_ids: List[ClinicalID]
+    cache: Cache
