@@ -12,7 +12,6 @@ import asyncio
 
 from matchengine_types import *
 from trial_match_utils import *
-from sort import Sort
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
@@ -75,6 +74,8 @@ async def find_matches(sample_ids: list = None,
                                                              match_path,
                                                              match_criteria_transform)
                 query = add_ids_to_query(translated_match_path, _ids, match_criteria_transform)
+                if debug:
+                    log.info("Query: {}".format(query))
                 await q.put(QueueTask(match_criteria_transform, trial, match_clause_data, match_path, query))
     workers = [asyncio.create_task(queue_worker(q, result_q, config, i))
                for i in range(0, min(q.qsize(), num_workers))]
@@ -405,61 +406,10 @@ def create_trial_match(trial_match: TrialMatch):
 
 
 async def main(args):
-    count = 0
     print(args.trials)
     async for match in find_matches(sample_ids=args.samples, protocol_nos=args.trials):
-        count += 1
-        if count == 100:
-            exit()
+        pass
 
-
-async def serve(args):
-    host = args.serve[0]
-    port = int(args.serve[1]) if len(args.serve) > 1 else 6379
-    password = args.serve[2] if len(args.serve) > 2 else None
-    import redis
-
-    r = redis.Redis(host=host, port=port, password=password if password else None)
-    trials = list()
-    samples = list()
-    if args.trials is None:
-        with MongoDBConnection(read_only=True) as db:
-            for protocol_no in await db.trial.distinct('protocol_no'):
-                trials.append(protocol_no)
-    if args.samples is None:
-        with MongoDBConnection(read_only=True) as db:
-            for sample_id in await db.clinical.distinct("SAMPLE_ID"):
-                samples.append(sample_id)
-    pipe = r.pipeline()
-
-    def chunks(l, n):
-        """Yield successive n-sized chunks from l."""
-        for i in range(0, len(l), n):
-            yield l[i:i + n]
-
-    for protocol_no in trials:
-        for sample_ids in chunks(samples, args.serve_batch):
-            run_args = json.dumps({'protocol_nos': [protocol_no], 'sample_ids': sample_ids})
-            pipe.lpush('job_queue', run_args)
-    pipe.execute()
-
-
-async def client(args):
-    host = args.client[0]
-    port = int(args.client[1]) if len(args.client) > 1 else 6379
-    password = args.client[2] if len(args.client) > 2 else None
-    import redis
-    import time
-
-    r = redis.Redis(host=host, port=port, password=password if password else None)
-    while True:
-        while not r.llen('job_queue'):
-            print(1)
-            time.sleep(1)
-        run_args = json.loads(r.lpop('job_queue'))
-        async for match in find_matches(**run_args):
-            result_str = "{}".format(match)
-            r.lpush('results', result_str)
 
 
 if __name__ == "__main__":
@@ -476,32 +426,8 @@ if __name__ == "__main__":
         type=str,
         default=None
     )
-    parser.add_argument(
-        '-serve',
-        nargs="*",
-        type=str,
-        default=None
-    )
-    parser.add_argument(
-        '-client',
-        nargs="*",
-        type=str,
-        default=None
-    )
-    parser.add_argument(
-        '-serve_batch',
-        nargs=1,
-        type=int,
-        default=200
-    )
     args = parser.parse_args()
-    if args.serve is not None:
-        asyncio.run(serve(args))
-
-    elif args.client is not None:
-        asyncio.run(client(args))
-    else:
-        asyncio.run(main(args))
+    asyncio.run(main(args))
         # logging.info("{}".format(match))
     # find_matches(protocol_nos=['17-251'])
     # list(find_matches(sample_ids=["BL-17-W40535"], protocol_nos=["18-626"]))
