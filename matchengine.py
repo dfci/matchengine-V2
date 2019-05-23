@@ -9,6 +9,7 @@ import logging
 import json
 import argparse
 import asyncio
+from frozendict import frozendict
 
 from matchengine_types import *
 from trial_match_utils import *
@@ -27,18 +28,19 @@ async def queue_worker(q, result_q, config, worker_id) -> None:
                     # logging.info("Worker: {}, query: {}".format(worker_id, task.query))
                     log.info(
                         "Worker: {}, protocol_no: {} got new task".format(worker_id, task.trial['protocol_no']))
-                    async for result in run_query(db, match_criteria_transform, task.query):
+                    async for result in run_query(task.cache, db, match_criteria_transform, task.queries):
                         await result_q.put((task, result))
-                        log.info("Worker: {},  protocol_no: {}, clinical_id: {}, qsize: {}".format(worker_id,
-                                                                                                   task.trial[
-                                                                                                       'protocol_no'],
-                                                                                                   result.clinical_id,
-                                                                                                   q.qsize()))
+                        # log.info("Worker: {},  protocol_no: {}, clinical_id: {}, qsize: {}".format(worker_id,
+                        #                                                                            task.trial[
+                        #                                                                                'protocol_no'],
+                        #                                                                            result.clinical_id,
+                        #                                                                            q.qsize()))
                     q.task_done()
                 except Exception as e:
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
                     q.task_done()
                     await q.put(task)
+                    raise e
 
 
 async def find_matches(sample_ids: list = None,
@@ -63,6 +65,8 @@ async def find_matches(sample_ids: list = None,
     result_q = asyncio.queues.Queue()
     match_criteria_transform = MatchCriteriaTransform(config)
 
+    cache = Cache(int(), int(), int(), int(), dict(), dict())
+
     with MongoDBConnection(read_only=True) as db:
         trials = [trial async for trial in get_trials(db, match_criteria_transform, protocol_nos)]
         _ids = await get_clinical_ids_from_sample_ids(db, sample_ids)
@@ -76,16 +80,29 @@ async def find_matches(sample_ids: list = None,
                 query = add_ids_to_query(translated_match_path, _ids, match_criteria_transform)
                 if debug:
                     log.info("Query: {}".format(query))
-                await q.put(QueueTask(match_criteria_transform, trial, match_clause_data, match_path, query))
+                await q.put(QueueTask(match_criteria_transform,
+                                      trial,
+                                      match_clause_data,
+                                      match_path,
+                                      query,
+                                      _ids,
+                                      cache))
     workers = [asyncio.create_task(queue_worker(q, result_q, config, i))
                for i in range(0, min(q.qsize(), num_workers))]
     await asyncio.gather(*workers)
     await q.join()
+    logging.info("Total results: {}".format(result_q.qsize()))
+    logging.info("CLINICAL HITS: {}, CLINICAL MISSES: {}, GENOMIC HITS: {}, GENOMIC MISSES: {}".format(
+        cache.clinical_hits,
+        cache.clinical_non_hits,
+        cache.genomic_hits,
+        cache.genomic_non_hits
+    ))
     while not result_q.empty():
         task: QueueTask
         result: RawQueryResult
         task, result = await result_q.get()
-        yield TrialMatch(task.trial, task.match_clause_data, task.match_path, task.query, result)
+        yield TrialMatch(task.trial, task.match_clause_data, task.match_path, task.queries, result)
 
 
 async def get_trials(db: pymongo.database.Database,
@@ -208,13 +225,13 @@ def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, No
         path = nx.shortest_path(match_tree, 0, leaf) if leaf != 0 else [leaf]
         match_path = MatchCriterion(list())
         for node in path:
-            match_path.extend(match_tree.nodes[node]['criteria_list'])
+            match_path.append(match_tree.nodes[node]['criteria_list'])
         yield match_path
 
 
 def translate_match_path(match_clause_data: MatchClauseData,
                          match_criterion: MatchCriterion,
-                         match_criteria_transformer: MatchCriteriaTransform) -> MultiCollectionQuery:
+                         match_criteria_transformer: MatchCriteriaTransform) -> List[MultiCollectionQuery]:
     """
     Translate the keys/values from the trial curation into keys/values used in a genomic/clinical document.
     Uses an external config file ./config/config.json
@@ -224,50 +241,52 @@ def translate_match_path(match_clause_data: MatchClauseData,
     :param match_criteria_transformer:
     :return:
     """
-    categories = defaultdict(list)
-    for criteria in match_criterion:
-        for genomic_or_clinical, values in criteria.items():
-            and_query = dict()
-            for trial_key, trial_value in values.items():
-                trial_key_settings = match_criteria_transformer.trial_key_mappings[genomic_or_clinical].setdefault(
-                    trial_key.upper(),
-                    dict())
+    output = list()
+    for node in match_criterion:
+        categories = MultiCollectionQuery(defaultdict(list))
+        for criteria in node:
+            for genomic_or_clinical, values in criteria.items():
+                and_query = dict()
+                for trial_key, trial_value in values.items():
+                    trial_key_settings = match_criteria_transformer.trial_key_mappings[genomic_or_clinical].setdefault(
+                        trial_key.upper(),
+                        dict())
 
-                if 'ignore' in trial_key_settings and trial_key_settings['ignore']:
-                    continue
+                    if 'ignore' in trial_key_settings and trial_key_settings['ignore']:
+                        continue
 
-                sample_value_function_name = trial_key_settings.setdefault('sample_value', 'nomap')
-                sample_function = MatchCriteriaTransform.__dict__[sample_value_function_name]
-                args = dict(sample_key=trial_key.upper(),
-                            trial_value=trial_value,
-                            parent_path=match_clause_data.parent_path,
-                            trial_path=genomic_or_clinical,
-                            trial_key=trial_key)
-                args.update(trial_key_settings)
-                and_query.update(sample_function(match_criteria_transformer, **args))
-            categories[genomic_or_clinical].append(and_query)
-    return MultiCollectionQuery(categories)
+                    sample_value_function_name = trial_key_settings.setdefault('sample_value', 'nomap')
+                    sample_function = MatchCriteriaTransform.__dict__[sample_value_function_name]
+                    args = dict(sample_key=trial_key.upper(),
+                                trial_value=trial_value,
+                                parent_path=match_clause_data.parent_path,
+                                trial_path=genomic_or_clinical,
+                                trial_key=trial_key)
+                    args.update(trial_key_settings)
+                    and_query.update(sample_function(match_criteria_transformer, **args))
+                categories[genomic_or_clinical].append(and_query)
+        output.append(categories)
+    return output
 
 
-def add_ids_to_query(query: MultiCollectionQuery,
+def add_ids_to_query(multi_collection_queries: List[MultiCollectionQuery],
                      id_list: List[ClinicalID],
-                     match_criteria_transformer: MatchCriteriaTransform) -> MultiCollectionQuery:
-    if id_list is not None:
-        query[match_criteria_transformer.CLINICAL].append({
-            match_criteria_transformer.primary_collection_unique_field: {"$in": id_list}
-        })
-        for genomic_query in query.setdefault('genomic', list()):
-            genomic_query[match_criteria_transformer.collection_mappings['genomic']['join_field']] = {"$in": id_list}
-    return query
+                     match_criteria_transformer: MatchCriteriaTransform) -> List[MultiCollectionQuery]:
+    for query in multi_collection_queries:
+        if id_list is not None:
+            query[match_criteria_transformer.CLINICAL].append({
+                match_criteria_transformer.primary_collection_unique_field: {"$in": id_list}
+            })
+            for genomic_query in query.setdefault('genomic', list()):
+                genomic_query[match_criteria_transformer.collection_mappings['genomic']['join_field']] = {
+                    "$in": id_list}
+    return multi_collection_queries
 
 
-async def execute_clinical_query(db: pymongo.database.Database,
+async def execute_clinical_query(cache: Cache,
+                                 db: pymongo.database.Database,
                                  match_criteria_transformer: MatchCriteriaTransform,
-                                 multi_collection_query: MultiCollectionQuery) -> Tuple[
-    Dict[ObjectId, MongoQueryResult],
-    Set[ObjectId]]:
-    clinical_docs = dict()
-    clinical_ids = set()
+                                 multi_collection_query: MultiCollectionQuery) -> Set[ObjectId]:
     if match_criteria_transformer.CLINICAL in multi_collection_query:
         collection = match_criteria_transformer.CLINICAL
         join_field = match_criteria_transformer.primary_collection_unique_field
@@ -283,16 +302,25 @@ async def execute_clinical_query(db: pymongo.database.Database,
         }
         projection.update(match_criteria_transformer.clinical_projection)
         query = {"$and": multi_collection_query[collection]}
-        cursor = await db[collection].find(query, projection).to_list(None)
-        clinical_docs = {doc['_id']: doc for doc in cursor}
-        clinical_ids = set(clinical_docs.keys())
+        cacheable_query = frozendict(query)
+        if cacheable_query not in cache.queries:
+            cursor = await db[collection].find(query, projection).to_list(None)
+            clinical_docs = {doc['_id']: doc for doc in cursor}
+            clinical_ids = set(clinical_docs.keys())
+            cache.queries[cacheable_query] = clinical_ids
+            cache.docs.update(clinical_docs)
+            cache.clinical_hits += 1
+        else:
+            cache.clinical_non_hits += 1
+        return cache.queries[cacheable_query]
 
-    return clinical_docs, clinical_ids
 
-
-async def run_query(db: pymongo.database.Database,
+async def run_query(cache: Cache,
+                    db: pymongo.database.Database,
                     match_criteria_transformer: MatchCriteriaTransform,
-                    multi_collection_query: MultiCollectionQuery) -> Generator[RawQueryResult, None, RawQueryResult]:
+                    multi_collection_queries: List[MultiCollectionQuery]) -> Generator[RawQueryResult,
+                                                                                       None,
+                                                                                       RawQueryResult]:
     """
     Execute a mongo query on the clinical and genomic collections to find trial matches.
     First execute the clinical query. If no records are returned short-circuit and return.
@@ -306,77 +334,94 @@ async def run_query(db: pymongo.database.Database,
     all_results: Dict[ObjectId, Dict[Collection, Dict[ObjectId, Dict[Any, Any]]]] = defaultdict(
         lambda: defaultdict(dict))
 
-    # get clinical docs first
-    clinical_docs, clinical_ids = await execute_clinical_query(db, match_criteria_transformer, multi_collection_query)
+    clinical_ids = set()
+    for multi_collection_query in multi_collection_queries:
+        # get clinical docs first
+        new_clinical_ids = await execute_clinical_query(cache,
+                                                        db,
+                                                        match_criteria_transformer,
+                                                        multi_collection_query)
 
-    # If no clinical docs are returned, skip executing genomic portion of the query
-    if not clinical_docs:
-        return
-    for key, doc in clinical_docs.items():
-        collection = Collection(match_criteria_transformer.CLINICAL)
-        all_results[key][collection] = doc
+        # If no clinical docs are returned, skip executing genomic portion of the query
+        if not new_clinical_ids:
+            return
+        for key in new_clinical_ids:
+            collection = Collection(match_criteria_transformer.CLINICAL)
+            all_results[key][collection] = cache.docs[key]
+            clinical_ids.add(key)
 
-    # iterate over all queries
-    for items in multi_collection_query.items():
-        genomic_or_clinical, queries = items
+        # iterate over all queries
+        for items in multi_collection_query.items():
+            genomic_or_clinical, queries = items
 
-        # skip clinical queries as they've already been executed
-        if genomic_or_clinical == match_criteria_transformer.CLINICAL and clinical_docs:
-            continue
+            # skip clinical queries as they've already been executed
+            if genomic_or_clinical == match_criteria_transformer.CLINICAL and clinical_ids:
+                continue
 
-        join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
+            join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
 
-        # minimum fields required to execute matching. Extra matching fields can be added in config.json
-        projection = {
-            join_field: 1,
-            "SAMPLE_ID": 1,
-            "CLINICAL_ID": 1,
-            "VARIANT_CATEGORY": 1,
-            "WILDTYPE": 1,
-            "TIER": 1,
-            "TRUE_HUGO_SYMBOL": 1,
-            "TRUE_PROTEIN_CHANGE": 1,
-            "CNV_CALL": 1,
-            "TRUE_VARIANT_CLASSIFICATION": 1,
-            "MMR_STATUS": 1,
-        }
+            # minimum fields required to execute matching. Extra matching fields can be added in config.json
+            projection = {
+                join_field: 1,
+                "SAMPLE_ID": 1,
+                "CLINICAL_ID": 1,
+                "VARIANT_CATEGORY": 1,
+                "WILDTYPE": 1,
+                "TIER": 1,
+                "TRUE_HUGO_SYMBOL": 1,
+                "TRUE_PROTEIN_CHANGE": 1,
+                "CNV_CALL": 1,
+                "TRUE_VARIANT_CLASSIFICATION": 1,
+                "MMR_STATUS": 1,
+            }
 
-        if genomic_or_clinical == 'genomic':
-            projection.update(match_criteria_transformer.genomic_projection)
+            if genomic_or_clinical == 'genomic':
+                projection.update(match_criteria_transformer.genomic_projection)
 
-        for query in queries:
-            query.update({join_field: {"$in": list(clinical_ids)}})
-            if join_field in query:
-                new_query = {"$and": list()}
-                for k, v in query.items():
-                    if k == join_field:
-                        new_query['$and'].insert(0, {k: v})
-                    else:
-                        new_query['$and'].append({k: v})
-            else:
-                new_query = query
-            cursor = await db[genomic_or_clinical].find(new_query, projection).to_list(None)
-            results = [result for result in cursor]
-            result_ids = {result[join_field] for result in results}
+            for query in queries:
+                # cache hit or miss should be here
+                # query.update({join_field: {"$in": list(clinical_ids)}})
+                if join_field in query:
+                    new_query = {"$and": list()}
+                    for k, v in query.items():
+                        if k == join_field:
+                            new_query['$and'].insert(0, {k: v})
+                        else:
+                            new_query['$and'].append({k: v})
+                else:
+                    new_query = query
+                cacheable_query = frozendict(new_query)
+                if cacheable_query not in cache.queries:
+                    result_ids = set()
+                    cursor = await db[genomic_or_clinical].find(new_query, projection).to_list(None)
+                    for result in cursor:
+                        cache.docs[result["_id"]] = result
+                        result_ids.add(result["_id"])
+                    cache.queries[cacheable_query] = result_ids
+                    cache.genomic_non_hits += 1
+                else:
+                    cache.genomic_hits += 1
 
-            results_to_remove = clinical_ids - result_ids
-            for result_to_remove in results_to_remove:
-                if result_to_remove in all_results:
-                    del all_results[result_to_remove]
-            clinical_ids.intersection_update(result_ids)
+                result_ids = cache.queries[cacheable_query]
+                results_to_remove = clinical_ids - result_ids
+                for result_to_remove in results_to_remove:
+                    if result_to_remove in all_results:
+                        del all_results[result_to_remove]
+                clinical_ids.intersection_update(result_ids)
 
-            if not clinical_docs:
-                return
-            else:
-                for doc in results:
-                    if doc[join_field] in clinical_ids:
-                        doc_id = doc["_id"]
-                        all_results[doc[join_field]][genomic_or_clinical][doc_id] = doc
+                if not clinical_ids:
+                    return
+                else:
+                    for result_id in result_ids:
+                        doc = cache.docs[result_id]
+                        if doc[join_field] in clinical_ids:
+                            doc_id = doc["_id"]
+                            all_results[doc[join_field]][genomic_or_clinical][doc_id] = doc
 
-    for clinical_id, doc in all_results.items():
-        clinical_doc = doc['clinical']
-        genomic_docs = [genomic_doc for genomic_doc in doc.setdefault('genomic', dict()).values()]
-        yield RawQueryResult(multi_collection_query, ClinicalID(clinical_id), clinical_doc, genomic_docs)
+        for clinical_id, doc in all_results.items():
+            clinical_doc = doc['clinical']
+            genomic_docs = [genomic_doc for genomic_doc in doc.setdefault('genomic', dict()).values()]
+            yield RawQueryResult(multi_collection_query, ClinicalID(clinical_id), clinical_doc, genomic_docs)
 
 
 def create_trial_match(trial_match: TrialMatch):
@@ -406,10 +451,8 @@ def create_trial_match(trial_match: TrialMatch):
 
 
 async def main(args):
-    print(args.trials)
     async for match in find_matches(sample_ids=args.samples, protocol_nos=args.trials):
         pass
-
 
 
 if __name__ == "__main__":
@@ -428,10 +471,3 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     asyncio.run(main(args))
-        # logging.info("{}".format(match))
-    # find_matches(protocol_nos=['17-251'])
-    # list(find_matches(sample_ids=["BL-17-W40535"], protocol_nos=["18-626"]))
-    # for trial_match in find_matches(protocol_nos=['16-265']):
-    #     pass
-    # print(trial_match)
-    # find_matches(sample_ids=None, protocol_nos=None)
