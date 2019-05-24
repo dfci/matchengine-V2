@@ -450,27 +450,61 @@ def create_trial_match(trial_match: TrialMatch) -> Dict:
                 **trial,
                 "query": trial_match.match_criterion
             }
+
+            # add hash
+            new_trial_match['hash'] = hash(frozenset(new_trial_match.items()))
             yield new_trial_match
 
 
-def update_trial_match(trial_match: TrialMatch):
-    pass
+async def update_trial_matches(trial_matches: List[Dict], protocol_nos, sample_ids):
+    # SCENARIO 1 - new arm/step/dose level OPENS
+    # SCENARIO 2 - arm/step/dose level CLOSES
+    # SCENARIO 3 - match clauses CHANGES
+    # SCENARIO 4 - new sample_ids added from CAMD
+    # SCENARIO 5 - existing clinical document altered from CAMD
+    # SCENARIO 6 - sample_ids deleted from CAMD
+    with MongoDBConnection(read_only=True) as db:
+        new_matches_hashes = [match['hash'] for match in trial_matches]
 
+        query = {'hash': {'$in': new_matches_hashes}}
+        if protocol_nos is not None:
+            query.update({'protocol_no': {'$in': protocol_nos}})
 
-async def main(args):
-    trial_matches = find_matches(sample_ids=args.samples, protocol_nos=args.trials, num_workers=args.workers[0])
-    output = list()
-    async for match in trial_matches:
-        for inner_match in create_trial_match(match):
-            output.append(inner_match)
-            update_trial_match(inner_match)
-    log.info("{}".format(len(output)))
+        if sample_ids is not None:
+            query.update({'sample_id': {'$in': sample_ids}})
 
+        trial_matches_to_not_change = db.trial_match_test.find(query)
+        del query['hash']
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-trials", nargs="*", type=str, default=None)
-    parser.add_argument("-samples", nargs="*", type=str, default=None)
-    parser.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
-    args = parser.parse_args()
-    asyncio.run(main(args))
+        where = {'hash': {'$nin': new_matches_hashes}}
+        where.update(query)
+        update = {'is_disabled': True}
+
+        trial_matches_to_insert = [match for match in trial_matches if match['hash'] not in trial_matches_to_not_change]
+
+        async def delete():
+            await db.trial_match_test.update(where, update, multi=True)
+
+        async def insert():
+            await db.trial_match_test.insert_many(trial_matches_to_insert)
+
+        await asyncio.gather(delete, insert)
+
+    async def main(args):
+        # todo run_log
+
+        trial_matches = find_matches(sample_ids=args.samples, protocol_nos=args.trials, num_workers=args.workers[0])
+        all_new_matches = list()
+        async for match in trial_matches:
+            for inner_match in create_trial_match(match):
+                all_new_matches.append(inner_match)
+
+        await update_trial_matches(all_new_matches, args.protocol_nos, args.sample_ids)
+
+    if __name__ == "__main__":
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-trials", nargs="*", type=str, default=None)
+        parser.add_argument("-samples", nargs="*", type=str, default=None)
+        parser.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
+        args = parser.parse_args()
+        asyncio.run(main(args))
