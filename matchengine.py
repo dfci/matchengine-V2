@@ -74,7 +74,7 @@ async def find_matches(sample_ids: list = None,
 
     with MongoDBConnection(read_only=True) as db:
         trials = [trial async for trial in get_trials(db, match_criteria_transform, protocol_nos, match_on_closed)]
-        _ids = await get_clinical_ids_from_sample_ids(db, sample_ids)
+        _ids = await get_clinical_ids_from_sample_ids(db, sample_ids, match_on_deceased)
 
     for trial in trials:
         log.info("Begin Protocol No: {}".format(trial["protocol_no"]))
@@ -131,10 +131,14 @@ async def get_trials(db: pymongo.database.Database,
             yield Trial(trial)
 
 
-async def get_clinical_ids_from_sample_ids(db, sample_ids: List[str]) -> List[ClinicalID]:
+async def get_clinical_ids_from_sample_ids(db, sample_ids: List[str],
+                                           match_on_deceased : bool = False) -> List[ClinicalID]:
+
+    # if no sample ids are passed in as args, get all clinical documents
     if sample_ids is None:
+        query = {} if match_on_deceased else {"VITAL_STATUS": 'alive'}
         return [result['_id']
-                for result in await db.clinical.find({"VITAL_STATUS": 'alive'}, {"_id": 1}).to_list(None)]
+                for result in await db.clinical.find(query, {"_id": 1}).to_list(None)]
     else:
         return [result['_id']
                 for result in await db.clinical.find({"SAMPLE_ID": {"$in": sample_ids}}, {"_id": 1}).to_list(None)]
@@ -149,6 +153,7 @@ def extract_match_clauses_from_trial(trial: Trial,
     Default to only extracting match clauses on steps, arms or dose levels which are open to accrual unless otherwise
     specified
 
+    :param match_on_closed:
     :param trial:
     :return:
     """
@@ -482,8 +487,8 @@ def create_trial_match(trial_match: TrialMatch) -> Dict:
 
 async def update_trial_matches(trial_matches: List[Dict], protocol_nos, sample_ids):
     """
-    Update trial matches by comparing diff'ing the newly created trial matches against existing matches in the db.
-    Delete the diff and insert all of the new matches.
+    Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
+    'Delete' matches by adding {is_disabled: true} and insert all new matches.
     :param trial_matches:
     :param protocol_nos:
     :param sample_ids:
@@ -519,6 +524,10 @@ async def update_trial_matches(trial_matches: List[Dict], protocol_nos, sample_i
 
 
 async def check_indexes():
+    """
+    Ensure indexes exist on the trial_match collection so queries are performant
+    :return:
+    """
     with MongoDBConnection(read_only=True) as db:
         indexes = db.trial_match.list_indexes()
         existing_indexes = set()
