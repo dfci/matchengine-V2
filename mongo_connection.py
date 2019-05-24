@@ -26,9 +26,11 @@ class MongoDBConnection(object):
             self.uri = uri
 
     def __enter__(self):
+        username = self.SECRETS["MONGO_RO_USERNAME"] if self.read_only else self.SECRETS["MONGO_USERNAME"]
+        password = self.SECRETS["MONGO_RO_PASSWORD"] if self.read_only else self.SECRETS["MONGO_PW"]
         self.client = motor.motor_asyncio.AsyncIOMotorClient(
-            self.uri.format(username=self.SECRETS["MONGO_USERNAME"],
-                            password=self.SECRETS["MONGO_PW"],
+            self.uri.format(username=username,
+                            password=password,
                             hostname=self.SECRETS["MONGO_HOST"],
                             port=self.SECRETS["MONGO_PORT"],
                             db=self.db))
