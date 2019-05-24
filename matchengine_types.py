@@ -3,7 +3,7 @@ from typing import NewType, Tuple, Union, List, Dict, Any, Set
 from bson import ObjectId
 from networkx import DiGraph
 
-from frozendict import frozendict
+from frozendict import comparable_dict
 
 Trial = NewType("Trial", dict)
 ParentPath = NewType("ParentPath", Tuple[Union[str, int]])
@@ -52,7 +52,7 @@ class Cache:
     genomic_non_hits: int
     clinical_non_hits: int
     docs: Dict[ObjectId, MongoQueryResult]
-    queries: Dict[frozendict, Set[ObjectId]]
+    queries: Dict[comparable_dict, Set[ObjectId]]
 
 
 @dataclass
