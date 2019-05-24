@@ -452,7 +452,7 @@ def create_trial_match(trial_match: TrialMatch) -> Dict:
             }
 
             # add hash
-            new_trial_match['hash'] = hash(frozenset(new_trial_match.items()))
+            new_trial_match['hash'] = hash(frozendict(new_trial_match))
             yield new_trial_match
 
 
@@ -498,7 +498,8 @@ async def main(args):
         for inner_match in create_trial_match(match):
             all_new_matches.append(inner_match)
 
-    await update_trial_matches(all_new_matches, args.protocol_nos, args.sample_ids)
+    if all_new_matches:
+        await update_trial_matches(all_new_matches, args.trials, args.samples)
 
 
 if __name__ == "__main__":
