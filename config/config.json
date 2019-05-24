@@ -133,8 +133,6 @@
       "REPORT_DATE",
       "GENDER"
     ],
-    "trial": [
-      "_summary"
-    ]
+    "trial": []
   }
 }
