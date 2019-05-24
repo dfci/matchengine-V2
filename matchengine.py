@@ -490,21 +490,21 @@ async def update_trial_matches(trial_matches: List[Dict], protocol_nos, sample_i
 
         await asyncio.gather(delete, insert)
 
-    async def main(args):
-        # todo run_log
 
-        trial_matches = find_matches(sample_ids=args.samples, protocol_nos=args.trials, num_workers=args.workers[0])
-        all_new_matches = list()
-        async for match in trial_matches:
-            for inner_match in create_trial_match(match):
-                all_new_matches.append(inner_match)
+async def main(args):
+    trial_matches = find_matches(sample_ids=args.samples, protocol_nos=args.trials, num_workers=args.workers[0])
+    all_new_matches = list()
+    async for match in trial_matches:
+        for inner_match in create_trial_match(match):
+            all_new_matches.append(inner_match)
 
-        await update_trial_matches(all_new_matches, args.protocol_nos, args.sample_ids)
+    await update_trial_matches(all_new_matches, args.protocol_nos, args.sample_ids)
 
-    if __name__ == "__main__":
-        parser = argparse.ArgumentParser()
-        parser.add_argument("-trials", nargs="*", type=str, default=None)
-        parser.add_argument("-samples", nargs="*", type=str, default=None)
-        parser.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
-        args = parser.parse_args()
-        asyncio.run(main(args))
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-trials", nargs="*", type=str, default=None)
+    parser.add_argument("-samples", nargs="*", type=str, default=None)
+    parser.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
+    args = parser.parse_args()
+    asyncio.run(main(args))
