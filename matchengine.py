@@ -49,9 +49,10 @@ async def find_matches(sample_ids: list = None,
                        debug: bool = False,
                        num_workers: int = 25,
                        match_on_closed: bool = False,
-                       match_on_deceased: bool = False) -> Generator[TrialMatch,
-                                                                     None,
-                                                                     None]:
+                       match_on_deceased: bool = False,
+                       cache: Cache = None) -> Generator[TrialMatch,
+                                                         None,
+                                                         None]:
     """
     Take a list of sample ids and trial protocol numbers, return a dict of trial matches
     :param sample_ids:
@@ -70,7 +71,8 @@ async def find_matches(sample_ids: list = None,
     result_q = asyncio.queues.Queue()
     match_criteria_transform = MatchCriteriaTransform(config)
 
-    cache = Cache(int(), int(), int(), int(), dict(), dict())
+    if cache is None:
+        cache = Cache(int(), int(), int(), int(), dict(), dict())
 
     with MongoDBConnection(read_only=True) as db:
         trials = [trial async for trial in get_trials(db, match_criteria_transform, protocol_nos, match_on_closed)]
@@ -324,7 +326,7 @@ async def run_query(cache: Cache,
 
     :param db:
     :param match_criteria_transformer:
-    :param multi_collection_query:
+    :param multi_collection_queries:
     :return:
     """
     # TODO refactor into smaller functions
@@ -412,6 +414,7 @@ async def run_query(cache: Cache,
 
         async def perform_db_call(collection, query, projection):
             return await db[collection].find(query, projection).to_list(None)
+
         results = await asyncio.gather(perform_db_call("clinical",
                                                        {"_id": {"$in": list(needed_clinical)}},
                                                        clinical_projection),
@@ -458,20 +461,21 @@ def create_trial_match(trial_match: TrialMatch) -> Dict:
 
                 # add hash
                 new_trial_match['hash'] = comparable_dict(new_trial_match).hash()
-                yield new_trial_match
+                yield new_trial_match['hash'], new_trial_match
     else:
         new_trial_match = {
             **format(trial_match.raw_query_result.clinical_doc),
             **format(get_genomic_details(None, None)),
             **trial_match.match_clause_data.match_clause_additional_attributes,
             **trial,
-            "query": trial_match.match_criterion
+            "query": trial_match.match_criterion,
+            "is_disabled": False
         }
         new_trial_match['hash'] = comparable_dict(new_trial_match).hash()
-        yield new_trial_match
+        yield new_trial_match['hash'], new_trial_match
 
 
-async def update_trial_matches(trial_matches: List[Dict], protocol_nos, sample_ids):
+async def update_trial_matches(trial_matches: Dict[str, Dict], protocol_nos, sample_ids):
     """
     Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
     'Delete' matches by adding {is_disabled: true} and insert all new matches.
@@ -480,7 +484,7 @@ async def update_trial_matches(trial_matches: List[Dict], protocol_nos, sample_i
     :param sample_ids:
     :return:
     """
-    new_matches_hashes = [match['hash'] for match in trial_matches]
+    new_matches_hashes = list(trial_matches.keys())
 
     query = {'hash': {'$in': new_matches_hashes}}
     if protocol_nos is not None:
@@ -490,23 +494,37 @@ async def update_trial_matches(trial_matches: List[Dict], protocol_nos, sample_i
         query.update({'sample_id': {'$in': sample_ids}})
 
     with MongoDBConnection(read_only=True) as db:
-        trial_matches_to_not_change = await db.trial_match_test.find(query, {"hash": 1}).to_list(None)
+        trial_matches_to_not_change = {result['hash']: result.setdefault('is_disabled', False)
+                                       for result in await db.trial_match_test.find(query,
+                                                                                    {"hash": 1,
+                                                                                     "is_disabled": 1}).to_list(None)}
     del query['hash']
 
-    where = {'hash': {'$nin': new_matches_hashes}}
-    where.update(query)
+    delete_where = {'hash': {'$nin': new_matches_hashes}}
+    delete_where.update(query)
     update = {"$set": {'is_disabled': True}}
 
-    trial_matches_to_insert = [match for match in trial_matches if match['hash'] not in trial_matches_to_not_change]
+    trial_matches_to_insert = [trial_matches[h]
+                               for h in new_matches_hashes if h not in trial_matches_to_not_change]
+    trial_matches_to_mark_available = [trial_matches[h]
+                                       for h in new_matches_hashes if h in trial_matches_to_not_change
+                                       and trial_matches_to_not_change.setdefault('is_disabled', False)]
 
     with MongoDBConnection(read_only=False) as db:
         async def delete():
-            await db.trial_match_test.update_many(where, update)
+            await db.trial_match_test.update_many(delete_where, update)
 
         async def insert():
-            await db.trial_match_test.insert_many(trial_matches_to_insert)
+            if trial_matches_to_insert:
+                await db.trial_match_test.insert_many(trial_matches_to_insert)
 
-        await asyncio.gather(asyncio.create_task(delete()), asyncio.create_task(insert()))
+        async def mark_available():
+            if trial_matches_to_mark_available:
+                await db.trial_match_test.update({'hash': {'$in': trial_matches_to_mark_available}})
+
+        await asyncio.gather(asyncio.create_task(delete()),
+                             asyncio.create_task(insert()),
+                             asyncio.create_task(mark_available()))
 
 
 async def check_indexes():
@@ -534,10 +552,10 @@ async def main(args):
                                  num_workers=args.workers[0],
                                  match_on_closed=args.match_on_closed,
                                  match_on_deceased=args.match_on_deceased)
-    all_new_matches = list()
+    all_new_matches = dict()
     async for match in trial_matches:
-        for inner_match in create_trial_match(match):
-            all_new_matches.append(inner_match)
+        for trial_match_hash, inner_match in create_trial_match(match):
+            all_new_matches[trial_match_hash] = inner_match
 
     if all_new_matches:
         await update_trial_matches(all_new_matches, args.trials, args.samples)
