@@ -492,7 +492,21 @@ async def update_trial_matches(trial_matches: List[Dict], protocol_nos, sample_i
         await asyncio.gather(asyncio.create_task(delete()), asyncio.create_task(insert()))
 
 
+async def check_indexes():
+    with MongoDBConnection(read_only=True) as db:
+        indexes = db.trial_match.list_indexes()
+        existing_indexes = set()
+        desired_indexes = {'hash', 'mrn', 'sample_id', 'clinical_id', 'protocol_no'}
+        async for index in indexes:
+            index_key = list(index['key'].to_dict().keys())[0]
+            existing_indexes.add(index_key)
+        indexes_to_create = desired_indexes - existing_indexes
+        for index in indexes_to_create:
+            await db.trial_match.create_index(index)
+
+
 async def main(args):
+    await check_indexes()
     trial_matches = find_matches(sample_ids=args.samples, protocol_nos=args.trials, num_workers=args.workers[0])
     all_new_matches = list()
     async for match in trial_matches:
@@ -504,6 +518,12 @@ async def main(args):
 
 
 if __name__ == "__main__":
+    # todo check for indexes and make if not there
+    # todo handle ! NOT criteria
+    # todo run log
+    # todo unit tests
+    # todo vital status - move to config
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-trials", nargs="*", type=str, default=None)
     parser.add_argument("-samples", nargs="*", type=str, default=None)
