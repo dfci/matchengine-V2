@@ -47,9 +47,11 @@ async def queue_worker(q, result_q, config, worker_id) -> None:
 async def find_matches(sample_ids: list = None,
                        protocol_nos: list = None,
                        debug: bool = False,
-                       num_workers: int = 25) -> Generator[TrialMatch,
-                                                           None,
-                                                           None]:
+                       num_workers: int = 25,
+                       match_on_closed: bool = False,
+                       match_on_deceased: bool = False) -> Generator[TrialMatch,
+                                                                     None,
+                                                                     None]:
     """
     Take a list of sample ids and trial protocol numbers, return a dict of trial matches
     :param sample_ids:
@@ -62,6 +64,8 @@ async def find_matches(sample_ids: list = None,
 
     with open("config/config.json") as config_file_handle:
         config = json.load(config_file_handle)
+
+    # init
     q = asyncio.queues.Queue()
     result_q = asyncio.queues.Queue()
     match_criteria_transform = MatchCriteriaTransform(config)
@@ -69,13 +73,14 @@ async def find_matches(sample_ids: list = None,
     cache = Cache(int(), int(), int(), int(), dict(), dict())
 
     with MongoDBConnection(read_only=True) as db:
-        trials = [trial async for trial in get_trials(db, match_criteria_transform, protocol_nos)]
+        trials = [trial async for trial in get_trials(db, match_criteria_transform, protocol_nos, match_on_closed)]
         _ids = await get_clinical_ids_from_sample_ids(db, sample_ids)
+
     for trial in trials:
         log.info("Begin Protocol No: {}".format(trial["protocol_no"]))
-        for match_clause_data in extract_match_clauses_from_trial(trial):
-            for match_path in get_match_paths(create_match_tree(match_clause_data.match_clause)):
-                translated_match_path = translate_match_path(match_clause_data,
+        for match_clause in extract_match_clauses_from_trial(trial, match_on_closed):
+            for match_path in get_match_paths(create_match_tree(match_clause.match_clause)):
+                translated_match_path = translate_match_path(match_clause,
                                                              match_path,
                                                              match_criteria_transform)
                 query = add_ids_to_query(translated_match_path, _ids, match_criteria_transform)
@@ -83,7 +88,7 @@ async def find_matches(sample_ids: list = None,
                     log.info("Query: {}".format(query))
                 await q.put(QueueTask(match_criteria_transform,
                                       trial,
-                                      match_clause_data,
+                                      match_clause,
                                       match_path,
                                       query,
                                       _ids,
@@ -108,7 +113,8 @@ async def find_matches(sample_ids: list = None,
 
 async def get_trials(db: pymongo.database.Database,
                      match_criteria_transform: MatchCriteriaTransform,
-                     protocol_nos: list = None) -> Generator[Trial, None, None]:
+                     protocol_nos: list = None,
+                     match_on_closed: bool = False) -> Generator[Trial, None, None]:
     trial_find_query = dict()
 
     # the minimum criteria needed in a trial projection. add extra values in config.json
@@ -119,11 +125,10 @@ async def get_trials(db: pymongo.database.Database,
         trial_find_query['protocol_no'] = {"$in": [protocol_no for protocol_no in protocol_nos]}
 
     async for trial in db.trial.find(trial_find_query, projection):
-        # TODO toggle with flag
-        if trial['status'].lower().strip() in {"open to accrual"}:
-            yield Trial(trial)
-        else:
+        if trial['status'].lower().strip() not in {"open to accrual"} and not match_on_closed:
             logging.info('Trial %s is closed, skipping' % trial['protocol_no'])
+        else:
+            yield Trial(trial)
 
 
 async def get_clinical_ids_from_sample_ids(db, sample_ids: List[str]) -> List[ClinicalID]:
@@ -135,7 +140,8 @@ async def get_clinical_ids_from_sample_ids(db, sample_ids: List[str]) -> List[Cl
                 for result in await db.clinical.find({"SAMPLE_ID": {"$in": sample_ids}}, {"_id": 1}).to_list(None)]
 
 
-def extract_match_clauses_from_trial(trial: Trial) -> Generator[MatchClauseData, None, None]:
+def extract_match_clauses_from_trial(trial: Trial,
+                                     match_on_closed: bool = False) -> Generator[MatchClauseData, None, None]:
     """
     Pull out all of the matches from a trial curation.
     Return the parent path and the values of that match clause.
@@ -167,17 +173,22 @@ def extract_match_clauses_from_trial(trial: Trial) -> Generator[MatchClauseData,
             for inner_key, inner_value in parent_value.items():
                 if inner_key == 'match':
                     if path[-1] == 'arm':
-                        if parent_value.setdefault('arm_suspended', 'n').lower().strip() == 'y':
+                        if not match_on_closed and \
+                                parent_value.setdefault('arm_suspended', 'n').lower().strip() == 'y':
                             continue
                     elif path[-1] == 'dose':
-                        if parent_value.setdefault('level_suspended', 'n').lower().strip() == 'y':
+                        if not match_on_closed and \
+                                parent_value.setdefault('level_suspended', 'n').lower().strip() == 'y':
                             continue
                     elif path[-1] == 'step':
-                        if all([arm.setdefault('arm_suspended', 'n').lower().strip() == 'y'
-                                for arm in parent_value.setdefault('arm', list({'arm_suspended': 'y'}))]):
+                        if not match_on_closed and \
+                                all([arm.setdefault('arm_suspended', 'n').lower().strip() == 'y'
+                                     for arm in parent_value.setdefault('arm', list({'arm_suspended': 'y'}))]):
                             continue
+
                     parent_path = ParentPath(path + (parent_key, inner_key))
                     level = MatchClauseLevel([item for item in parent_path[::-1] if not isinstance(item, int)][0])
+
                     yield MatchClauseData(inner_value, parent_path, level, parent_value)
                 else:
                     process_q.append((path + (parent_key,), inner_key, inner_value))
@@ -430,6 +441,8 @@ def create_trial_match(trial_match: TrialMatch) -> Dict:
     """
     Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
     in config.json
+    :param trial_match:
+    :return:
     """
     # remove extra fields from trial_match output
     trial = dict()
@@ -439,30 +452,43 @@ def create_trial_match(trial_match: TrialMatch) -> Dict:
         else:
             trial[key] = trial_match.trial[key]
 
-    for genomic_doc in trial_match.raw_query_result.genomic_docs:
-        for genomic_query in [{k: v for k, v in genomic_query.items() if k != "CLINICAL_ID"}
-                              for query in trial_match.multi_collection_queries if 'genomic' in query
-                              for genomic_query in query['genomic']]:
-            new_trial_match = {
-                **format(trial_match.raw_query_result.clinical_doc),
-                **format(get_genomic_details(genomic_doc, genomic_query)),
-                **trial_match.match_clause_data.match_clause_additional_attributes,
-                **trial,
-                "query": trial_match.match_criterion
-            }
+    if trial_match.raw_query_result.genomic_docs:
+        for genomic_doc in trial_match.raw_query_result.genomic_docs:
+            for genomic_query in [{k: v for k, v in genomic_query.items() if k != "CLINICAL_ID"}
+                                  for query in trial_match.multi_collection_queries if 'genomic' in query
+                                  for genomic_query in query['genomic']]:
+                new_trial_match = {
+                    **format(trial_match.raw_query_result.clinical_doc),
+                    **format(get_genomic_details(genomic_doc, genomic_query)),
+                    **trial_match.match_clause_data.match_clause_additional_attributes,
+                    **trial,
+                    "query": trial_match.match_criterion
+                }
 
-            # add hash
-            new_trial_match['hash'] = frozendict(new_trial_match).hash()
-            yield new_trial_match
+                # add hash
+                new_trial_match['hash'] = frozendict(new_trial_match).hash()
+                yield new_trial_match
+    else:
+        new_trial_match = {
+            **format(trial_match.raw_query_result.clinical_doc),
+            **format(get_genomic_details(None, None)),
+            **trial_match.match_clause_data.match_clause_additional_attributes,
+            **trial,
+            "query": trial_match.match_criterion
+        }
+        new_trial_match['hash'] = frozendict(new_trial_match).hash()
+        yield new_trial_match
 
 
 async def update_trial_matches(trial_matches: List[Dict], protocol_nos, sample_ids):
-    # SCENARIO 1 - new arm/step/dose level OPENS
-    # SCENARIO 2 - arm/step/dose level CLOSES
-    # SCENARIO 3 - match clauses CHANGES
-    # SCENARIO 4 - new sample_ids added from CAMD
-    # SCENARIO 5 - existing clinical document altered from CAMD
-    # SCENARIO 6 - sample_ids deleted from CAMD
+    """
+    Update trial matches by comparing diff'ing the newly created trial matches against existing matches in the db.
+    Delete the diff and insert all of the new matches.
+    :param trial_matches:
+    :param protocol_nos:
+    :param sample_ids:
+    :return:
+    """
     new_matches_hashes = [match['hash'] for match in trial_matches]
 
     query = {'hash': {'$in': new_matches_hashes}}
@@ -502,12 +528,17 @@ async def check_indexes():
             existing_indexes.add(index_key)
         indexes_to_create = desired_indexes - existing_indexes
         for index in indexes_to_create:
+            log.info('Creating index %s' % index)
             await db.trial_match.create_index(index)
 
 
 async def main(args):
     await check_indexes()
-    trial_matches = find_matches(sample_ids=args.samples, protocol_nos=args.trials, num_workers=args.workers[0])
+    trial_matches = find_matches(sample_ids=args.samples,
+                                 protocol_nos=args.trials,
+                                 num_workers=args.workers[0],
+                                 match_on_closed=args.match_on_closed,
+                                 match_on_deceased=args.match_on_deceased)
     all_new_matches = list()
     async for match in trial_matches:
         for inner_match in create_trial_match(match):
@@ -518,15 +549,22 @@ async def main(args):
 
 
 if __name__ == "__main__":
-    # todo check for indexes and make if not there
     # todo handle ! NOT criteria
     # todo run log
     # todo unit tests
-    # todo vital status - move to config
+    # todo refactor run_query
+    # todo load functions
+    # todo output CSV file functions
 
     parser = argparse.ArgumentParser()
+    closed_help = 'Match on closed trials and all suspended steps, arms and doses.'
+    deceased_help = 'Match on deceased patients.'
     parser.add_argument("-trials", nargs="*", type=str, default=None)
     parser.add_argument("-samples", nargs="*", type=str, default=None)
+    parser.add_argument("--match-on-closed", dest="match_on_closed", action="store_true", default=False,
+                        help=closed_help)
+    parser.add_argument("--match-on-deceased-patients", dest="match_on_deceased", action="store_true",
+                        help=deceased_help)
     parser.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
     args = parser.parse_args()
     asyncio.run(main(args))
