@@ -452,7 +452,7 @@ def create_trial_match(trial_match: TrialMatch) -> Dict:
             }
 
             # add hash
-            new_trial_match['hash'] = hash(frozendict(new_trial_match))
+            new_trial_match['hash'] = frozendict(new_trial_match).hash()
             yield new_trial_match
 
 
@@ -463,32 +463,33 @@ async def update_trial_matches(trial_matches: List[Dict], protocol_nos, sample_i
     # SCENARIO 4 - new sample_ids added from CAMD
     # SCENARIO 5 - existing clinical document altered from CAMD
     # SCENARIO 6 - sample_ids deleted from CAMD
+    new_matches_hashes = [match['hash'] for match in trial_matches]
+
+    query = {'hash': {'$in': new_matches_hashes}}
+    if protocol_nos is not None:
+        query.update({'protocol_no': {'$in': protocol_nos}})
+
+    if sample_ids is not None:
+        query.update({'sample_id': {'$in': sample_ids}})
+
     with MongoDBConnection(read_only=True) as db:
-        new_matches_hashes = [match['hash'] for match in trial_matches]
+        trial_matches_to_not_change = await db.trial_match_test.find(query).to_list(None)
+    del query['hash']
 
-        query = {'hash': {'$in': new_matches_hashes}}
-        if protocol_nos is not None:
-            query.update({'protocol_no': {'$in': protocol_nos}})
+    where = {'hash': {'$nin': new_matches_hashes}}
+    where.update(query)
+    update = {"$set": {'is_disabled': True}}
 
-        if sample_ids is not None:
-            query.update({'sample_id': {'$in': sample_ids}})
+    trial_matches_to_insert = [match for match in trial_matches if match['hash'] not in trial_matches_to_not_change]
 
-        trial_matches_to_not_change = db.trial_match_test.find(query)
-        del query['hash']
-
-        where = {'hash': {'$nin': new_matches_hashes}}
-        where.update(query)
-        update = {'is_disabled': True}
-
-        trial_matches_to_insert = [match for match in trial_matches if match['hash'] not in trial_matches_to_not_change]
-
+    with MongoDBConnection(read_only=False) as db:
         async def delete():
-            await db.trial_match_test.update(where, update, multi=True)
+            await db.trial_match_test.update_many(where, update)
 
         async def insert():
             await db.trial_match_test.insert_many(trial_matches_to_insert)
 
-        await asyncio.gather(delete, insert)
+        await asyncio.gather(asyncio.create_task(delete()), asyncio.create_task(insert()))
 
 
 async def main(args):
