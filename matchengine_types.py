@@ -52,7 +52,7 @@ class Cache:
     genomic_non_hits: int
     clinical_non_hits: int
     docs: Dict[ObjectId, MongoQueryResult]
-    queries: Dict[comparable_dict, Set[ObjectId]]
+    queries: Dict[str, Dict[ObjectId, ObjectId]]
 
 
 @dataclass
