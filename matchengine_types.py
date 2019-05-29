@@ -20,7 +20,6 @@ ClinicalID = NewType("ClinicalID", ObjectId)
 Collection = NewType("Collection", str)
 
 
-
 @dataclass
 class MatchClauseData:
     match_clause: MatchClause
@@ -54,10 +53,11 @@ class Cache:
     clinical_non_hits: int
     docs: Dict[ObjectId, MongoQueryResult]
     queries: Dict[str, Dict[ObjectId, ObjectId]]
+    matches: dict
 
 
 @dataclass
-class QueueTask:
+class QueryTask:
     match_criteria_transform: object
     trial: Trial
     match_clause_data: MatchClauseData
@@ -65,3 +65,9 @@ class QueueTask:
     queries: List[MultiCollectionQuery]
     clinical_ids: List[ClinicalID]
     cache: Cache
+
+
+@dataclass
+class MatchTask:
+    query_task: QueryTask
+    raw_result: RawQueryResult

@@ -19,27 +19,40 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
 
 
-async def queue_worker(q, result_q, config, worker_id) -> None:
+async def queue_worker(q, match_q, config, worker_id) -> None:
     if not q.empty():
         match_criteria_transform = MatchCriteriaTransform(config)
-        with MongoDBConnection(read_only=True) as db:
+        match_task_count = 0
+        with MongoDBConnection(read_only=True) as ro_db, MongoDBConnection(read_only=False) as rw_db:
             while not q.empty():
-                task: QueueTask = await q.get()
+                task: Union[QueryTask, MatchTask] = await q.get()
                 try:
                     # logging.info("Worker: {}, query: {}".format(worker_id, task.query))
-                    log.info(
-                        "Worker: {}, protocol_no: {} got new task".format(worker_id, task.trial['protocol_no']))
-                    async for result in run_query(task.cache,
-                                                  db,
-                                                  match_criteria_transform,
-                                                  task.queries,
-                                                  task.clinical_ids):
-                        await result_q.put((task, result))
-                        # log.info("Worker: {},  protocol_no: {}, clinical_id: {}, qsize: {}".format(worker_id,
-                        #                                                                            task.trial[
-                        #                                                                                'protocol_no'],
-                        #                                                                            result.clinical_id,
-                        #                                                                            q.qsize()))
+                    if isinstance(task, QueryTask):
+                        log.info(
+                            "Worker: {}, protocol_no: {} got new QueryTask".format(worker_id,
+                                                                                   task.trial['protocol_no']))
+                        async for result in run_query(task.cache,
+                                                      ro_db,
+                                                      match_criteria_transform,
+                                                      task.queries,
+                                                      task.clinical_ids):
+                            await q.put(MatchTask(task, result))
+                    elif isinstance(task, MatchTask):
+                        match_task_count += 1
+                        if match_task_count % 100 == 0:
+                            log.info(
+                                "Worker: {}, protocol_no: {} MatchTask {}".format(worker_id,
+                                                                                  task.query_task.trial[
+                                                                                      'protocol_no'],
+                                                                                  match_task_count))
+                        trial_match = TrialMatch(task.query_task.trial,
+                                                 task.query_task.match_clause_data,
+                                                 task.query_task.match_path,
+                                                 task.query_task.queries,
+                                                 task.raw_result)
+                        async for match_document in create_trial_match(trial_match):
+                            await match_q.put(match_document)
                     q.task_done()
                 except Exception as e:
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
@@ -53,11 +66,14 @@ async def find_matches(sample_ids: list = None,
                        num_workers: int = 25,
                        match_on_closed: bool = False,
                        match_on_deceased: bool = False,
-                       cache: Cache = None) -> Generator[TrialMatch,
+                       cache: Cache = None) -> Generator[Tuple[str, Dict],
                                                          None,
                                                          None]:
     """
     Take a list of sample ids and trial protocol numbers, return a dict of trial matches
+    :param cache:
+    :param match_on_closed:
+    :param match_on_deceased:
     :param sample_ids:
     :param protocol_nos:
     :param debug:
@@ -71,11 +87,11 @@ async def find_matches(sample_ids: list = None,
 
     # init
     q = asyncio.queues.Queue()
-    result_q = asyncio.queues.Queue()
+    match_q = asyncio.queues.Queue()
     match_criteria_transform = MatchCriteriaTransform(config)
 
     if cache is None:
-        cache = Cache(int(), int(), int(), int(), dict(), dict())
+        cache = Cache(int(), int(), int(), int(), dict(), dict(), dict())
 
     with MongoDBConnection(read_only=True) as db:
         trials = [trial async for trial in get_trials(db, match_criteria_transform, protocol_nos, match_on_closed)]
@@ -91,23 +107,22 @@ async def find_matches(sample_ids: list = None,
                 if debug or True:
                     log.info("Query: {}".format(query))
                 if query:
-                    await q.put(QueueTask(match_criteria_transform,
+                    await q.put(QueryTask(match_criteria_transform,
                                           trial,
                                           match_clause,
                                           match_path,
                                           query,
                                           _ids,
                                           cache))
-    workers = [asyncio.create_task(queue_worker(q, result_q, config, i))
+    workers = [asyncio.create_task(queue_worker(q, match_q, config, i))
                for i in range(0, min(q.qsize(), num_workers))]
     await asyncio.gather(*workers)
     await q.join()
-    logging.info("Total results: {}".format(result_q.qsize()))
-    while not result_q.empty():
-        task: QueueTask
-        result: RawQueryResult
-        task, result = await result_q.get()
-        yield TrialMatch(task.trial, task.match_clause_data, task.match_path, task.queries, result)
+    logging.info("Total results: {}".format(match_q.qsize()))
+    while not match_q.empty():
+        match_document = await match_q.get()
+        # log.info("{}".format(match_document))
+        yield match_document
 
 
 async def get_trials(db: pymongo.database.Database,
@@ -468,7 +483,7 @@ async def run_query(cache: Cache,
                                  [cache.docs[genomic_id] for genomic_id in genomic_ids])
 
 
-def create_trial_match(trial_match: TrialMatch) -> Dict:
+async def create_trial_match(trial_match: TrialMatch) -> Generator[Dict, None, Dict]:
     """
     Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
     in config.json
@@ -491,7 +506,7 @@ def create_trial_match(trial_match: TrialMatch) -> Dict:
                 new_trial_match = {
                     **format(trial_match.raw_query_result.clinical_doc),
                     **format(get_genomic_details(genomic_doc, genomic_query)),
-                    **trial_match.match_clause_data.match_clause_additional_attributes,
+                    **{k: v for k, v in trial_match.match_clause_data.match_clause_additional_attributes.items() if k != 'match'},
                     **trial,
                     "query": trial_match.match_criterion
                 }
@@ -554,14 +569,14 @@ async def update_trial_matches(trial_matches: Dict[str, Dict], protocol_nos, sam
 
         async def insert():
             if trial_matches_to_insert:
-                log.info("Trial matches to insert: {}".format(trial_matches_to_insert))
+                log.info("Trial matches to insert: {}".format(len(trial_matches_to_insert)))
                 await db.trial_match_test.insert_many(trial_matches_to_insert)
             log.info("Insert Done")
 
         async def mark_available():
             if trial_matches_to_mark_available:
-                log.info("Trial matches to mark available: {}".format(trial_matches_to_mark_available))
-                await db.trial_match_test.update({'hash': {'$in': trial_matches_to_mark_available}})
+                log.info("Trial matches to mark available: {}".format(len(trial_matches_to_mark_available)))
+                await db.trial_match_test.update({'hash': {'$in': len(trial_matches_to_mark_available)}})
             log.info("Mark available done")
 
         await asyncio.gather(asyncio.create_task(delete()),
@@ -595,9 +610,8 @@ async def main(args):
                                  match_on_closed=args.match_on_closed,
                                  match_on_deceased=args.match_on_deceased)
     all_new_matches = dict()
-    async for match in trial_matches:
-        for trial_match_hash, inner_match in create_trial_match(match):
-            all_new_matches[trial_match_hash] = inner_match
+    async for hash, match in trial_matches:
+        all_new_matches[hash] = match
     log.info("All new matches: {}".format(len(all_new_matches.keys())))
     if all_new_matches:
         await update_trial_matches(all_new_matches, args.trials, args.samples)
