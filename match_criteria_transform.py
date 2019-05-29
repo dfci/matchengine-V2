@@ -74,9 +74,9 @@ class MatchCriteriaTransform(object):
         match_value = resource.setdefault(trial_value, trial_value)  # TODO: fix
         if isinstance(match_value, list):
             if negate:
-                return {sample_key: {"$nin": match_value}}
+                return {sample_key: {"$nin": sorted(match_value)}}
             else:
-                return {sample_key: {"$in": match_value}}
+                return {sample_key: {"$in": sorted(match_value)}}
         else:
             if negate:
                 return {sample_key: {"$ne": match_value}}
