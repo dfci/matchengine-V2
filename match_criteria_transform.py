@@ -34,10 +34,9 @@ class MatchCriteriaTransform(object):
         trial_key = kwargs['trial_key']
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
-        if isinstance(trial_value, str) and trial_value[0] == '!':
-            return {sample_key: {"$ne": trial_value[1::]}}
-        else:
-            return {sample_key: trial_value}
+        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
+        trial_value = trial_value[1::] if negate else trial_value
+        return {sample_key: trial_value}, negate
 
     def age_range_to_date_query(self, **kwargs):
         sample_key = kwargs['sample_key']
@@ -58,7 +57,7 @@ class MatchCriteriaTransform(object):
         current_date = datetime.date.today()
         query_date = current_date - relativedelta(years=years, months=months)
         query_datetime = datetime.datetime(query_date.year, query_date.month, query_date.day, 0, 0, 0, 0)
-        return {sample_key: {operator_map[operator]: query_datetime}}
+        return {sample_key: {operator_map[operator]: query_datetime}}, False
 
     def external_file_mapping(self, **kwargs):
         trial_value = kwargs['trial_value']
@@ -68,36 +67,28 @@ class MatchCriteriaTransform(object):
             with open(file) as file_handle:
                 self.resources[file] = json.load(file_handle)
         resource = self.resources[file]
-        negate = True if trial_value[0] == '!' else False
-        if negate:
-            trial_value = trial_value[1::]
+        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
+        trial_value = trial_value[1::] if negate else trial_value
         match_value = resource.setdefault(trial_value, trial_value)  # TODO: fix
         if isinstance(match_value, list):
-            if negate:
-                return {sample_key: {"$nin": sorted(match_value)}}
-            else:
-                return {sample_key: {"$in": sorted(match_value)}}
+            return {sample_key: {"$in": sorted(match_value)}}, negate
         else:
-            if negate:
-                return {sample_key: {"$ne": match_value}}
-            else:
-                return {sample_key: match_value}
+            return {sample_key: match_value}, negate
 
     def bool_from_text(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
         if trial_value.upper() == 'TRUE':
-            return {sample_key: True}
+            return {sample_key: True}, False
         elif trial_value.upper() == 'FALSE':
-            return {sample_key: False}
+            return {sample_key: False}, False
 
     def to_upper(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
-        if isinstance(trial_value, str) and trial_value[0] == '!':
-            return {sample_key: {"$ne": trial_value[1::].upper()}}
-        else:
-            return {sample_key: trial_value.upper()}
+        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
+        trial_value = trial_value[1::] if negate else trial_value
+        return {sample_key: trial_value.upper()}, negate
 
     def cnv_map(self, **kwargs):
         # Heterozygous deletion,
@@ -112,10 +103,12 @@ class MatchCriteriaTransform(object):
             "High Amplification": "High level amplification"
         }
 
+        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
+        trial_value = trial_value[1::] if negate else trial_value
         if trial_value in cnv_map:
-            return {sample_key: cnv_map[trial_value]}
+            return {sample_key: cnv_map[trial_value]}, negate
         else:
-            return {sample_key: trial_value}
+            return {sample_key: trial_value}, negate
 
     def variant_category_map(self, **kwargs):
         trial_value = kwargs['trial_value']
@@ -124,11 +117,9 @@ class MatchCriteriaTransform(object):
             "Copy Number Variation": "CNV"
         }
 
-        negate = False
-        if isinstance(trial_value, str) and trial_value[0] == '!':
-            negate = True
-            trial_value = trial_value[1::]
+        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
+        trial_value = trial_value[1::] if negate else trial_value
         if trial_value in vc_map:
-            return {sample_key: vc_map[trial_value]} if not negate else {sample_key: {"$ne": vc_map[trial_value]}}
+            return {sample_key: vc_map[trial_value]}, negate
         else:
-            return {sample_key: trial_value.upper()} if not negate else {sample_key: {"$ne": trial_value.upper()}}
+            return {sample_key: trial_value.upper()}, negate

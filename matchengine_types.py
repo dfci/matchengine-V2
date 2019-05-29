@@ -20,6 +20,7 @@ ClinicalID = NewType("ClinicalID", ObjectId)
 Collection = NewType("Collection", str)
 
 
+
 @dataclass
 class MatchClauseData:
     match_clause: MatchClause

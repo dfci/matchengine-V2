@@ -91,13 +91,14 @@ async def find_matches(sample_ids: list = None,
                                              match_criteria_transform)
                 if debug or True:
                     log.info("Query: {}".format(query))
-                await q.put(QueueTask(match_criteria_transform,
-                                      trial,
-                                      match_clause,
-                                      match_path,
-                                      query,
-                                      _ids,
-                                      cache))
+                if query:
+                    await q.put(QueueTask(match_criteria_transform,
+                                          trial,
+                                          match_clause,
+                                          match_path,
+                                          query,
+                                          _ids,
+                                          cache))
     workers = [asyncio.create_task(queue_worker(q, result_q, config, i))
                for i in range(0, min(q.qsize(), num_workers))]
     await asyncio.gather(*workers)
@@ -263,6 +264,7 @@ def translate_match_path(match_clause_data: MatchClauseData,
         for criteria in node:
             for genomic_or_clinical, values in criteria.items():
                 and_query = dict()
+                any_negate = False
                 for trial_key, trial_value in values.items():
                     trial_key_settings = match_criteria_transformer.trial_key_mappings[genomic_or_clinical].setdefault(
                         trial_key.upper(),
@@ -279,10 +281,13 @@ def translate_match_path(match_clause_data: MatchClauseData,
                                 trial_path=genomic_or_clinical,
                                 trial_key=trial_key)
                     args.update(trial_key_settings)
-                    and_query.update(sample_function(match_criteria_transformer, **args))
+                    sample_value, negate = sample_function(match_criteria_transformer, **args)
+                    if not any_negate and negate:
+                        any_negate = True
+                    and_query.update(sample_value)
                 if and_query:
                     if comparable_dict(and_query).hash() not in query_cache:
-                        categories[genomic_or_clinical].append(and_query)
+                        categories[genomic_or_clinical].append((any_negate, and_query))
                         query_cache.add(comparable_dict(and_query).hash())
         if categories:
             output.append(categories)
@@ -295,17 +300,38 @@ async def execute_clinical_query(db: pymongo.database.Database,
                                  initial_clinical_ids: Set[ClinicalID]) -> Set[ObjectId]:
     if match_criteria_transformer.CLINICAL in multi_collection_query:
         collection = match_criteria_transformer.CLINICAL
-        query = {"$and": list()}
-        for inner_query in multi_collection_query[collection]:
+        not_query = list()
+        query = list()
+        for negate, inner_query in multi_collection_query[collection]:
             for k, v in inner_query.items():
-                query['$and'].append({k: v})
+                if negate:
+                    not_query.append({k: v})
+                else:
+                    query.append({k: v})
         if initial_clinical_ids:
-            query['$and'].insert(0, {"_id": {"$in": list(initial_clinical_ids)}})
-        cursor = await db[collection].find(query, {"_id": 1}).to_list(None)
-        clinical_ids = {doc['_id'] for doc in cursor}
+            if not_query:
+                not_query.insert(0, {"_id": {"$in": list(initial_clinical_ids)}})
+            if query:
+                query.insert(0, {"_id": {"$in": list(initial_clinical_ids)}})
+        if query:
+            positive_results = {result["_id"]
+                                for result in await db[collection].find({"$and": query}, {"_id": 1}).to_list(None)}
+        else:
+            positive_results = initial_clinical_ids
+        if not_query:
+            negative_results = {result["_id"]
+                                for result in await db[collection].find({"$and": not_query}, {"_id": 1}).to_list(None)}
+        else:
+            negative_results = set()
+
+        clinical_ids = positive_results - negative_results
         return clinical_ids
     else:
         return initial_clinical_ids
+
+
+async def perform_db_call(db, collection, query, projection):
+    return await db[collection].find(query, projection).to_list(None)
 
 
 async def run_query(cache: Cache,
@@ -329,6 +355,14 @@ async def run_query(cache: Cache,
 
     clinical_ids = set()
     for multi_collection_query in multi_collection_queries:
+        for items in multi_collection_query.items():
+            query = items[1]
+            for i_q in query:
+                if 'TRUE_PROTEIN_CHANGE' in i_q:
+                    id(1)
+                    if i_q['TRUE_PROTEIN_CHANGE'] == 'p.G12C':
+                        id(1)
+    for multi_collection_query in multi_collection_queries:
         # get clinical docs first
         new_clinical_ids = await execute_clinical_query(db,
                                                         match_criteria_transformer,
@@ -351,7 +385,7 @@ async def run_query(cache: Cache,
 
             join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
 
-            for query in queries:
+            for negate, query in queries:
                 # cache hit or miss should be here
                 uniq = comparable_dict(query).hash()
                 if uniq not in cache.queries:
@@ -384,11 +418,10 @@ async def run_query(cache: Cache,
                         all_results[query_clinical_id].add(genomic_id)
                         clinical_result_ids.add(query_clinical_id)
 
-                if clinical_result_ids and not clinical_ids:
-                    # this must be first iteration
-                    clinical_ids = clinical_result_ids
-                else:
+                if not negate:
                     clinical_ids.intersection_update(clinical_result_ids)
+                else:
+                    clinical_ids.difference_update(clinical_result_ids)
 
                 if not clinical_ids:
                     return
@@ -427,13 +460,12 @@ async def run_query(cache: Cache,
         }
         clinical_projection.update(match_criteria_transformer.clinical_projection)
 
-        async def perform_db_call(collection, query, projection):
-            return await db[collection].find(query, projection).to_list(None)
-
-        for results in asyncio.as_completed([perform_db_call("clinical",
+        for results in asyncio.as_completed([perform_db_call(db,
+                                                             "clinical",
                                                              {"_id": {"$in": list(needed_clinical)}},
                                                              clinical_projection),
-                                             perform_db_call("genomic",
+                                             perform_db_call(db,
+                                                             "genomic",
                                                              {"_id": {"$in": list(needed_genomic)}},
                                                              genomic_projection)]):
             for result in await results:
@@ -464,7 +496,7 @@ def create_trial_match(trial_match: TrialMatch) -> Dict:
         for genomic_doc in trial_match.raw_query_result.genomic_docs:
             for genomic_query in [{k: v for k, v in genomic_query.items() if k != "CLINICAL_ID"}
                                   for query in trial_match.multi_collection_queries if 'genomic' in query
-                                  for genomic_query in query['genomic']]:
+                                  for _, genomic_query in query['genomic']]:
                 new_trial_match = {
                     **format(trial_match.raw_query_result.clinical_doc),
                     **format(get_genomic_details(genomic_doc, genomic_query)),
