@@ -45,7 +45,6 @@ async def queue_worker(q, result_q, config, worker_id) -> None:
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
                     q.task_done()
                     await q.put(task)
-                    raise e
 
 
 async def find_matches(sample_ids: list = None,
@@ -355,14 +354,6 @@ async def run_query(cache: Cache,
 
     clinical_ids = set()
     for multi_collection_query in multi_collection_queries:
-        for items in multi_collection_query.items():
-            query = items[1]
-            for i_q in query:
-                if 'TRUE_PROTEIN_CHANGE' in i_q:
-                    id(1)
-                    if i_q['TRUE_PROTEIN_CHANGE'] == 'p.G12C':
-                        id(1)
-    for multi_collection_query in multi_collection_queries:
         # get clinical docs first
         new_clinical_ids = await execute_clinical_query(db,
                                                         match_criteria_transformer,
@@ -559,14 +550,19 @@ async def update_trial_matches(trial_matches: Dict[str, Dict], protocol_nos, sam
     with MongoDBConnection(read_only=False) as db:
         async def delete():
             await db.trial_match_test.update_many(delete_where, update)
+            log.info("Delete done")
 
         async def insert():
             if trial_matches_to_insert:
+                log.info("Trial matches to insert: {}".format(trial_matches_to_insert))
                 await db.trial_match_test.insert_many(trial_matches_to_insert)
+            log.info("Insert Done")
 
         async def mark_available():
             if trial_matches_to_mark_available:
+                log.info("Trial matches to mark available: {}".format(trial_matches_to_mark_available))
                 await db.trial_match_test.update({'hash': {'$in': trial_matches_to_mark_available}})
+            log.info("Mark available done")
 
         await asyncio.gather(asyncio.create_task(delete()),
                              asyncio.create_task(insert()),
@@ -602,7 +598,7 @@ async def main(args):
     async for match in trial_matches:
         for trial_match_hash, inner_match in create_trial_match(match):
             all_new_matches[trial_match_hash] = inner_match
-
+    log.info("All new matches: {}".format(len(all_new_matches.keys())))
     if all_new_matches:
         await update_trial_matches(all_new_matches, args.trials, args.samples)
 
