@@ -73,20 +73,20 @@
   "trial_match_sorting": [
     {
       "mmr_status": {
-        "Proficient(MMR - P / MSS)": "0000",
-        "Deficient(MMR - D / MSI - H)": "0010"
+        "Deficient(MMR - D / MSI - H)": "0000",
+        "Proficient(MMR - P / MSS)": "0010"
       },
       "tier": {
         "1": "0020",
         "2": "0030",
-        "3": "0040",
-        "4": "0050"
+        "3": "0060",
+        "4": "0070"
       },
       "cnv_call": {
-        "Heterozygous deletion": "0060",
-        "Gain": "0070",
-        "Homozygous deletion": "0080",
-        "High level amplification": "0090"
+        "Homozygous deletion": "0040",
+        "High level amplification": "0050",
+        "Gain": "0080",
+        "Heterozygous deletion": "0090"
       },
       "wildtype": {
         "False": "0100",
@@ -122,7 +122,6 @@
     "genomic": [
       "TRUE_CDNA_CHANGE",
       "REFERENCE_ALLELE",
-      "TRUE_TRANSCRIPT_EXON",
       "CANONICAL_STRAND",
       "ALLELE_FRACTION",
       "STRUCTURAL_VARIANT_COMMENT"

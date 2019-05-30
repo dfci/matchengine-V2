@@ -14,6 +14,7 @@ import asyncio
 
 from matchengine_types import *
 from trial_match_utils import *
+from load import load
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
@@ -450,6 +451,7 @@ async def run_query(cache: Cache,
             "CLINICAL_ID": 1,
             "VARIANT_CATEGORY": 1,
             "WILDTYPE": 1,
+            "TRUE_TRANSCRIPT_EXON": 1,
             "TIER": 1,
             "TRUE_HUGO_SYMBOL": 1,
             "TRUE_PROTEIN_CHANGE": 1,
@@ -610,6 +612,7 @@ async def update_trial_matches(trial_matches: List[Dict]):
                              asyncio.create_task(insert()),
                              asyncio.create_task(mark_available()))
 
+
 async def update_trial_matches_old(trial_matches: Dict[str, Dict], protocol_nos, sample_ids):
     """
     Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
@@ -698,20 +701,17 @@ async def main(args):
         await update_trial_matches(all_new_matches)
 
 
-def load():
-    pass
-
-
 if __name__ == "__main__":
     # todo run log
     # todo unit tests
     # todo refactor run_query
-    # todo load functions
     # todo output CSV file functions
     param_trials_help = 'Path to your trial data file or a directory containing a file for each trial.' \
                         'Default expected format is YML.'
-    param_mongo_uri_help = 'Your MongoDB URI. If you do not supply one it will default to whatever is set to ' \
-                           '"MONGO_URI" in your secrets file. ' \
+    param_mongo_uri_help = 'Your MongoDB URI. If you do not supply one, for matching, it will default to whatever' \
+                           ' is set to "MONGO_URI" in your SECRETS.JSON file. This file must be set as an ' \
+                           'environmental variable. For data loading you must specify a URI with a database ' \
+                           'ex: mongodb://localhost:27017/matchminer. ' \
                            'See https://docs.mongodb.com/manual/reference/connection-string/ for more information.'
     param_clinical_help = 'Path to your clinical file. Default expected format is CSV.'
     param_genomic_help = 'Path to your genomic file. Default expected format is CSV'
@@ -720,37 +720,45 @@ if __name__ == "__main__":
     param_patient_format_help = 'File format of input patient data (both clinical and genomic files). Default is CSV.'
 
     parser = argparse.ArgumentParser()
-    closed_help = 'Match on closed trials and all suspended steps, arms and doses.'
-    deceased_help = 'Match on deceased patients.'
+    closed_help = 'Match on all closed trials and all suspended steps, arms and doses. Default is to skip.'
+    deceased_help = 'Match on deceased patients. Default is to match only on alive patients.'
+    upsert_help = 'When loading clinical or trial data, specify a field other than _id to use as a unique key. ' \
+                  'Must be comma separated values if using more than one field e.g. name,age,gender'
 
     subp = parser.add_subparsers(help='sub-command help')
     subp_p = subp.add_parser('load', help='Sets up your MongoDB for matching.')
     subp_p.add_argument('-t', dest='trials', help=param_trials_help)
     subp_p.add_argument('-c', dest='clinical', help=param_clinical_help)
     subp_p.add_argument('-g', dest='genomic', help=param_genomic_help)
-    subp_p.add_argument('--mongo-uri', dest='mongo_uri', required=False, default=None, help=param_mongo_uri_help)
+    subp_p.add_argument('--mongo-uri', dest='mongo_uri', required=True, default=None, help=param_mongo_uri_help)
     subp_p.add_argument('--trial-format',
                         dest='trial_format',
                         default='yml',
                         action='store',
                         choices=['yml', 'json', 'bson'],
                         help=param_trial_format_help)
-    subp_p.add_argument('--patient-format',
-                        dest='patient_format',
+    subp_p.add_argument('--patient-format', dest='patient_format',
                         default='csv',
                         action='store',
-                        choices=['csv', 'pkl', 'bson'],
+                        choices=['csv', 'pkl', 'bson', 'json'],
                         help=param_patient_format_help)
+    subp_p.add_argument('--upsert-fields', dest='upsert_fields', default='', required=False, help=upsert_help)
     subp_p.set_defaults(func=load)
 
     subp_p = subp.add_parser('match', help='Match patients to trials.')
     subp_p.add_argument("-trials", nargs="*", type=str, default=None)
     subp_p.add_argument("-samples", nargs="*", type=str, default=None)
-    subp_p.add_argument("--match-on-closed", dest="match_on_closed", action="store_true", default=False,
+    subp_p.add_argument("--match-on-closed",
+                        dest="match_on_closed",
+                        action="store_true",
+                        default=False,
                         help=closed_help)
-    subp_p.add_argument("--match-on-deceased-patients", dest="match_on_deceased", action="store_true",
+    subp_p.add_argument("--match-on-deceased-patients",
+                        dest="match_on_deceased",
+                        action="store_true",
                         help=deceased_help)
     subp_p.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
     subp_p.add_argument('-o', dest="outpath", required=False, help=param_outpath_help)
     args = parser.parse_args()
-    asyncio.run(main(args))
+    args.func(args)
+    # asyncio.run(main(args))
