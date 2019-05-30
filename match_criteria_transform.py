@@ -4,6 +4,12 @@ from dateutil.relativedelta import relativedelta
 
 
 class MatchCriteriaTransform(object):
+    """
+    A class used to transform values used in trial curation into values which can be used to query genomic and
+    clinical collections.
+
+    For more details and examples, please see the README.
+    """
     CLINICAL: str = "clinical"
 
     resources: dict = None
