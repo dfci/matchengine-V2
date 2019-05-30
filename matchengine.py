@@ -51,7 +51,7 @@ async def queue_worker(q, match_q, config, worker_id) -> None:
                                                  task.query_task.match_path,
                                                  task.query_task.queries,
                                                  task.raw_result)
-                        async for match_document in create_trial_match(trial_match):
+                        for match_document in create_trial_matches(trial_match):
                             await match_q.put(match_document)
                     q.task_done()
                 except Exception as e:
@@ -66,7 +66,7 @@ async def find_matches(sample_ids: list = None,
                        num_workers: int = 25,
                        match_on_closed: bool = False,
                        match_on_deceased: bool = False,
-                       cache: Cache = None) -> Generator[Tuple[str, Dict],
+                       cache: Cache = None) -> Generator[Dict,
                                                          None,
                                                          None]:
     """
@@ -99,12 +99,12 @@ async def find_matches(sample_ids: list = None,
 
     for trial in trials:
         log.info("Begin Protocol No: {}".format(trial["protocol_no"]))
-        for match_clause in extract_match_clauses_from_trial(trial, match_on_closed):
+        for match_clause in extract_match_clauses_from_trial(match_criteria_transform, trial, match_on_closed):
             for match_path in get_match_paths(create_match_tree(match_clause.match_clause)):
                 query = translate_match_path(match_clause,
                                              match_path,
                                              match_criteria_transform)
-                if debug or True:
+                if debug:
                     log.info("Query: {}".format(query))
                 if query:
                     await q.put(QueryTask(match_criteria_transform,
@@ -121,7 +121,6 @@ async def find_matches(sample_ids: list = None,
     logging.info("Total results: {}".format(match_q.qsize()))
     while not match_q.empty():
         match_document = await match_q.get()
-        # log.info("{}".format(match_document))
         yield match_document
 
 
@@ -157,7 +156,8 @@ async def get_clinical_ids_from_sample_ids(db, sample_ids: List[str],
                 for result in await db.clinical.find({"SAMPLE_ID": {"$in": sample_ids}}, {"_id": 1}).to_list(None)]
 
 
-def extract_match_clauses_from_trial(trial: Trial,
+def extract_match_clauses_from_trial(match_criteria_transform: MatchCriteriaTransform,
+                                     trial: Trial,
                                      match_on_closed: bool = False) -> Generator[MatchClauseData, None, None]:
     """
     Pull out all of the matches from a trial curation.
@@ -205,9 +205,12 @@ def extract_match_clauses_from_trial(trial: Trial,
                             continue
 
                     parent_path = ParentPath(path + (parent_key, inner_key))
-                    level = MatchClauseLevel([item for item in parent_path[::-1] if not isinstance(item, int)][0])
+                    level = MatchClauseLevel(
+                        match_criteria_transform.level_mapping[
+                            [item for item in parent_path[::-1] if not isinstance(item, int) and item != 'match'][0]])
 
-                    yield MatchClauseData(inner_value, parent_path, level, parent_value)
+                    internal_id = parent_value[match_criteria_transform.internal_id_mapping[level]]
+                    yield MatchClauseData(inner_value, internal_id, parent_path, level, parent_value)
                 else:
                     process_q.append((path + (parent_key,), inner_key, inner_value))
         elif isinstance(parent_value, list):
@@ -483,51 +486,131 @@ async def run_query(cache: Cache,
                                  [cache.docs[genomic_id] for genomic_id in genomic_ids])
 
 
-async def create_trial_match(trial_match: TrialMatch) -> Generator[Dict, None, Dict]:
+def create_trial_matches(trial_match: TrialMatch) -> List[Dict]:
     """
     Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
     in config.json
     :param trial_match:
     :return:
     """
-    # remove extra fields from trial_match output
-    trial = dict()
-    for key in trial_match.trial:
-        if key in ['treatment_list', '_summary', 'status', '_id']:
-            continue
-        else:
-            trial[key] = trial_match.trial[key]
-
+    output = list()
     if trial_match.raw_query_result.genomic_docs:
         for genomic_doc in trial_match.raw_query_result.genomic_docs:
             for genomic_query in [{k: v for k, v in genomic_query.items() if k != "CLINICAL_ID"}
                                   for query in trial_match.multi_collection_queries if 'genomic' in query
                                   for _, genomic_query in query['genomic']]:
-                new_trial_match = {
-                    **format(trial_match.raw_query_result.clinical_doc),
-                    **format(get_genomic_details(genomic_doc, genomic_query)),
-                    **{k: v for k, v in trial_match.match_clause_data.match_clause_additional_attributes.items() if k != 'match'},
-                    **trial,
-                    "query": trial_match.match_criterion
-                }
-
-                # add hash
+                new_trial_match = dict()
+                new_trial_match.update(format(trial_match.raw_query_result.clinical_doc))
+                new_trial_match.update(format(get_genomic_details(genomic_doc, genomic_query)))
+                new_trial_match.update({k: v for
+                                        k, v in trial_match.match_clause_data.match_clause_additional_attributes.items()
+                                        if k != 'match'})
+                new_trial_match.update(
+                    {'match_path': '.'.join([str(item) for item in trial_match.match_clause_data.parent_path]),
+                     'match_level': trial_match.match_clause_data.match_clause_level,
+                     'internal_id': trial_match.match_clause_data.internal_id})
+                # remove extra fields from trial_match output
+                new_trial_match.update({k: v
+                                        for k, v in trial_match.trial.items() if k not in {'treatment_list',
+                                                                                           '_summary',
+                                                                                           'status',
+                                                                                           '_id',
+                                                                                           '_elasticsearch'}
+                                        })
+                new_trial_match['query_hash'] = comparable_dict({'query': trial_match.match_criterion}).hash()
                 new_trial_match['hash'] = comparable_dict(new_trial_match).hash()
-                yield new_trial_match['hash'], new_trial_match
-    else:
-        new_trial_match = {
-            **format(trial_match.raw_query_result.clinical_doc),
-            **format(get_genomic_details(None, None)),
-            **trial_match.match_clause_data.match_clause_additional_attributes,
-            **trial,
-            "query": trial_match.match_criterion,
-            "is_disabled": False
-        }
-        new_trial_match['hash'] = comparable_dict(new_trial_match).hash()
-        yield new_trial_match['hash'], new_trial_match
+                new_trial_match["query"] = trial_match.match_criterion
+                output.append(new_trial_match)
+
+        else:
+            new_trial_match = dict()
+            new_trial_match.update(format(trial_match.raw_query_result.clinical_doc))
+            new_trial_match.update(format(get_genomic_details(None, None)))
+            new_trial_match.update({k: v for
+                                    k, v in trial_match.match_clause_data.match_clause_additional_attributes.items()
+                                    if k != 'match'})
+            new_trial_match.update(
+                {'match_path': '.'.join([str(item) for item in trial_match.match_clause_data.parent_path]),
+                 'match_level': trial_match.match_clause_data.match_clause_level,
+                 'internal_id': trial_match.match_clause_data.internal_id})
+            # remove extra fields from trial_match output
+            new_trial_match.update({k: v
+                                    for k, v in trial_match.trial.items() if k not in {'treatment_list',
+                                                                                       '_summary',
+                                                                                       'status',
+                                                                                       '_id',
+                                                                                       '_elasticsearch'}
+                                    })
+            new_trial_match['query_hash'] = comparable_dict({'query': trial_match.match_criterion}).hash()
+            new_trial_match['hash'] = comparable_dict(new_trial_match).hash()
+            new_trial_match["query"] = trial_match.match_criterion
+            output.append(new_trial_match)
+    return output
 
 
-async def update_trial_matches(trial_matches: Dict[str, Dict], protocol_nos, sample_ids):
+async def update_trial_matches(trial_matches: List[Dict]):
+    """
+    Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
+    'Delete' matches by adding {is_disabled: true} and insert all new matches.
+    :param trial_matches:
+    :param protocol_nos:
+    :param sample_ids:
+    :return:
+    """
+    new_matches_hashes = [match['hash'] for match in trial_matches]
+    new_matches_hashes_set = set(new_matches_hashes)
+
+    query = {'hash': {'$in': new_matches_hashes}}
+
+    with MongoDBConnection(read_only=True) as db:
+        trial_matches_to_not_change = {result['hash']: result.setdefault('is_disabled', False)
+                                       for result in await db.trial_match_test.find(query,
+                                                                                    {"hash": 1,
+                                                                                     "is_disabled": 1}).to_list(None)}
+
+    delete_where = {'hash': {'$nin': new_matches_hashes}, '$or': list()}
+    for trial_match in trial_matches:
+        delete_where['$or'].append({
+            'protocol_no': trial_match['protocol_no'],
+            'clinical_id': trial_match.setdefault('clinical_id', None),
+            'match_level': trial_match['match_level'],
+            'internal_id': trial_match['internal_id'],
+            'query_hash': trial_match['query_hash'],
+            'hash': {'$ne': trial_match['hash']}
+        })
+    update = {"$set": {'is_disabled': True}}
+
+    trial_matches_to_insert = [trial_match
+                               for trial_match in trial_matches
+                               if trial_match['hash'] not in trial_matches_to_not_change]
+    trial_matches_to_mark_available = [trial_match
+                                       for trial_match in trial_matches
+                                       if trial_match['hash'] in trial_matches_to_not_change
+                                       and trial_matches_to_not_change.setdefault('is_disabled', False)]
+
+    with MongoDBConnection(read_only=False) as db:
+        async def delete():
+            log.info('Deleting')
+            await db.trial_match_test.update_many(delete_where, update)
+            log.info("Delete done")
+
+        async def insert():
+            if trial_matches_to_insert:
+                log.info("Trial matches to insert: {}".format(len(trial_matches_to_insert)))
+                await db.trial_match_test.insert_many(trial_matches_to_insert)
+            log.info("Insert Done")
+
+        async def mark_available():
+            if trial_matches_to_mark_available:
+                log.info("Trial matches to mark available: {}".format(len(trial_matches_to_mark_available)))
+                await db.trial_match_test.update({'hash': {'$in': len(trial_matches_to_mark_available)}})
+            log.info("Mark available done")
+
+        await asyncio.gather(asyncio.create_task(delete()),
+                             asyncio.create_task(insert()),
+                             asyncio.create_task(mark_available()))
+
+async def update_trial_matches_old(trial_matches: Dict[str, Dict], protocol_nos, sample_ids):
     """
     Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
     'Delete' matches by adding {is_disabled: true} and insert all new matches.
@@ -609,12 +692,10 @@ async def main(args):
                                  num_workers=args.workers[0],
                                  match_on_closed=args.match_on_closed,
                                  match_on_deceased=args.match_on_deceased)
-    all_new_matches = dict()
-    async for hash, match in trial_matches:
-        all_new_matches[hash] = match
-    log.info("All new matches: {}".format(len(all_new_matches.keys())))
+    all_new_matches = [match async for match in trial_matches]
+    log.info("All new matches: {}".format(len(all_new_matches)))
     if all_new_matches:
-        await update_trial_matches(all_new_matches, args.trials, args.samples)
+        await update_trial_matches(all_new_matches)
 
 
 def load():

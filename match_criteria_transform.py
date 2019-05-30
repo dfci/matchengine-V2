@@ -18,6 +18,14 @@ class MatchCriteriaTransform(object):
             "join_field": "_id"
         }
     }
+    level_mapping = {
+        'dose_level': 'dose',
+        'arm': 'arm',
+        'step': 'step'
+    }
+    internal_id_mapping = {'dose': 'level_internal_id',
+                           'step': 'step_internal_id',
+                           'arm': 'arm_internal_id'}
 
     def __init__(self, config):
         self.resources = dict()
