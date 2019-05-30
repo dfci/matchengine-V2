@@ -23,6 +23,7 @@ Collection = NewType("Collection", str)
 @dataclass
 class MatchClauseData:
     match_clause: MatchClause
+    internal_id: str
     parent_path: ParentPath
     match_clause_level: MatchClauseLevel
     match_clause_additional_attributes: dict
