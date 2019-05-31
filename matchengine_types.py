@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import NewType, Tuple, Union, List, Dict, Any, Set
 from bson import ObjectId
@@ -53,7 +54,7 @@ class Cache:
     genomic_non_hits: int
     clinical_non_hits: int
     docs: Dict[ObjectId, MongoQueryResult]
-    queries: Dict[str, Dict[ObjectId, ObjectId]]
+    queries: Dict[str, Dict[ObjectId, Set[ObjectId]]]
     matches: dict
 
 
