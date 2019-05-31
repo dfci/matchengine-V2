@@ -413,9 +413,6 @@ async def run_query(cache: Cache,
             for negate, query in queries:
                 # cache hit or miss should be here
                 uniq = comparable_dict(query).hash()
-                blerg = False
-                if uniq == 'ccf2fc994947d077b8465a3d9338462937062aadc227e102edb945c9574b6c96':
-                    blerg = True
                 query_clinical_ids = clinical_ids if clinical_ids else set(initial_clinical_ids)
                 if uniq not in cache.queries:
                     cache.queries[uniq] = dict()
@@ -424,13 +421,9 @@ async def run_query(cache: Cache,
                     new_query = {"$and": list()}
                     for k, v in query.items():
                         new_query['$and'].append({k: v})
-                    try:
-                        new_query['$and'].insert(0,
-                                                 {join_field:
-                                                      {'$in': list(need_new)}})
-                    except:
-                        log.error(new_query)
-                        raise
+                    new_query['$and'].insert(0,
+                                             {join_field:
+                                                  {'$in': list(need_new)}})
                     cursor = await db[genomic_or_clinical].find(new_query, {"_id": 1, "CLINICAL_ID": 1}).to_list(None)
                     for result in cursor:
                         cache.queries[uniq][result["CLINICAL_ID"]] = result["_id"]
@@ -780,5 +773,5 @@ if __name__ == "__main__":
     subp_p.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
     subp_p.add_argument('-o', dest="outpath", required=False, help=param_outpath_help)
     args = parser.parse_args()
-    args.func(args)
-    # asyncio.run(main(args))
+    # args.func(args)
+    asyncio.run(main(args))
