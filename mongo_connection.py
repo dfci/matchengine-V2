@@ -1,4 +1,4 @@
-import pymongo
+from pymongo import MongoClient
 import motor.motor_asyncio
 
 
@@ -19,8 +19,17 @@ class MongoDBConnection(object):
     db = None
     client = None
 
-    def __init__(self, read_only=True, uri=None, db=None):
+    def __init__(self, read_only=True, uri=None, db=None, async_init=True):
+        """
+        Default params to use values from an external SECRETS.JSON configuration file,
+
+        Override SECRETS_JSON values if arguments are passed via CLI
+        :param read_only:
+        :param uri:
+        :param db:
+        """
         self.read_only = read_only
+        self.async_init = async_init
         self.db = db if db is not None else self.SECRETS['MONGO_DBNAME']
         if uri is not None:
             self.uri = uri
@@ -28,12 +37,15 @@ class MongoDBConnection(object):
     def __enter__(self):
         username = self.SECRETS["MONGO_RO_USERNAME"] if self.read_only else self.SECRETS["MONGO_USERNAME"]
         password = self.SECRETS["MONGO_RO_PASSWORD"] if self.read_only else self.SECRETS["MONGO_PW"]
-        self.client = motor.motor_asyncio.AsyncIOMotorClient(
-            self.uri.format(username=username,
-                            password=password,
-                            hostname=self.SECRETS["MONGO_HOST"],
-                            port=self.SECRETS["MONGO_PORT"],
-                            db=self.db))
+        if self.async_init:
+            self.client = motor.motor_asyncio.AsyncIOMotorClient(
+                self.uri.format(username=username,
+                                password=password,
+                                hostname=self.SECRETS["MONGO_HOST"],
+                                port=self.SECRETS["MONGO_PORT"],
+                                db=self.db))
+        else:
+            self.client = MongoClient(self.uri)
         return self.client[self.db]
 
     def __exit__(self, exc_type, exc_val, exc_tb):
