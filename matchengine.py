@@ -571,55 +571,55 @@ async def update_trial_matches(trial_matches: List[Dict], protocol_no: str, samp
     :param sample_ids:
     :return:
     """
-    new_matches_hashes = [match['hash'] for match in trial_matches]
-    new_matches_hashes_set = set(new_matches_hashes)
+    trial_matches_by_sample_id = defaultdict(list)
+    for trial_match in trial_matches:
+        trial_matches_by_sample_id[trial_match['sample_id']].append(trial_match)
+    if sample_ids is None:
+        sample_ids = list(trial_matches_by_sample_id.keys())
+    for sample_id in sample_ids:
+        new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
 
-    query = {'hash': {'$in': new_matches_hashes}}
+        query = {'hash': {'$in': new_matches_hashes}}
 
-    with MongoDBConnection(read_only=True) as db:
-        trial_matches_to_not_change = {result['hash']: result.setdefault('is_disabled', False)
-                                       for result in await db.trial_match_test.find(query,
-                                                                                    {"hash": 1,
-                                                                                     "is_disabled": 1}).to_list(None)}
+        with MongoDBConnection(read_only=True) as db:
+            trial_matches_to_not_change = {result['hash']: result.setdefault('is_disabled', False)
+                                           for result
+                                           in await db.trial_match_test.find(query,
+                                                                             {"hash": 1,
+                                                                              "is_disabled": 1}).to_list(None)}
 
-    delete_where = {'hash': {'$nin': new_matches_hashes}}
-    if protocol_no:
-        delete_where['protocol_no'] = protocol_no
-    if sample_ids:
-        delete_where['sample_id'] = {'$in': sample_ids}
-    update = {"$set": {'is_disabled': True}}
+        delete_where = {'hash': {'$nin': new_matches_hashes}, 'sample_id': sample_id, 'protocol_no': protocol_no}
+        update = {"$set": {'is_disabled': True}}
 
-    trial_matches_to_insert = [trial_match
-                               for trial_match in trial_matches
-                               if trial_match['hash'] not in trial_matches_to_not_change]
-    trial_matches_to_mark_available = [trial_match
-                                       for trial_match in trial_matches
-                                       if trial_match['hash'] in trial_matches_to_not_change
-                                       and trial_matches_to_not_change.setdefault('is_disabled', False)]
+        trial_matches_to_insert = [trial_match
+                                   for trial_match in trial_matches_by_sample_id[sample_id]
+                                   if trial_match['hash'] not in trial_matches_to_not_change]
+        trial_matches_to_mark_available = [trial_match
+                                           for trial_match in trial_matches_by_sample_id[sample_id]
+                                           if trial_match['hash'] in trial_matches_to_not_change
+                                           and trial_matches_to_not_change.setdefault('is_disabled', False)]
 
-    with MongoDBConnection(read_only=False) as db:
-        async def delete():
-            log.info('Deleting')
-            await db.trial_match_test.update_many(delete_where, update)
-            log.info("Delete done")
+        with MongoDBConnection(read_only=False) as db:
+            async def delete():
+                log.info('Deleting')
+                await db.trial_match_test.update_many(delete_where, update)
+                log.info("Delete done")
 
-        async def insert():
-            if trial_matches_to_insert:
-                log.info("Trial matches to insert: {}".format(len(trial_matches_to_insert)))
-                await db.trial_match_test.insert_many(trial_matches_to_insert)
-            log.info("Insert Done")
+            async def insert():
+                if trial_matches_to_insert:
+                    log.info("Trial matches to insert: {}".format(len(trial_matches_to_insert)))
+                    await db.trial_match_test.insert_many(trial_matches_to_insert)
+                log.info("Insert Done")
 
-        async def mark_available():
-            if trial_matches_to_mark_available:
-                log.info("Trial matches to mark available: {}".format(len(trial_matches_to_mark_available)))
-                await db.trial_match_test.update({'hash': {'$in': len(trial_matches_to_mark_available)}})
-            log.info("Mark available done")
+            async def mark_available():
+                if trial_matches_to_mark_available:
+                    log.info("Trial matches to mark available: {}".format(len(trial_matches_to_mark_available)))
+                    await db.trial_match_test.update({'hash': {'$in': len(trial_matches_to_mark_available)}})
+                log.info("Mark available done")
 
-        await asyncio.gather(asyncio.create_task(delete()),
-                             asyncio.create_task(insert()),
-                             asyncio.create_task(mark_available()))
-
-
+            await asyncio.gather(asyncio.create_task(delete()),
+                                 asyncio.create_task(insert()),
+                                 asyncio.create_task(mark_available()))
 
 
 async def check_indices():
