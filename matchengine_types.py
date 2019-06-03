@@ -35,7 +35,7 @@ class RawQueryResult:
     query: MultiCollectionQuery
     clinical_id: ClinicalID
     clinical_doc: MongoQueryResult
-    genomic_docs: List[MongoQueryResult]
+    genomic_doc: Union[MongoQueryResult, None]
 
 
 @dataclass
