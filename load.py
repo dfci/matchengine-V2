@@ -166,7 +166,7 @@ class Trial:
             else:
                 # path leads to a single JSON file
                 file = open(path)
-                if is_valid_json(path):
+                if self.is_valid_single_json(path):
                     data = json_util.loads(file.read())
                     db.trial.insert(data)
 
@@ -247,36 +247,25 @@ class Patient:
         """
         Load clinical and genomic json documents.
         If file is not valid JSON, assume it is an array of valid JSON documents.
+        If path is a directory, add all documents with extension JSON
         :param clinical_path:
         :param genomic_path:
         :return:
         """
-        # clinical cmd
-        cmd1 = "mongoimport " \
-               "--uri=%s " \
-               "--collection=%s " \
-               "--upsert " \
-               "--upsertFields=[%s] " \
-               "--file=%s" % (self.args.mongo_uri,
-                              'clinical',
-                              self.args.upsert_fields,
-                              clinical_path)
+        if os.path.isdir(clinical_path):
+            for file in os.listdir(clinical_path):
+                c_file = os.path.join(clinical_path, file)
+                self.add_json(c_file, "clinical")
+        else:
+            self.add_json(clinical_path, "clinical")
 
-        # genomic cmd
-        cmd2 = 'mongoimport ' \
-               '--uri=%s ' \
-               '--collection=%s ' \
-               '--file=%s' % (self.args.mongo_uri,
-                              'genomic',
-                              genomic_path)
+        if os.path.isdir(genomic_path):
+            for file in os.listdir(genomic_path):
+                g_file = os.path.join(genomic_path, file)
+                self.add_json(g_file, "genomic")
+        else:
+            self.add_json(genomic_path, "genomic")
 
-        if not is_valid_json(clinical_path):
-            cmd1 += ' --jsonArray'
-        if not is_valid_json(genomic_path):
-            cmd2 += ' --jsonArray'
-
-        subprocess.call(cmd1.split(' '))
-        subprocess.call(cmd2.split(' '))
         return True
 
     def load_bson(self, clinical, genomic):
@@ -287,11 +276,34 @@ class Patient:
         subprocess.call(cmd2.split(' '))
         return True
 
+    def add_json(self, path, collection):
+        if path.split('.')[-1] != 'json':
+            return
 
-def is_valid_json(path):
-    try:
-        with open(path) as data:
-            json.loads(data.read())
-        return True
-    except ValueError:
-        return False
+        cmd = "mongoimport " \
+              "--uri=%s " \
+              "--collection=%s " \
+              "--mode=upsert " \
+              "--upsertFields=%s " \
+              "--file=%s" % (self.args.mongo_uri,
+                             collection,
+                             self.args.upsert_fields,
+                             path)
+
+        if not self.is_valid_single_json(path):
+            cmd += ' --jsonArray'
+
+        log.info("Loading %s... %s" % (collection, path))
+        subprocess.call(cmd.split(' '))
+
+    @staticmethod
+    def is_valid_single_json(file):
+        """Check if a JSON file is a single object or an array of JSON objects"""
+        try:
+            with open(file) as f:
+                json_file = json.loads(f.read())
+                if isinstance(json_file, list):
+                    return False
+                return True
+        except ValueError:
+            return False
