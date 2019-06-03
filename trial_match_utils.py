@@ -4,9 +4,6 @@ from matchengine_types import MongoQuery
 
 
 def get_genomic_details(genomic_doc, query):
-    if genomic_doc is None:
-        return {}
-
     mmr_map_rev = {
         'Proficient (MMR-P / MSS)': 'MMR-P/MSS',
         'Deficient (MMR-D / MSI-H)': 'MMR-D/MSI-H'
@@ -62,7 +59,50 @@ def get_genomic_details(genomic_doc, query):
     return {
         'match_type': is_variant,
         'genomic_alteration': alteration,
+        'genomic_id': genomic_doc['_id'],
         **genomic_doc
+    }
+
+
+def format_not_match(query):
+    """Format the genomic alteration for genomic documents that matched a negative clause of a match tree"""
+
+    GENE_KEY = 'TRUE_HUGO_SYMBOL'
+    PROTEIN_CHANGE_KEY = 'TRUE_PROTEIN_CHANGE'
+    CNV_KEY = 'CNV_CALL'
+    VARIANT_CLASSIFICATION_KEY = 'TRUE_VARIANT_CLASSIFICATION'
+    SV_KEY = 'VARIANT_CATEGORY'
+
+    alteration = '!'
+
+    is_variant = 'variant' if query.setdefault(PROTEIN_CHANGE_KEY, None) is not None else 'gene'
+
+    # for clarity
+
+    # TODO: regex
+
+    if GENE_KEY in query and query[GENE_KEY] is not None:
+        alteration = '!{}'.format(query[GENE_KEY])
+
+    # add mutation
+    if query.setdefault(PROTEIN_CHANGE_KEY, None) is not None:
+        alteration += ' {}'.format(query[PROTEIN_CHANGE_KEY])
+
+    # add cnv call
+    elif query.setdefault(CNV_KEY, None) is not None:
+        alteration += ' {}'.format(query[CNV_KEY])
+
+    # add variant classification
+    elif query.setdefault(VARIANT_CLASSIFICATION_KEY, None) is not None:
+        alteration += ' {}'.format(query[VARIANT_CLASSIFICATION_KEY])
+
+    # add structural variation
+    elif query.setdefault(SV_KEY, str()) == 'SV':
+        alteration += ' Structural Variation'
+
+    return {
+        'match_type': is_variant,
+        'genomic_alteration': alteration
     }
 
 
