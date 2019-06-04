@@ -1,6 +1,7 @@
 import time
 
-from pymongo.errors import AutoReconnect
+from pymongo import UpdateMany, InsertOne
+from pymongo.errors import AutoReconnect, CursorNotFound
 
 from match_criteria_transform import MatchCriteriaTransform
 from mongo_connection import MongoDBConnection
@@ -77,8 +78,11 @@ async def queue_worker(q, matches, config, worker_id) -> None:
                 except Exception as e:
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
                     if isinstance(e, AutoReconnect):
-                        q.task_done()
                         await q.put(task)
+                        q.task_done()
+                    elif isinstance(e, CursorNotFound):
+                        await q.put(task)
+                        q.task_done()
                     else:
                         raise e
 
@@ -562,7 +566,34 @@ def create_trial_matches(trial_match: TrialMatch) -> Dict:
     return new_trial_match
 
 
-async def update_trial_matches(trial_matches: List[Dict], protocol_no: str, sample_ids: List[str]):
+count3 = 0
+
+
+async def updater_worker(worker_id, q) -> None:
+    global count3
+    if not q.empty():
+        with MongoDBConnection(read_only=False) as rw_db:
+            while not q.empty():
+                task: Union[list, int] = await q.get()
+                count3 += 1
+                try:
+                    if isinstance(task, list):
+                        log.info(
+                            "Worker: {} got new UpdateTask {}".format(worker_id, count3)),
+                        await rw_db.trial_match_test.bulk_write(task, ordered=False)
+                    elif isinstance(task, int):
+                        pass
+                    q.task_done()
+                except Exception as e:
+                    log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
+                    if isinstance(e, AutoReconnect):
+                        q.task_done()
+                        await q.put(task)
+                    else:
+                        raise e
+
+
+async def update_trial_matches(trial_matches: List[Dict], protocol_no: str, sample_ids: List[str], num_workers: int):
     """
     Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
     'Delete' matches by adding {is_disabled: true} and insert all new matches.
@@ -571,55 +602,47 @@ async def update_trial_matches(trial_matches: List[Dict], protocol_no: str, samp
     :param sample_ids:
     :return:
     """
+    q = asyncio.queues.Queue()
     trial_matches_by_sample_id = defaultdict(list)
     for trial_match in trial_matches:
         trial_matches_by_sample_id[trial_match['sample_id']].append(trial_match)
     if sample_ids is None:
         sample_ids = list(trial_matches_by_sample_id.keys())
-    for sample_id in sample_ids:
-        new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
+    with MongoDBConnection(read_only=True) as db:
+        for sample_id in sample_ids:
+            log.info("Sample ID {}".format(sample_id))
+            new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
 
-        query = {'hash': {'$in': new_matches_hashes}}
+            query = {'hash': {'$in': new_matches_hashes}}
 
-        with MongoDBConnection(read_only=True) as db:
             trial_matches_to_not_change = {result['hash']: result.setdefault('is_disabled', False)
                                            for result
                                            in await db.trial_match_test.find(query,
                                                                              {"hash": 1,
                                                                               "is_disabled": 1}).to_list(None)}
 
-        delete_where = {'hash': {'$nin': new_matches_hashes}, 'sample_id': sample_id, 'protocol_no': protocol_no}
-        update = {"$set": {'is_disabled': True}}
+            delete_where = {'hash': {'$nin': new_matches_hashes}, 'sample_id': sample_id, 'protocol_no': protocol_no}
+            update = {"$set": {'is_disabled': True}}
 
-        trial_matches_to_insert = [trial_match
-                                   for trial_match in trial_matches_by_sample_id[sample_id]
-                                   if trial_match['hash'] not in trial_matches_to_not_change]
-        trial_matches_to_mark_available = [trial_match
-                                           for trial_match in trial_matches_by_sample_id[sample_id]
-                                           if trial_match['hash'] in trial_matches_to_not_change
-                                           and trial_matches_to_not_change.setdefault('is_disabled', False)]
+            trial_matches_to_insert = [trial_match
+                                       for trial_match in trial_matches_by_sample_id[sample_id]
+                                       if trial_match['hash'] not in trial_matches_to_not_change]
+            trial_matches_to_mark_available = [trial_match
+                                               for trial_match in trial_matches_by_sample_id[sample_id]
+                                               if trial_match['hash'] in trial_matches_to_not_change
+                                               and trial_matches_to_not_change.setdefault('is_disabled', False)]
 
-        with MongoDBConnection(read_only=False) as db:
-            async def delete():
-                log.info('Deleting')
-                await db.trial_match_test.update_many(delete_where, update)
-                log.info("Delete done")
+            ops = list()
+            ops.append(UpdateMany(delete_where, update))
+            for to_insert in trial_matches_to_insert:
+                ops.append(InsertOne(to_insert))
+            ops.append(UpdateMany({'hash': {'$in': trial_matches_to_mark_available}}, {'$set': {'is_disabled': False}}))
+            await q.put(ops)
 
-            async def insert():
-                if trial_matches_to_insert:
-                    log.info("Trial matches to insert: {}".format(len(trial_matches_to_insert)))
-                    await db.trial_match_test.insert_many(trial_matches_to_insert)
-                log.info("Insert Done")
-
-            async def mark_available():
-                if trial_matches_to_mark_available:
-                    log.info("Trial matches to mark available: {}".format(len(trial_matches_to_mark_available)))
-                    await db.trial_match_test.update({'hash': {'$in': len(trial_matches_to_mark_available)}})
-                log.info("Mark available done")
-
-            await asyncio.gather(asyncio.create_task(delete()),
-                                 asyncio.create_task(insert()),
-                                 asyncio.create_task(mark_available()))
+    workers = [asyncio.create_task(updater_worker(i, q))
+               for i in range(0, min(q.qsize(), num_workers))]
+    await asyncio.gather(*workers)
+    await q.join()
 
 
 async def check_indices():
@@ -628,7 +651,7 @@ async def check_indices():
     :return:
     """
     with MongoDBConnection(read_only=False) as db:
-        indexes = db.trial_match.list_indexes()
+        indexes = db.trial_match_test.list_indexes()
         existing_indexes = set()
         desired_indexes = {'hash', 'mrn', 'sample_id', 'clinical_id', 'protocol_no'}
         async for index in indexes:
@@ -637,7 +660,7 @@ async def check_indices():
         indexes_to_create = desired_indexes - existing_indexes
         for index in indexes_to_create:
             log.info('Creating index %s' % index)
-            await db.trial_match.create_index(index)
+            await db.trial_match_test.create_index(index)
 
 
 async def main(args):
@@ -649,7 +672,7 @@ async def main(args):
                                    match_on_deceased=args.match_on_deceased)
     async for protocol_no, sample_ids, matches in all_new_matches:
         log.info("{} all matches: {}".format(protocol_no, len(matches)))
-        await update_trial_matches(matches, protocol_no, sample_ids)
+        await update_trial_matches(matches, protocol_no, sample_ids, args.workers[0])
 
 
 if __name__ == "__main__":
@@ -660,6 +683,8 @@ if __name__ == "__main__":
     # todo regex SV matching
     # todo update/delete/insert run log
     # todo failsafes for insert logic (fallback?)
+    # todo trial_match_test -> trial_match
+    # todo increase db cursor timeout
 
     param_trials_help = 'Path to your trial data file or a directory containing a file for each trial.' \
                         'Default expected format is YML.'
