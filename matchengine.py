@@ -685,6 +685,9 @@ if __name__ == "__main__":
     # todo failsafes for insert logic (fallback?)
     # todo trial_match_test -> trial_match
     # todo increase db cursor timeout
+    # todo trial_match view (for sort_order)
+    # todo configuration of trial_match document logic
+    # todo - squash clinical criteria for age
 
     param_trials_help = 'Path to your trial data file or a directory containing a file for each trial.' \
                         'Default expected format is YML.'
