@@ -421,25 +421,46 @@ async def execute_clinical_query(db: pymongo.database.Database,
         for negate, inner_query in multi_collection_query[collection]:
             for k, v in inner_query.items():
                 inner_query_part = {k: v}
-                uniq = comparable_dict(inner_query_part).hash()
-                if uniq not in cache.queries:
-                    cache.queries[uniq] = dict()
-                need_new = initial_clinical_ids - set(cache.queries[uniq].keys())
+
+                # hash the inner query to use as a reference for returned clinical ids, if necessary
+                query_hash = comparable_dict(inner_query_part).hash()
+                if query_hash not in cache.ids:
+                    cache.ids[query_hash] = dict()
+
+                # create an nested id_cache where the key is the clinical ID being queried and the vals
+                # are the clinical IDs returned
+                id_cache = cache.ids[query_hash]
+                queried_ids = id_cache.keys()
+                need_new = initial_clinical_ids - set(queried_ids)
+
                 if need_new:
                     new_query = {'$and': [{'_id': {'$in': list(need_new)}}, inner_query_part]}
-                    cursor = await db[collection].find(new_query, {'_id': 1}).to_list(None)
-                    for result in cursor:
-                        cache.queries[uniq][result['_id']] = result['_id']
-                    for unfound in need_new - set(cache.queries[uniq].keys()):
-                        cache.queries[uniq][unfound] = None
+                    docs = await db[collection].find(new_query, {'_id': 1}).to_list(None)
+
+                    # save returned ids
+                    for doc in docs:
+                        id_cache[doc['_id']] = doc['_id']
+
+                    # save IDs NOT returned as None so if a query is run in the future which is the same, it will skip
+                    for unfound in need_new - set(id_cache.keys()):
+                        id_cache[unfound] = None
+
                 for clinical_id in list(initial_clinical_ids):
-                    if cache.queries[uniq][clinical_id] is not None and negate:
+
+                    # an exclusion critera returned a clinical document hence doc is not a match
+                    if id_cache[clinical_id] is not None and negate:
                         initial_clinical_ids.remove(clinical_id)
-                    elif cache.queries[uniq][clinical_id] is None and negate:
+
+                    # clinical doc fulfills exclusion criteria
+                    elif id_cache[clinical_id] is None and negate:
                         pass
-                    elif cache.queries[uniq][clinical_id] is not None and not negate:
+
+                    # doc meets inclusion criteria
+                    elif id_cache[clinical_id] is not None and not negate:
                         pass
-                    elif cache.queries[uniq][clinical_id] is None and not negate:
+
+                    # no clinical doc returned for an inclusion critera query, so remove _id from future queries
+                    elif id_cache[clinical_id] is None and not negate:
                         initial_clinical_ids.remove(clinical_id)
 
         return initial_clinical_ids
@@ -497,13 +518,13 @@ async def run_query(cache: Cache,
             # cache hit or miss should be here
             uniq = comparable_dict(query).hash()
             query_clinical_ids = clinical_ids if clinical_ids else set(initial_clinical_ids)
-            if uniq not in cache.queries:
-                cache.queries[uniq] = dict()
+            if uniq not in cache.ids:
+                cache.ids[uniq] = dict()
                 # log.info("cache miss, {}".format(query))
             else:
                 pass
                 # log.info("cache hit, {}".format(query))
-            need_new = query_clinical_ids - set(cache.queries[uniq].keys())
+            need_new = query_clinical_ids - set(cache.ids[uniq].keys())
             if need_new:
                 new_query = query
                 new_query['$and'] = new_query.setdefault('$and', list())
@@ -512,22 +533,22 @@ async def run_query(cache: Cache,
                                               {'$in': list(need_new)}})
                 cursor = await db[genomic_or_clinical].find(new_query, {"_id": 1, "CLINICAL_ID": 1}).to_list(None)
                 for result in cursor:
-                    cache.queries[uniq][result["CLINICAL_ID"]] = result["_id"]
-                for unfound in need_new - set(cache.queries[uniq].keys()):
-                    cache.queries[uniq][unfound] = None
+                    cache.ids[uniq][result["CLINICAL_ID"]] = result["_id"]
+                for unfound in need_new - set(cache.ids[uniq].keys()):
+                    cache.ids[uniq][unfound] = None
 
             clinical_result_ids = set()
 
             for query_clinical_id in query_clinical_ids:
-                if cache.queries[uniq][query_clinical_id] is not None:
-                    genomic_id = cache.queries[uniq][query_clinical_id]
+                if cache.ids[uniq][query_clinical_id] is not None:
+                    genomic_id = cache.ids[uniq][query_clinical_id]
                     clinical_result_ids.add(query_clinical_id)
                     if not negate:
                         all_results[query_clinical_id].add(genomic_id)
                         reasons.append((negate, query, query_clinical_id, genomic_id))
                     elif negate and query_clinical_id in all_results:
                         del all_results[query_clinical_id]
-                elif cache.queries[uniq][query_clinical_id] is None and negate:
+                elif cache.ids[uniq][query_clinical_id] is None and negate:
                     if query_clinical_id not in all_results:
                         all_results[query_clinical_id] = set()
                     reasons.append((negate, query, query_clinical_id, None))
