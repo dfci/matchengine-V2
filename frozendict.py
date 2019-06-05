@@ -14,7 +14,7 @@ class comparable_dict(object):
             path, k, v = q.pop()
             if isinstance(v, list):
                 for idx, item in enumerate(v):
-                    q.append((path + (k,), idx, item))
+                    q.append((path + (k,), None, item))
             elif isinstance(v, dict):
                 for i_k, i_v in v.items():
                     q.append((path + (k,), i_k, i_v))
