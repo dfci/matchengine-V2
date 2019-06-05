@@ -28,6 +28,7 @@ class MatchClauseData:
     parent_path: ParentPath
     match_clause_level: MatchClauseLevel
     match_clause_additional_attributes: dict
+    protocol_no: str
 
 
 @dataclass
@@ -43,7 +44,7 @@ class TrialMatch:
     trial: Trial
     match_clause_data: MatchClauseData
     match_criterion: MatchCriterion
-    multi_collection_queries: List[MultiCollectionQuery]
+    multi_collection_query: MultiCollectionQuery
     raw_query_result: RawQueryResult
 
 
@@ -64,7 +65,7 @@ class QueryTask:
     trial: Trial
     match_clause_data: MatchClauseData
     match_path: MatchCriterion
-    queries: List[MultiCollectionQuery]
+    query: MultiCollectionQuery
     clinical_ids: List[ClinicalID]
     cache: Cache
 

@@ -1,5 +1,6 @@
 import time
 
+from networkx.drawing.nx_agraph import graphviz_layout
 from pymongo import UpdateMany, InsertOne
 from pymongo.errors import AutoReconnect, CursorNotFound
 
@@ -36,44 +37,27 @@ async def queue_worker(q, matches, config, worker_id) -> None:
         match_task_count = 0
         with MongoDBConnection(read_only=True) as ro_db, MongoDBConnection(read_only=False) as rw_db:
             while not q.empty():
-                task: Union[QueryTask, MatchTask] = await q.get()
+                task: QueryTask = await q.get()
                 try:
                     # logging.info("Worker: {}, query: {}".format(worker_id, task.query))
-                    if isinstance(task, QueryTask):
-                        log.info(
-                            "Worker: {}, protocol_no: {} got new QueryTask".format(worker_id,
-                                                                                   task.trial['protocol_no']))
-                        async for result in run_query(task.cache,
-                                                      ro_db,
-                                                      match_criteria_transform,
-                                                      task.queries,
-                                                      task.clinical_ids):
-                            trial_match = TrialMatch(task.trial,
-                                                     task.match_clause_data,
-                                                     task.match_path,
-                                                     task.queries,
-                                                     result)
-                            count += 1
-                            if count % 100 == 1:
-                                log.info("count: {}".format(count))
-                            match_document = create_trial_matches(trial_match)
-                            matches.append(match_document)
-                            # await q.put(MatchTask(task, result))
-                    elif isinstance(task, MatchTask):
-                        match_task_count += 1
-                        if match_task_count % 100 == 0:
-                            log.info(
-                                "Worker: {}, protocol_no: {} MatchTask {}".format(worker_id,
-                                                                                  task.query_task.trial[
-                                                                                      'protocol_no'],
-                                                                                  match_task_count))
-                        trial_match = TrialMatch(task.query_task.trial,
-                                                 task.query_task.match_clause_data,
-                                                 task.query_task.match_path,
-                                                 task.query_task.queries,
-                                                 task.raw_result)
-                        for match_document in create_trial_matches(trial_match):
-                            await matches.put(match_document)
+                    log.info(
+                        "Worker: {}, protocol_no: {} got new QueryTask".format(worker_id,
+                                                                               task.trial['protocol_no']))
+                    async for result in run_query(task.cache,
+                                                  ro_db,
+                                                  match_criteria_transform,
+                                                  task.query,
+                                                  task.clinical_ids):
+                        trial_match = TrialMatch(task.trial,
+                                                 task.match_clause_data,
+                                                 task.match_path,
+                                                 task.query,
+                                                 result)
+                        count += 1
+                        if count % 100 == 0:
+                            log.info("count: {}".format(count))
+                        match_document = create_trial_matches(trial_match)
+                        matches.append(match_document)
                     q.task_done()
                 except Exception as e:
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
@@ -105,6 +89,7 @@ async def find_matches(sample_ids: list = None,
     :param num_workers
     :return:
     """
+    # todo block comments
     log.info('Beginning trial matching.')
 
     with open("config/config.json") as config_file_handle:
@@ -124,14 +109,16 @@ async def find_matches(sample_ids: list = None,
         q = asyncio.queues.Queue()
         matches = list()
         log.info("Begin Protocol No: {}".format(trial["protocol_no"]))
-        for match_clause in extract_match_clauses_from_trial(match_criteria_transform, trial, match_on_closed):
-            for match_path in get_match_paths(create_match_tree(match_clause.match_clause)):
+        match_clauses = list(extract_match_clauses_from_trial(match_criteria_transform, trial, match_on_closed))
+        for match_clause in match_clauses:
+            match_paths = list(get_match_paths(create_match_tree(match_clause)))
+            for match_path in match_paths:
                 query = translate_match_path(match_clause,
                                              match_path,
                                              match_criteria_transform)
                 if debug:
                     log.info("Query: {}".format(query))
-                if query:  # and match_clause.internal_id == 1999999:
+                if query:
                     await q.put(QueryTask(match_criteria_transform,
                                           trial,
                                           match_clause,
@@ -139,11 +126,12 @@ async def find_matches(sample_ids: list = None,
                                           query,
                                           _ids,
                                           cache))
+        log.info("Protocol no {} qsize {}".format(trial['protocol_no'], q.qsize()))
         workers = [asyncio.create_task(queue_worker(q, matches, config, i))
                    for i in range(0, min(q.qsize(), num_workers))]
         await asyncio.gather(*workers)
         await q.join()
-        logging.info("Total results: {}".format(matches.__len__()))
+        logging.info("Total results: {}".format(len(matches)))
         yield trial['protocol_no'], sample_ids, matches
 
 
@@ -233,7 +221,12 @@ def extract_match_clauses_from_trial(match_criteria_transform: MatchCriteriaTran
                             [item for item in parent_path[::-1] if not isinstance(item, int) and item != 'match'][0]])
 
                     internal_id = parent_value[match_criteria_transform.internal_id_mapping[level]]
-                    yield MatchClauseData(inner_value, internal_id, parent_path, level, parent_value)
+                    yield MatchClauseData(inner_value,
+                                          internal_id,
+                                          parent_path,
+                                          level,
+                                          parent_value,
+                                          trial['protocol_no'])
                 else:
                     process_q.append((path + (parent_key,), inner_key, inner_value))
         elif isinstance(parent_value, list):
@@ -241,37 +234,114 @@ def extract_match_clauses_from_trial(match_criteria_transform: MatchCriteriaTran
                 process_q.append((path + (parent_key,), index, item))
 
 
-def create_match_tree(match_clause: MatchClause) -> MatchTree:
+def create_match_tree(match_clause_data: MatchClauseData) -> MatchTree:
+    match_clause = match_clause_data.match_clause
     process_q: deque[Tuple[NodeID, Dict[str, Any]]] = deque()
     graph = nx.DiGraph()
     node_id: NodeID = NodeID(1)
     graph.add_node(0)  # root node is 0
     graph.nodes[0]['criteria_list'] = list()
+    graph.nodes[0]['is_and'] = True
+    graph.nodes[0]['or_nodes'] = set()
+    graph.nodes[0]['label'] = '0 - ROOT and'
+    graph.nodes[0]['label_list'] = list()
     for item in match_clause:
-        process_q.append((NodeID(0), item))
+        if any([k.startswith('or') for k in item.keys()]):
+            process_q.appendleft((NodeID(0), item))
+        else:
+            process_q.append((NodeID(0), item))
+
+    def gr():
+        import matplotlib.pyplot as plt
+        labels = {node: graph.nodes[node]['label'] for node in graph.nodes}
+        for node in graph.nodes:
+            if graph.nodes[node]['label_list']:
+                labels[node] = labels[node] + ' [' + ','.join(graph.nodes[node]['label_list']) + ']'
+        pos = graphviz_layout(graph, prog="dot", root=0)
+        plt.figure(figsize=(30, 30))
+        nx.draw_networkx(graph, pos, with_labels=True, node_size=[600 for _ in graph.nodes], labels=labels)
+        # plt.show()
+        return plt
+
     while process_q:
         parent_id, values = process_q.pop()
         parent_is_or = True if graph.nodes[parent_id].setdefault('is_or', False) else False
+        parent_is_and = True if graph.nodes[parent_id].setdefault('is_and', False) else False
         for label, value in values.items():  # label is 'and', 'or', 'genomic' or 'clinical'
-            if label == 'and':
-                graph.add_edges_from([(parent_id, node_id)])
-                graph.nodes[node_id]['criteria_list'] = list()
+            if label.startswith('and'):
+                criteria_list = list()
+                label_list = list()
                 for item in value:
-                    process_q.append((node_id, item))
+                    for inner_label, inner_value in item.items():
+                        if inner_label.startswith("or"):
+                            process_q.appendleft((parent_id if parent_is_and else node_id, item))
+                        elif inner_label.startswith("and"):
+                            process_q.append((parent_id if parent_is_and else node_id, item))
+                        else:
+                            criteria_list.append(item)
+                            label_list.append(inner_label)
+                if parent_is_and:
+                    graph.nodes[parent_id]['criteria_list'].extend(criteria_list)
+                    graph.nodes[parent_id]['label_list'].extend(label_list)
+                else:
+                    graph.add_edges_from([(parent_id, node_id)])
+                    graph.nodes[node_id].update({
+                        'criteria_list': criteria_list,
+                        'is_and': True,
+                        'is_or': False,
+                        'or_nodes': set(),
+                        'label': str(node_id) + ' - ' + label,
+                        'label_list': label_list
+                    })
+                    node_id += 1
+            elif label.startswith("or"):
+                or_node_id = node_id
+                graph.add_node(or_node_id)
+                graph.nodes[or_node_id].update({
+                    'criteria_list': list(),
+                    'is_and': False,
+                    'is_or': True,
+                    'label': str(or_node_id) + ' - ' + label,
+                    'label_list': list()
+                })
                 node_id += 1
-            elif label == "or":
-                graph.add_edges_from([(parent_id, node_id)])
-                graph.nodes[node_id]['criteria_list'] = list()
-                graph.nodes[node_id]['is_or'] = True
                 for item in value:
-                    process_q.append((node_id, item))
-                node_id += 1
-            elif parent_is_or:
-                graph.add_edges_from([(parent_id, node_id)])
-                graph.nodes[node_id]['criteria_list'] = [values]
-                node_id += 1
+                    process_q.append((or_node_id, item))
+                if parent_is_and:
+                    parent_or_nodes = graph.nodes[parent_id]['or_nodes']
+                    if not parent_or_nodes:
+                        graph.add_edges_from([(parent_id, or_node_id)])
+                        graph.nodes[parent_id]['or_nodes'] = {or_node_id}
+                    else:
+                        successors = [
+                            (successor, or_node_id)
+                            for parent_or_node in parent_or_nodes
+                            for successor in nx.descendants(graph, parent_or_node)
+                            if graph.out_degree(successor) == 0
+                        ]
+                        graph.add_edges_from(successors)
+                else:
+                    graph.add_edge(parent_id, or_node_id)
             else:
-                graph.nodes[parent_id]['criteria_list'].append({label: value})
+                if parent_is_and:
+                    graph.nodes[parent_id]['criteria_list'].append(values)
+                    graph.nodes[parent_id]['label_list'].append(label)
+                else:
+                    graph.add_node(node_id)
+                    graph.nodes[node_id].update({
+                        'criteria_list': [values],
+                        'is_or': False,
+                        'is_and': True,
+                        'label': str(node_id) + ' - ' + label,
+                        'label_list': list()
+                    })
+                    graph.add_edge(parent_id, node_id)
+                    node_id += 1
+
+    plt = gr()
+    plt.savefig('img/{}-{}-{}.png'.format(match_clause_data.protocol_no,
+                                          match_clause_data.match_clause_level,
+                                          match_clause_data.internal_id))
     return MatchTree(graph)
 
 
@@ -281,16 +351,18 @@ def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, No
         if match_tree.out_degree(node) == 0:
             leaves.append(node)
     for leaf in leaves:
-        path = nx.shortest_path(match_tree, 0, leaf) if leaf != 0 else [leaf]
-        match_path = MatchCriterion(list())
-        for node in path:
-            match_path.append(match_tree.nodes[node]['criteria_list'])
-        yield match_path
+        for path in nx.all_simple_paths(match_tree, 0, leaf) if leaf != 0 else [[leaf]]:
+            match_path = MatchCriterion(list())
+            for node in path:
+                if match_tree.nodes[node]['criteria_list']:
+                    match_path.append(match_tree.nodes[node]['criteria_list'])
+            if match_path:
+                yield match_path
 
 
 def translate_match_path(match_clause_data: MatchClauseData,
                          match_criterion: MatchCriterion,
-                         match_criteria_transformer: MatchCriteriaTransform) -> List[MultiCollectionQuery]:
+                         match_criteria_transformer: MatchCriteriaTransform) -> MultiCollectionQuery:
     """
     Translate the keys/values from the trial curation into keys/values used in a genomic/clinical document.
     Uses an external config file ./config/config.json
@@ -300,7 +372,7 @@ def translate_match_path(match_clause_data: MatchClauseData,
     :param match_criteria_transformer:
     :return:
     """
-    output = list()
+    output = defaultdict(list)
     query_cache = set()
     for node in match_criterion:
         categories = MultiCollectionQuery(defaultdict(list))
@@ -333,43 +405,43 @@ def translate_match_path(match_clause_data: MatchClauseData,
                         categories[genomic_or_clinical].append((any_negate, and_query))
                         query_cache.add(comparable_dict(and_query).hash())
         if categories:
-            output.append(categories)
-    return output
+            for k, v in categories.items():
+                output[k].extend(v)
+            # output.append(categories)
+    return MultiCollectionQuery(output)
 
 
 async def execute_clinical_query(db: pymongo.database.Database,
+                                 cache: Cache,
                                  match_criteria_transformer: MatchCriteriaTransform,
                                  multi_collection_query: MultiCollectionQuery,
                                  initial_clinical_ids: Set[ClinicalID]) -> Set[ObjectId]:
     if match_criteria_transformer.CLINICAL in multi_collection_query:
         collection = match_criteria_transformer.CLINICAL
-        not_query = list()
-        query = list()
         for negate, inner_query in multi_collection_query[collection]:
             for k, v in inner_query.items():
-                if negate:
-                    not_query.append({k: v})
-                else:
-                    query.append({k: v})
-        if initial_clinical_ids:
-            if not_query:
-                not_query.insert(0, {"_id": {"$in": list(initial_clinical_ids)}})
-            if query:
-                query.insert(0, {"_id": {"$in": list(initial_clinical_ids)}})
-        if query:
-            positive_results = {result["_id"]
-                                for result in await db[collection].find({"$and": query}, {"_id": 1}).to_list(None)}
-        else:
-            positive_results = initial_clinical_ids
-        if not_query:
-            negative_results = {result["_id"]
-                                for result in await db[collection].find({"$and": not_query}, {"_id": 1}).to_list(None)}
-        else:
-            negative_results = set()
+                inner_query_part = {k: v}
+                uniq = comparable_dict(inner_query_part).hash()
+                if uniq not in cache.queries:
+                    cache.queries[uniq] = dict()
+                need_new = initial_clinical_ids - set(cache.queries[uniq].keys())
+                if need_new:
+                    new_query = {'$and': [{'_id': {'$in': list(need_new)}}, inner_query_part]}
+                    cursor = await db[collection].find(new_query, {'_id': 1}).to_list(None)
+                    for result in cursor:
+                        cache.queries[uniq][result['_id']] = result['_id']
+                    for unfound in need_new - set(cache.queries[uniq].keys()):
+                        cache.queries[uniq][unfound] = None
+                for clinical_id in list(initial_clinical_ids):
+                    if cache.queries[uniq][clinical_id] is not None and negate:
+                        initial_clinical_ids.remove(clinical_id)
+                    elif cache.queries[uniq][clinical_id] is None and negate:
+                        pass
+                    elif cache.queries[uniq][clinical_id] is not None and not negate:
+                        pass
+                    elif cache.queries[uniq][clinical_id] is None and not negate:
+                        initial_clinical_ids.remove(clinical_id)
 
-        clinical_ids = positive_results - negative_results
-        return clinical_ids
-    else:
         return initial_clinical_ids
 
 
@@ -380,7 +452,7 @@ async def perform_db_call(db, collection, query, projection):
 async def run_query(cache: Cache,
                     db: pymongo.database.Database,
                     match_criteria_transformer: MatchCriteriaTransform,
-                    multi_collection_queries: List[MultiCollectionQuery],
+                    multi_collection_query: MultiCollectionQuery,
                     initial_clinical_ids: List[ClinicalID]) -> Generator[RawQueryResult,
                                                                          None,
                                                                          RawQueryResult]:
@@ -397,74 +469,79 @@ async def run_query(cache: Cache,
     all_results: Dict[ObjectId, Set[ObjectId]] = defaultdict(set)
     reasons = list()
 
-    clinical_ids = set()
-    for multi_collection_query in multi_collection_queries:
-        # get clinical docs first
+    clinical_ids = set(initial_clinical_ids)
+    # get clinical docs first
+    if match_criteria_transformer.CLINICAL in multi_collection_query:
         new_clinical_ids = await execute_clinical_query(db,
+                                                        cache,
                                                         match_criteria_transformer,
                                                         multi_collection_query,
                                                         clinical_ids if clinical_ids else set(initial_clinical_ids))
-
-        # If no clinical docs are returned, skip executing genomic portion of the query
         if not new_clinical_ids:
             return
+        # If no clinical docs are returned, skip executing genomic portion of the query
         for key in new_clinical_ids:
             clinical_ids.add(key)
 
-        # iterate over all queries
-        for items in multi_collection_query.items():
-            genomic_or_clinical, queries = items
+    # iterate over all queries
+    for items in multi_collection_query.items():
+        genomic_or_clinical, queries = items
 
-            # skip clinical queries as they've already been executed
-            if genomic_or_clinical == match_criteria_transformer.CLINICAL and clinical_ids:
-                continue
+        # skip clinical queries as they've already been executed
+        if genomic_or_clinical == match_criteria_transformer.CLINICAL and clinical_ids:
+            continue
 
-            join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
+        join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
 
-            for negate, query in queries:
-                # cache hit or miss should be here
-                uniq = comparable_dict(query).hash()
-                query_clinical_ids = clinical_ids if clinical_ids else set(initial_clinical_ids)
-                if uniq not in cache.queries:
-                    cache.queries[uniq] = dict()
-                need_new = query_clinical_ids - set(cache.queries[uniq].keys())
-                if need_new:
-                    new_query = {"$and": list()}
-                    for k, v in query.items():
-                        new_query['$and'].append({k: v})
-                    new_query['$and'].insert(0,
-                                             {join_field:
-                                                  {'$in': list(need_new)}})
-                    cursor = await db[genomic_or_clinical].find(new_query, {"_id": 1, "CLINICAL_ID": 1}).to_list(None)
-                    for result in cursor:
-                        cache.queries[uniq][result["CLINICAL_ID"]] = result["_id"]
+        for negate, query in queries:
+            # cache hit or miss should be here
+            uniq = comparable_dict(query).hash()
+            query_clinical_ids = clinical_ids if clinical_ids else set(initial_clinical_ids)
+            if uniq not in cache.queries:
+                cache.queries[uniq] = dict()
+                # log.info("cache miss, {}".format(query))
+            else:
+                pass
+                # log.info("cache hit, {}".format(query))
+            need_new = query_clinical_ids - set(cache.queries[uniq].keys())
+            if need_new:
+                new_query = query
+                new_query['$and'] = new_query.setdefault('$and', list())
+                new_query['$and'].insert(0,
+                                         {join_field:
+                                              {'$in': list(need_new)}})
+                cursor = await db[genomic_or_clinical].find(new_query, {"_id": 1, "CLINICAL_ID": 1}).to_list(None)
+                for result in cursor:
+                    cache.queries[uniq][result["CLINICAL_ID"]] = result["_id"]
+                for unfound in need_new - set(cache.queries[uniq].keys()):
+                    cache.queries[uniq][unfound] = None
 
-                clinical_result_ids = set()
+            clinical_result_ids = set()
 
-                for query_clinical_id in query_clinical_ids:
-                    if query_clinical_id in cache.queries[uniq]:
-                        genomic_id = cache.queries[uniq][query_clinical_id]
-                        clinical_result_ids.add(query_clinical_id)
-                        if not negate:
-                            all_results[query_clinical_id].add(genomic_id)
-                            reasons.append((negate, query, query_clinical_id, genomic_id))
-                        elif negate and query_clinical_id in all_results:
-                            del all_results[query_clinical_id]
-                    elif query_clinical_id not in cache.queries[uniq] and negate:
-                        if query_clinical_id not in all_results:
-                            all_results[query_clinical_id] = set()
-                        reasons.append((negate, query, query_clinical_id, None))
+            for query_clinical_id in query_clinical_ids:
+                if cache.queries[uniq][query_clinical_id] is not None:
+                    genomic_id = cache.queries[uniq][query_clinical_id]
+                    clinical_result_ids.add(query_clinical_id)
+                    if not negate:
+                        all_results[query_clinical_id].add(genomic_id)
+                        reasons.append((negate, query, query_clinical_id, genomic_id))
+                    elif negate and query_clinical_id in all_results:
+                        del all_results[query_clinical_id]
+                elif cache.queries[uniq][query_clinical_id] is None and negate:
+                    if query_clinical_id not in all_results:
+                        all_results[query_clinical_id] = set()
+                    reasons.append((negate, query, query_clinical_id, None))
 
-                if not negate:
-                    clinical_ids.intersection_update(clinical_result_ids)
-                else:
-                    clinical_ids.difference_update(clinical_result_ids)
+            if not negate:
+                clinical_ids.intersection_update(clinical_result_ids)
+            else:
+                clinical_ids.difference_update(clinical_result_ids)
 
-                if not clinical_ids:
-                    return
-                else:
-                    for id_to_remove in set(all_results.keys()) - clinical_ids:
-                        del all_results[id_to_remove]
+            if not clinical_ids:
+                return
+            else:
+                for id_to_remove in set(all_results.keys()) - clinical_ids:
+                    del all_results[id_to_remove]
 
     needed_clinical = list()
     needed_genomic = list()
@@ -519,17 +596,6 @@ async def run_query(cache: Cache,
             elif genomic_id in all_results[query_clinical_id]:
                 yield RawQueryResult(query, ClinicalID(query_clinical_id), cache.docs[query_clinical_id],
                                      cache.docs[genomic_id])
-    # for clinical_id, genomic_ids in all_results.items():
-    #     yield RawQueryResult(multi_collection_query,
-    #                          ClinicalID(clinical_id),
-    #                          cache.docs[clinical_id],
-    #                          [cache.docs[genomic_id] for genomic_id in genomic_ids])
-    # return [RawQueryResult(multi_collection_query,
-    #                        ClinicalID(clinical_id),
-    #                        cache.docs[clinical_id],
-    #                        [cache.docs[genomic_id]
-    #                         for genomic_id in genomic_ids])
-    #         for clinical_id, genomic_ids in all_results.items()]
 
 
 def create_trial_matches(trial_match: TrialMatch) -> Dict:
@@ -577,12 +643,9 @@ async def updater_worker(worker_id, q) -> None:
                 task: Union[list, int] = await q.get()
                 count3 += 1
                 try:
-                    if isinstance(task, list):
-                        log.info(
-                            "Worker: {} got new UpdateTask {}".format(worker_id, count3)),
-                        await rw_db.trial_match_test.bulk_write(task, ordered=False)
-                    elif isinstance(task, int):
-                        pass
+                    # log.info(
+                    #     "Worker: {} got new UpdateTask {}".format(worker_id, count3)),
+                    await rw_db.trial_match_test.bulk_write(task, ordered=False)
                     q.task_done()
                 except Exception as e:
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
@@ -610,7 +673,7 @@ async def update_trial_matches(trial_matches: List[Dict], protocol_no: str, samp
         sample_ids = list(trial_matches_by_sample_id.keys())
     with MongoDBConnection(read_only=True) as db:
         for sample_id in sample_ids:
-            log.info("Sample ID {}".format(sample_id))
+            # log.info("Sample ID {}".format(sample_id))
             new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
 
             query = {'hash': {'$in': new_matches_hashes}}

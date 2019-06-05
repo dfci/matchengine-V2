@@ -64,8 +64,9 @@ class MatchCriteriaTransform(object):
         }
         # funky logic is because 1 month curation is curated as "0.083" (1/12 a year)
         operator = ''.join([i for i in trial_value if not i.isdigit() and i != '.'])
-        split_time = trial_value.split('.')
-        years = int(split_time[0]) if trial_value[0].isdigit() else 0
+        numeric = "".join([i for i in trial_value if i.isdigit() or  i == '.'])
+        split_time = numeric.split('.')
+        years = int(split_time[0])
         months_fraction = float(split_time[1]) if len(split_time) > 1 else 0
         months = int(months_fraction * 12)
         current_date = datetime.date.today()
