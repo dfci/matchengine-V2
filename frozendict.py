@@ -23,7 +23,7 @@ class comparable_dict(object):
         self.tup = frozenset(output)
 
     def hash(self):
-        return hashlib.md5(str(sorted(self.tup, key=lambda x: (x[0], x[1], x[2]))).encode('utf-8')).hexdigest()
+        return hashlib.sha1(str(sorted(self.tup, key=lambda x: (x[0], x[1], x[2]))).encode('utf-8')).hexdigest()
 
     def __repr__(self):
         return self.tup.__repr__()
