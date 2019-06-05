@@ -55,7 +55,7 @@ class Cache:
     genomic_non_hits: int
     clinical_non_hits: int
     docs: Dict[ObjectId, MongoQueryResult]
-    queries: Dict[str, Dict[ObjectId, Set[ObjectId]]]
+    ids: Dict[str, Dict[ObjectId, Set[ObjectId]]]
     matches: dict
 
 
