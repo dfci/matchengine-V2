@@ -64,7 +64,7 @@ class MatchCriteriaTransform(object):
         }
         # funky logic is because 1 month curation is curated as "0.083" (1/12 a year)
         operator = ''.join([i for i in trial_value if not i.isdigit() and i != '.'])
-        numeric = "".join([i for i in trial_value if i.isdigit() or  i == '.'])
+        numeric = "".join([i for i in trial_value if i.isdigit() or i == '.'])
         split_time = numeric.split('.')
         years = int(split_time[0])
         months_fraction = float(split_time[1]) if len(split_time) > 1 else 0
@@ -138,3 +138,29 @@ class MatchCriteriaTransform(object):
             return {sample_key: vc_map[trial_value]}, negate
         else:
             return {sample_key: trial_value.upper()}, negate
+
+    def wildcard_regex(self, **kwargs):
+        """
+        When trial curation criteria include a wildcard prefix (e.g. WILDCARD_PROTEIN_CHANGE), a genomic query must
+        use a $regex to search for all genomic documents which match the protein prefix.
+
+        E.g.
+        Trial curation match clause:
+        | genomic:
+        |    wildcard_protein_change: p.R132
+
+        Patient genomic data:
+        |    true_protein_change: p.R132H
+
+        The above should match in a mongo query.
+        """
+        trial_value = kwargs['trial_value']
+
+        # By convention, all protein changes being with "p."
+        if not trial_value.startswith('p.'):
+            trial_value = 'p.' + trial_value
+
+        trial_value = '^%s[A-Z]' % trial_value
+        sample_key = kwargs['sample_key']
+        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
+        return {sample_key: {'$regex': trial_value}}, negate
