@@ -141,9 +141,8 @@ async def get_trials(db: pymongo.database.Database,
                      match_on_closed: bool = False) -> Generator[Trial, None, None]:
     trial_find_query = dict()
 
-    # the minimum criteria needed in a trial projection. add extra values in config.json
-    projection = {'protocol_no': 1, 'nct_id': 1, 'treatment_list': 1, 'status': 1}
-    projection.update(match_criteria_transform.trial_projection)
+    # matching criteria can be set and extended in config.json. for more details see the README
+    projection = match_criteria_transform.trial_projection
 
     if protocol_nos is not None:
         trial_find_query['protocol_no'] = {"$in": [protocol_no for protocol_no in protocol_nos]}
@@ -177,6 +176,7 @@ def extract_match_clauses_from_trial(match_criteria_transform: MatchCriteriaTran
     Default to only extracting match clauses on steps, arms or dose levels which are open to accrual unless otherwise
     specified
 
+    :param match_criteria_transform:
     :param match_on_closed:
     :param trial:
     :return:
@@ -251,7 +251,7 @@ def create_match_tree(match_clause_data: MatchClauseData) -> MatchTree:
         else:
             process_q.append((NodeID(0), item))
 
-    def gr():
+    def grapth_match_clause():
         import matplotlib.pyplot as plt
         labels = {node: graph.nodes[node]['label'] for node in graph.nodes}
         for node in graph.nodes:
@@ -338,10 +338,10 @@ def create_match_tree(match_clause_data: MatchClauseData) -> MatchTree:
                     graph.add_edge(parent_id, node_id)
                     node_id += 1
 
-    plt = gr()
-    plt.savefig('img/{}-{}-{}.png'.format(match_clause_data.protocol_no,
-                                          match_clause_data.match_clause_level,
-                                          match_clause_data.internal_id))
+    # plt = grapth_match_clause()
+    # plt.savefig('img/{}-{}-{}.png'.format(match_clause_data.protocol_no,
+    #                                       match_clause_data.match_clause_level,
+    #                                       match_clause_data.internal_id))
     return MatchTree(graph)
 
 
@@ -573,31 +573,9 @@ async def run_query(cache: Cache,
             if genomic_id not in cache.docs:
                 needed_genomic.append(genomic_id)
 
-    # minimum fields required to execute matching. Extra matching fields can be added in config.json
-    genomic_projection = {
-        "SAMPLE_ID": 1,
-        "CLINICAL_ID": 1,
-        "VARIANT_CATEGORY": 1,
-        "WILDTYPE": 1,
-        "TRUE_TRANSCRIPT_EXON": 1,
-        "TIER": 1,
-        "TRUE_HUGO_SYMBOL": 1,
-        "TRUE_PROTEIN_CHANGE": 1,
-        "CNV_CALL": 1,
-        "TRUE_VARIANT_CLASSIFICATION": 1,
-        "MMR_STATUS": 1
-    }
-    genomic_projection.update(match_criteria_transformer.genomic_projection)
-
-    # minimum projection necessary for matching. Append extra values from config if desired
-    clinical_projection = {
-        "SAMPLE_ID": 1,
-        "MRN": 1,
-        "ONCOTREE_PRIMARY_DIAGNOSIS_NAME": 1,
-        "VITAL_STATUS": 1,
-        "FIRST_LAST": 1
-    }
-    clinical_projection.update(match_criteria_transformer.clinical_projection)
+    # matching criteria for clinical and genomic values can be set/extended in config.json
+    genomic_projection = match_criteria_transformer.genomic_projection
+    clinical_projection = match_criteria_transformer.clinical_projection
 
     results = await asyncio.gather(perform_db_call(db,
                                                    "clinical",
@@ -634,9 +612,11 @@ def create_trial_matches(trial_match: TrialMatch) -> Dict:
         new_trial_match.update(format(format_not_match(query)))
     else:
         new_trial_match.update(format(get_genomic_details(genomic_doc, query)))
+
     new_trial_match.update(
         {'match_level': trial_match.match_clause_data.match_clause_level,
          'internal_id': trial_match.match_clause_data.internal_id})
+
     # remove extra fields from trial_match output
     new_trial_match.update({k: v
                             for k, v in trial_match.trial.items() if k not in {'treatment_list',
@@ -681,6 +661,7 @@ async def update_trial_matches(trial_matches: List[Dict], protocol_no: str, samp
     """
     Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
     'Delete' matches by adding {is_disabled: true} and insert all new matches.
+    :param num_workers:
     :param protocol_no:
     :param trial_matches:
     :param sample_ids:
@@ -772,6 +753,7 @@ if __name__ == "__main__":
     # todo trial_match view (for sort_order)
     # todo configuration of trial_match document logic
     # todo - squash clinical criteria for age
+    # todo index every field in projections?
 
     param_trials_help = 'Path to your trial data file or a directory containing a file for each trial.' \
                         'Default expected format is YML.'
