@@ -518,7 +518,7 @@ async def run_query(cache: Cache,
         for query_wrapper in queries:
             negate = any([query[0] for query in query_wrapper])
 
-            query = { k: v for query in query_wrapper for k, v in query[1].items() }
+            query = {k: v for query in query_wrapper for k, v in query[1].items()}
             # cache hit or miss should be here
             uniq = comparable_dict(query).hash()
             query_clinical_ids = clinical_ids if clinical_ids else set(initial_clinical_ids)
@@ -743,7 +743,8 @@ async def main(args):
                                    match_on_deceased=args.match_on_deceased)
     async for protocol_no, sample_ids, matches in all_new_matches:
         log.info("{} all matches: {}".format(protocol_no, len(matches)))
-        await update_trial_matches(matches, protocol_no, sample_ids, args.workers[0])
+        if not args.dry:
+            await update_trial_matches(matches, protocol_no, sample_ids, args.workers[0])
 
 
 if __name__ == "__main__":
@@ -779,6 +780,7 @@ if __name__ == "__main__":
     deceased_help = 'Match on deceased patients. Default is to match only on alive patients.'
     upsert_help = 'When loading clinical or trial data, specify a field other than _id to use as a unique key. ' \
                   'Must be comma separated values if using more than one field e.g. name,age,gender'
+    dry_help = "Execute a full matching run but do not insert any matches into the DB"
 
     subp = parser.add_subparsers(help='sub-command help')
     subp_p = subp.add_parser('load', help='Sets up your MongoDB for matching.')
@@ -808,6 +810,7 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help=closed_help)
+    subp_p.add_argument("--dry-run", dest="dry", action="store_true", default=False, help=dry_help)
     subp_p.add_argument("--match-on-deceased-patients",
                         dest="match_on_deceased",
                         action="store_true",
