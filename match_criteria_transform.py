@@ -11,6 +11,7 @@ class MatchCriteriaTransform(object):
     For more details and examples, please see the README.
     """
     CLINICAL: str = "clinical"
+    GENOMIC: str = "genomic"
 
     resources: dict = None
     config: dict = None
