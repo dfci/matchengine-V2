@@ -43,13 +43,24 @@ class MatchCriteriaTransform(object):
         self.genomic_projection = {proj: 1 for proj in config["match_criteria"]['genomic']}
         self.trial_projection = {proj: 1 for proj in config["match_criteria"]['trial']}
 
+    def is_negate(self, trial_value):
+        """
+        If a trial curation is prefixed with a !, return a is_negate bool, and the trial_value without the !
+        ex: !EGFR => (True, EGFR)
+
+        :param trial_value:
+        :return:
+        """
+        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
+        trial_value = trial_value[1::] if negate else trial_value
+        return trial_value, negate
+
     def nomap(self, **kwargs):
         trial_path = kwargs['trial_path']
         trial_key = kwargs['trial_key']
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
-        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
-        trial_value = trial_value[1::] if negate else trial_value
+        trial_value, negate = self.is_negate(trial_value)
         return {sample_key: trial_value}, negate
 
     def age_range_to_date_query(self, **kwargs):
@@ -82,8 +93,7 @@ class MatchCriteriaTransform(object):
             with open(file) as file_handle:
                 self.resources[file] = json.load(file_handle)
         resource = self.resources[file]
-        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
-        trial_value = trial_value[1::] if negate else trial_value
+        trial_value, negate = self.is_negate(trial_value)
         match_value = resource.setdefault(trial_value, trial_value)  # TODO: fix
         if isinstance(match_value, list):
             return {sample_key: {"$in": sorted(match_value)}}, negate
@@ -101,8 +111,7 @@ class MatchCriteriaTransform(object):
     def to_upper(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
-        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
-        trial_value = trial_value[1::] if negate else trial_value
+        trial_value, negate = self.is_negate(trial_value)
         return {sample_key: trial_value.upper()}, negate
 
     def cnv_map(self, **kwargs):
@@ -118,8 +127,7 @@ class MatchCriteriaTransform(object):
             "High Amplification": "High level amplification"
         }
 
-        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
-        trial_value = trial_value[1::] if negate else trial_value
+        trial_value, negate = self.is_negate(trial_value)
         if trial_value in cnv_map:
             return {sample_key: cnv_map[trial_value]}, negate
         else:
@@ -132,8 +140,7 @@ class MatchCriteriaTransform(object):
             "Copy Number Variation": "CNV"
         }
 
-        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
-        trial_value = trial_value[1::] if negate else trial_value
+        trial_value, negate = self.is_negate(trial_value)
         if trial_value in vc_map:
             return {sample_key: vc_map[trial_value]}, negate
         else:
@@ -160,7 +167,6 @@ class MatchCriteriaTransform(object):
         if not trial_value.startswith('p.'):
             trial_value = 'p.' + trial_value
 
+        trial_value, negate = self.is_negate(trial_value)
         trial_value = '^%s[A-Z]' % trial_value
-        sample_key = kwargs['sample_key']
-        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
-        return {sample_key: {'$regex': trial_value}}, negate
+        return {kwargs['sample_key']: {'$regex': trial_value}}, negate
