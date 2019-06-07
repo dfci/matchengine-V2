@@ -751,7 +751,6 @@ if __name__ == "__main__":
     # todo unit tests
     # todo refactor run_query
     # todo output CSV file functions
-    # todo dry flag
     # todo regex SV matching
     # todo update/delete/insert run log
     # todo failsafes for insert logic (fallback?)

@@ -45,8 +45,7 @@ class MatchCriteriaTransform(object):
 
     def is_negate(self, trial_value):
         """
-        If a trial curation is prefixed with a !, return a is_negate bool, and the trial_value without the !
-        ex: !EGFR => (True, EGFR)
+        Example: !EGFR => (True, EGFR)
 
         :param trial_value:
         :return:
