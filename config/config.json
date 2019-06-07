@@ -15,7 +15,7 @@
       },
       "WILDCARD_PROTEIN_CHANGE": {
         "sample_key": "TRUE_PROTEIN_CHANGE",
-        "sample_value": "nomap"
+        "sample_value": "wildcard_regex"
       },
       "VARIANT_CLASSIFICATION": {
         "sample_key": "TRUE_VARIANT_CLASSIFICATION",
