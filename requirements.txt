@@ -1,3 +1,4 @@
+matplotlib
 PyYAML==5.1
 pandas==0.24.2
 pymongo==3.8.0

@@ -38,10 +38,10 @@ class MatchCriteriaTransform(object):
         self.config = config
         self.trial_key_mappings = config['trial_key_mappings']
 
-        # values used to populate the output trial_match document are also used as query projections
-        self.clinical_projection = {proj: 1 for proj in config["trial_match_doc"]['clinical']}
-        self.genomic_projection = {proj: 1 for proj in config["trial_match_doc"]['genomic']}
-        self.trial_projection = {proj: 1 for proj in config["trial_match_doc"]['trial']}
+        # values used to match genomic/clinical information to trials. for more details and explanation, see the README
+        self.clinical_projection = {proj: 1 for proj in config["match_criteria"]['clinical']}
+        self.genomic_projection = {proj: 1 for proj in config["match_criteria"]['genomic']}
+        self.trial_projection = {proj: 1 for proj in config["match_criteria"]['trial']}
 
     def nomap(self, **kwargs):
         trial_path = kwargs['trial_path']
