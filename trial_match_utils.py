@@ -64,40 +64,36 @@ def get_genomic_details(genomic_doc, query):
     }
 
 
-def format_not_match(query):
+def format_exclusion_match(query):
     """Format the genomic alteration for genomic documents that matched a negative clause of a match tree"""
 
-    GENE_KEY = 'TRUE_HUGO_SYMBOL'
-    PROTEIN_CHANGE_KEY = 'TRUE_PROTEIN_CHANGE'
-    CNV_KEY = 'CNV_CALL'
-    VARIANT_CLASSIFICATION_KEY = 'TRUE_VARIANT_CLASSIFICATION'
-    SV_KEY = 'VARIANT_CATEGORY'
-
+    gene_key = 'TRUE_HUGO_SYMBOL'
+    protein_change_key = 'TRUE_PROTEIN_CHANGE'
+    cnv_key = 'CNV_CALL'
+    variant_classification_key = 'TRUE_VARIANT_CLASSIFICATION'
+    sv_key = 'VARIANT_CATEGORY'
     alteration = '!'
-
-    is_variant = 'variant' if query.setdefault(PROTEIN_CHANGE_KEY, None) is not None else 'gene'
-
-    # for clarity
+    is_variant = 'variant' if query.setdefault(protein_change_key, None) is not None else 'gene'
 
     # TODO: regex
 
-    if GENE_KEY in query and query[GENE_KEY] is not None:
-        alteration = '!{}'.format(query[GENE_KEY])
+    if gene_key in query and query[gene_key] is not None:
+        alteration = '!{}'.format(query[gene_key])
 
     # add mutation
-    if query.setdefault(PROTEIN_CHANGE_KEY, None) is not None:
-        alteration += ' {}'.format(query[PROTEIN_CHANGE_KEY])
+    if query.setdefault(protein_change_key, None) is not None:
+        alteration += ' {}'.format(query[protein_change_key])
 
     # add cnv call
-    elif query.setdefault(CNV_KEY, None) is not None:
-        alteration += ' {}'.format(query[CNV_KEY])
+    elif query.setdefault(cnv_key, None) is not None:
+        alteration += ' {}'.format(query[cnv_key])
 
     # add variant classification
-    elif query.setdefault(VARIANT_CLASSIFICATION_KEY, None) is not None:
-        alteration += ' {}'.format(query[VARIANT_CLASSIFICATION_KEY])
+    elif query.setdefault(variant_classification_key, None) is not None:
+        alteration += ' {}'.format(query[variant_classification_key])
 
     # add structural variation
-    elif query.setdefault(SV_KEY, str()) == 'SV':
+    elif query.setdefault(sv_key, str()) == 'SV':
         alteration += ' Structural Variation'
 
     return {

@@ -378,8 +378,7 @@ def translate_match_path(match_clause_data: MatchClauseData,
         categories = MultiCollectionQuery(defaultdict(list))
         for criteria in node:
             for genomic_or_clinical, values in criteria.items():
-                and_query = dict()
-                any_negate = False
+                and_query = list()
                 for trial_key, trial_value in values.items():
                     trial_key_settings = match_criteria_transformer.trial_key_mappings[genomic_or_clinical].setdefault(
                         trial_key.upper(),
@@ -397,17 +396,17 @@ def translate_match_path(match_clause_data: MatchClauseData,
                                 trial_key=trial_key)
                     args.update(trial_key_settings)
                     sample_value, negate = sample_function(match_criteria_transformer, **args)
-                    if not any_negate and negate:
-                        any_negate = True
-                    and_query.update(sample_value)
+                    # if not any_negate and negate:
+                    #     any_negate = True
+                    and_query.append([negate, sample_value])
                 if and_query:
-                    if comparable_dict(and_query).hash() not in query_cache:
-                        categories[genomic_or_clinical].append((any_negate, and_query))
-                        query_cache.add(comparable_dict(and_query).hash())
-        if categories:
-            for k, v in categories.items():
-                output[k].extend(v)
-            # output.append(categories)
+                    if comparable_dict({"tmp": and_query}).hash() not in query_cache:
+                        output[genomic_or_clinical].append(and_query)
+                        query_cache.add(comparable_dict({"tmp": and_query}).hash())
+        # if categories:
+        #     for k, v in categories.items():
+        #         output[k].extend(v)
+        # output.append(categories)
     return MultiCollectionQuery(output)
 
 
@@ -418,16 +417,16 @@ async def execute_clinical_query(db: pymongo.database.Database,
                                  initial_clinical_ids: Set[ClinicalID]) -> Set[ObjectId]:
     if match_criteria_transformer.CLINICAL in multi_collection_query:
         collection = match_criteria_transformer.CLINICAL
-        for negate, inner_query in multi_collection_query[collection]:
-            for k, v in inner_query.items():
-                inner_query_part = {k: v}
+        for inner_query in multi_collection_query[collection]:
+            for negate, inner_query_part in inner_query:
+                # inner_query_part = {k: v}
 
                 # hash the inner query to use as a reference for returned clinical ids, if necessary
                 query_hash = comparable_dict(inner_query_part).hash()
                 if query_hash not in cache.ids:
                     cache.ids[query_hash] = dict()
 
-                # create an nested id_cache where the key is the clinical ID being queried and the vals
+                # create a nested id_cache where the key is the clinical ID being queried and the vals
                 # are the clinical IDs returned
                 id_cache = cache.ids[query_hash]
                 queried_ids = id_cache.keys()
@@ -447,7 +446,7 @@ async def execute_clinical_query(db: pymongo.database.Database,
 
                 for clinical_id in list(initial_clinical_ids):
 
-                    # an exclusion critera returned a clinical document hence doc is not a match
+                    # an exclusion criteria returned a clinical document hence doc is not a match
                     if id_cache[clinical_id] is not None and negate:
                         initial_clinical_ids.remove(clinical_id)
 
@@ -489,8 +488,8 @@ async def run_query(cache: Cache,
     # TODO refactor into smaller functions
     all_results: Dict[ObjectId, Set[ObjectId]] = defaultdict(set)
     reasons = list()
-
     clinical_ids = set(initial_clinical_ids)
+
     # get clinical docs first
     if match_criteria_transformer.CLINICAL in multi_collection_query:
         new_clinical_ids = await execute_clinical_query(db,
@@ -500,6 +499,7 @@ async def run_query(cache: Cache,
                                                         clinical_ids if clinical_ids else set(initial_clinical_ids))
         if not new_clinical_ids:
             return
+
         # If no clinical docs are returned, skip executing genomic portion of the query
         for key in new_clinical_ids:
             clinical_ids.add(key)
@@ -514,7 +514,11 @@ async def run_query(cache: Cache,
 
         join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
 
-        for negate, query in queries:
+        # for negate, query in queries:
+        for query_wrapper in queries:
+            negate = any([query[0] for query in query_wrapper])
+
+            query = { k: v for query in query_wrapper for k, v in query[1].items() }
             # cache hit or miss should be here
             uniq = comparable_dict(query).hash()
             query_clinical_ids = clinical_ids if clinical_ids else set(initial_clinical_ids)
@@ -606,10 +610,12 @@ def create_trial_matches(trial_match: TrialMatch) -> Dict:
     """
     genomic_doc = trial_match.raw_query_result.genomic_doc
     query = trial_match.raw_query_result.query
+
     new_trial_match = dict()
     new_trial_match.update(format(trial_match.raw_query_result.clinical_doc))
+
     if genomic_doc is None:
-        new_trial_match.update(format(format_not_match(query)))
+        new_trial_match.update(format(format_exclusion_match(query)))
     else:
         new_trial_match.update(format(get_genomic_details(genomic_doc, query)))
 
