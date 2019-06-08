@@ -16,7 +16,8 @@
       "TRUE_PROTEIN_CHANGE",
       "CNV_CALL",
       "TRUE_VARIANT_CLASSIFICATION",
-      "MMR_STATUS"
+      "MMR_STATUS",
+      "STRUCTURAL_VARIANT_COMMENT"
     ],
     "clinical": [
       "ORD_PHYSICIAN_NAME",

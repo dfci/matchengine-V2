@@ -146,17 +146,12 @@ class MatchCriteriaTransform(object):
         # if a curation calls for a Structural Variant, search the free text in the genomic document under
         # STRUCTURAL_VARIANT_COMMENT for mention of the TRUE_HUGO_SYMBOL
         if trial_value == 'Structural Variation':
-            gene = []
+            gene = ''
             for query_tuple in query_list:
                 if 'TRUE_HUGO_SYMBOL' in query_tuple[1]:
-                    gene.append(query_tuple[1]['TRUE_HUGO_SYMBOL'])
+                    gene = query_tuple[1]['TRUE_HUGO_SYMBOL']
 
-            # regex
-            sv_clauses = []
-            abc = "(.*\W{0}\W.*)|(^{0}\W.*)|(.*\W{0}$)".format(gene)
-            sv_clauses.append(re.compile(abc, re.IGNORECASE))
-
-            return {'STRUCTURAL_VARIANT_COMMENT': {"$in": sv_clauses}}, negate
+            return {'STRUCTURAL_VARIANT_COMMENT': {"$regex": gene}}, negate
         elif trial_value in variant_category_map:
             return {sample_key: variant_category_map[trial_value]}, negate
         else:
