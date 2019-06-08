@@ -77,7 +77,7 @@ async def find_matches(sample_ids: list = None,
                        num_workers: int = 25,
                        match_on_closed: bool = False,
                        match_on_deceased: bool = False,
-                       cache: Cache = None) -> AsyncGenerator:  # Generator[Tuple[str, List[str], List[Dict]]]:
+                       cache: Cache = None) -> AsyncGenerator:
     """
     Take a list of sample ids and trial protocol numbers, return a dict of trial matches
     :param cache:
@@ -375,7 +375,6 @@ def translate_match_path(match_clause_data: MatchClauseData,
     output = defaultdict(list)
     query_cache = set()
     for node in match_criterion:
-        categories = MultiCollectionQuery(defaultdict(list))
         for criteria in node:
             for genomic_or_clinical, values in criteria.items():
                 and_query = list()
@@ -393,20 +392,16 @@ def translate_match_path(match_clause_data: MatchClauseData,
                                 trial_value=trial_value,
                                 parent_path=match_clause_data.parent_path,
                                 trial_path=genomic_or_clinical,
+                                and_query=and_query,
                                 trial_key=trial_key)
                     args.update(trial_key_settings)
                     sample_value, negate = sample_function(match_criteria_transformer, **args)
-                    # if not any_negate and negate:
-                    #     any_negate = True
                     and_query.append([negate, sample_value])
+                    and_query = MatchCriteriaTransform.and_query_transform(match_criteria_transformer, **args)
                 if and_query:
                     if comparable_dict({"tmp": and_query}).hash() not in query_cache:
                         output[genomic_or_clinical].append(and_query)
                         query_cache.add(comparable_dict({"tmp": and_query}).hash())
-        # if categories:
-        #     for k, v in categories.items():
-        #         output[k].extend(v)
-        # output.append(categories)
     return MultiCollectionQuery(output)
 
 

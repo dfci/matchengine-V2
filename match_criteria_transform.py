@@ -1,5 +1,6 @@
 import json
 import datetime
+import re
 from dateutil.relativedelta import relativedelta
 
 
@@ -135,13 +136,29 @@ class MatchCriteriaTransform(object):
     def variant_category_map(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
-        vc_map = {
+        query_list = kwargs['and_query']
+        variant_category_map = {
             "Copy Number Variation": "CNV"
         }
 
         trial_value, negate = self.is_negate(trial_value)
-        if trial_value in vc_map:
-            return {sample_key: vc_map[trial_value]}, negate
+
+        # if a curation calls for a Structural Variant, search the free text in the genomic document under
+        # STRUCTURAL_VARIANT_COMMENT for mention of the TRUE_HUGO_SYMBOL
+        if trial_value == 'Structural Variation':
+            gene = []
+            for query_tuple in query_list:
+                if 'TRUE_HUGO_SYMBOL' in query_tuple[1]:
+                    gene.append(query_tuple[1]['TRUE_HUGO_SYMBOL'])
+
+            # regex
+            sv_clauses = []
+            abc = "(.*\W{0}\W.*)|(^{0}\W.*)|(.*\W{0}$)".format(gene)
+            sv_clauses.append(re.compile(abc, re.IGNORECASE))
+
+            return {'STRUCTURAL_VARIANT_COMMENT': {"$in": sv_clauses}}, negate
+        elif trial_value in variant_category_map:
+            return {sample_key: variant_category_map[trial_value]}, negate
         else:
             return {sample_key: trial_value.upper()}, negate
 
@@ -169,3 +186,24 @@ class MatchCriteriaTransform(object):
         trial_value, negate = self.is_negate(trial_value)
         trial_value = '^%s[A-Z]' % trial_value
         return {kwargs['sample_key']: {'$regex': trial_value}}, negate
+
+    def and_query_transform(self, **kwargs):
+        """
+        If a trial curation key/value requires alteration to a separate AND clause in the mongo query, do that here.
+        :return:
+        """
+        trial_key = kwargs['trial_key']
+        trial_value = kwargs['trial_value']
+
+        # If a trial curation calls for a structural variant but does NOT have the structured SV data field
+        # FUSION_PARTNER_HUGO_SYMBOL, then the genomic query is done using a regex search of the free text
+        # STRUCTURAL_VARIANT_COMMENT field on the patient's genomic document.
+        if trial_key == 'variant_category' and trial_value == 'Structural Variation':
+            and_query = kwargs['and_query']
+            for negate, query in and_query:
+                if 'TRUE_HUGO_SYMBOL' in query and 'FUSION_PARTNER_HUGO_SYMBOL' not in query:
+                    index = and_query.index([negate, query])
+                    del and_query[index]
+            return and_query
+        else:
+            return kwargs['and_query']
