@@ -55,7 +55,7 @@ async def queue_worker(q, matches, config, worker_id) -> None:
                         count += 1
                         if count % 100 == 0:
                             log.info("count: {}".format(count))
-                        match_document = create_trial_matches(trial_match)
+                        match_document = create_trial_matches(task.cache, trial_match)
                         matches.append(match_document)
                     q.task_done()
                 except Exception as e:
@@ -530,9 +530,9 @@ async def run_query(cache: Cache,
                     db: pymongo.database.Database,
                     match_criteria_transformer: MatchCriteriaTransform,
                     multi_collection_query: MultiCollectionQuery,
-                    initial_clinical_ids: List[ClinicalID]) -> Generator[RawQueryResult,
+                    initial_clinical_ids: List[ClinicalID]) -> Generator[MatchReason,
                                                                          None,
-                                                                         RawQueryResult]:
+                                                                         MatchReason]:
     """
     Execute a mongo query on the clinical and genomic collections to find trial matches.
     First execute the clinical query. If no records are returned short-circuit and return.
@@ -594,26 +594,24 @@ async def run_query(cache: Cache,
     for genomic_reason in genomic_match_reasons:
         if genomic_reason.clinical_id in all_results:
             if genomic_reason.query_node.exclusion:
-                yield RawQueryResult(genomic_reason.query_node, ClinicalID(genomic_reason.clinical_id),
-                                     cache.docs[genomic_reason.clinical_id], None)
+                yield genomic_reason
             elif genomic_reason.genomic_id in all_results[genomic_reason.clinical_id]:
-                yield RawQueryResult(genomic_reason.query_node, ClinicalID(genomic_reason.clinical_id),
-                                     cache.docs[genomic_reason.clinical_id],
-                                     cache.docs[genomic_reason.genomic_id])
+                yield genomic_reason
 
 
-def create_trial_matches(trial_match: TrialMatch) -> Dict:
+def create_trial_matches(cache: Cache, trial_match: TrialMatch) -> Dict:
     """
     Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
     in config.json
+    :param cache:
     :param trial_match:
     :return:
     """
-    genomic_doc = trial_match.raw_query_result.genomic_doc
-    query = trial_match.raw_query_result.query.query_parts_to_single_query()
+    genomic_doc = cache.docs.setdefault(trial_match.match_reason.genomic_id, None)
+    query = trial_match.match_reason.query_node.query_parts_to_single_query()
 
     new_trial_match = dict()
-    new_trial_match.update(format(trial_match.raw_query_result.clinical_doc))
+    new_trial_match.update(format(cache.docs[trial_match.match_reason.clinical_id]))
 
     if genomic_doc is None:
         new_trial_match.update(format(format_exclusion_match(query)))
