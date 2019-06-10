@@ -205,7 +205,7 @@ def extract_match_clauses_from_trial(match_criteria_transform: MatchCriteriaTran
                         if not match_on_closed and \
                                 parent_value.setdefault('arm_suspended', 'n').lower().strip() == 'y':
                             continue
-                    elif path[-1] == 'dose':
+                    elif path[-1] == 'dose_level':
                         if not match_on_closed and \
                                 parent_value.setdefault('level_suspended', 'n').lower().strip() == 'y':
                             continue
