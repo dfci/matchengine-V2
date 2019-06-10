@@ -26,6 +26,7 @@ Collection = NewType("Collection", str)
 class QueryPart:
     query: Dict
     negate: bool
+    render: bool
 
     def hash(self) -> str:
         return comparable_dict(self.query).hash()
@@ -49,7 +50,9 @@ class QueryNode:
             key: value
             for query_part in self.query_parts
             for key, value in query_part.query.items()
+            if query_part.render
         }
+
 
 
 @dataclass

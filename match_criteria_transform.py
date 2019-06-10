@@ -3,6 +3,45 @@ import datetime
 import re
 from dateutil.relativedelta import relativedelta
 
+from matchengine_types import QueryNode
+
+
+def is_negate(trial_value):
+    """
+    Example: !EGFR => (True, EGFR)
+
+    :param trial_value:
+    :return:
+    """
+    negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
+    trial_value = trial_value[1::] if negate else trial_value
+    return trial_value, negate
+
+
+def query_node_transform(query_node: QueryNode):
+    """
+    If a trial curation key/value requires alteration to a separate AND clause in the mongo query, do that here.
+    Used to modify a query part dependent on another query part
+    :return:
+    """
+
+    # If a trial curation calls for a structural variant but does NOT have the structured SV data field
+    # FUSION_PARTNER_HUGO_SYMBOL, then the genomic query is done using a regex search of the free text
+    # STRUCTURAL_VARIANT_COMMENT field on the patient's genomic document.
+    whole_query = query_node.query_parts_to_single_query()
+    # encode as full search criteria
+    if 'STRUCTURAL_VARIANT_COMMENT' in whole_query:
+        gene_part = next((query_part
+                          for query_part in query_node.query_parts
+                          if 'TRUE_HUGO_SYMBOL' in query_part.query))
+        sv_part = next((query_part
+                        for query_part in query_node.query_parts
+                        if 'STRUCTURAL_VARIANT_COMMENT' in query_part.query))
+        gene_part.render = False
+        gene = whole_query.pop('TRUE_HUGO_SYMBOL')
+        sv_part.query['STRUCTURAL_VARIANT_COMMENT'] = re.compile("(.*\W{0}\W.*)|(^{0}\W.*)|(.*\W{0}$)".format(gene),
+                                                                 re.IGNORECASE)
+
 
 class MatchCriteriaTransform(object):
     """
@@ -45,23 +84,12 @@ class MatchCriteriaTransform(object):
         self.genomic_projection = {proj: 1 for proj in config["match_criteria"]['genomic']}
         self.trial_projection = {proj: 1 for proj in config["match_criteria"]['trial']}
 
-    def is_negate(self, trial_value):
-        """
-        Example: !EGFR => (True, EGFR)
-
-        :param trial_value:
-        :return:
-        """
-        negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
-        trial_value = trial_value[1::] if negate else trial_value
-        return trial_value, negate
-
     def nomap(self, **kwargs):
         trial_path = kwargs['trial_path']
         trial_key = kwargs['trial_key']
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
-        trial_value, negate = self.is_negate(trial_value)
+        trial_value, negate = is_negate(trial_value)
         return {sample_key: trial_value}, negate
 
     def age_range_to_date_query(self, **kwargs):
@@ -94,7 +122,7 @@ class MatchCriteriaTransform(object):
             with open(file) as file_handle:
                 self.resources[file] = json.load(file_handle)
         resource = self.resources[file]
-        trial_value, negate = self.is_negate(trial_value)
+        trial_value, negate = is_negate(trial_value)
         match_value = resource.setdefault(trial_value, trial_value)  # TODO: fix
         if isinstance(match_value, list):
             return {sample_key: {"$in": sorted(match_value)}}, negate
@@ -112,7 +140,7 @@ class MatchCriteriaTransform(object):
     def to_upper(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
-        trial_value, negate = self.is_negate(trial_value)
+        trial_value, negate = is_negate(trial_value)
         return {sample_key: trial_value.upper()}, negate
 
     def cnv_map(self, **kwargs):
@@ -128,7 +156,7 @@ class MatchCriteriaTransform(object):
             "High Amplification": "High level amplification"
         }
 
-        trial_value, negate = self.is_negate(trial_value)
+        trial_value, negate = is_negate(trial_value)
         if trial_value in cnv_map:
             return {sample_key: cnv_map[trial_value]}, negate
         else:
@@ -137,24 +165,18 @@ class MatchCriteriaTransform(object):
     def variant_category_map(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
-        query_list = kwargs['and_query']
         variant_category_map = {
             "Copy Number Variation": "CNV"
         }
 
-        trial_value, negate = self.is_negate(trial_value)
+        trial_value, negate = is_negate(trial_value)
 
         # if a curation calls for a Structural Variant, search the free text in the genomic document under
         # STRUCTURAL_VARIANT_COMMENT for mention of the TRUE_HUGO_SYMBOL
         if trial_value == 'Structural Variation':
-            gene = ''
-            for query_tuple in query_list:
-                if 'TRUE_HUGO_SYMBOL' in query_tuple[1]:
-                    gene = query_tuple[1]['TRUE_HUGO_SYMBOL']
-
-            return {'STRUCTURAL_VARIANT_COMMENT': {"$regex": gene}}, negate
+            return {'STRUCTURAL_VARIANT_COMMENT': None}, negate
         elif trial_value in variant_category_map:
-            return {sample_key: variant_category_map[trial_value]}, negate
+            return {sample_key: variant_category_map[trial_value]}, negate, None
         else:
             return {sample_key: trial_value.upper()}, negate
 
@@ -179,27 +201,6 @@ class MatchCriteriaTransform(object):
         if not trial_value.startswith('p.'):
             trial_value = 'p.' + trial_value
 
-        trial_value, negate = self.is_negate(trial_value)
+        trial_value, negate = is_negate(trial_value)
         trial_value = '^%s[A-Z]' % trial_value
         return {kwargs['sample_key']: {'$regex': trial_value}}, negate
-
-    def and_query_transform(self, **kwargs):
-        """
-        If a trial curation key/value requires alteration to a separate AND clause in the mongo query, do that here.
-        :return:
-        """
-        trial_key = kwargs['trial_key']
-        trial_value = kwargs['trial_value']
-
-        # If a trial curation calls for a structural variant but does NOT have the structured SV data field
-        # FUSION_PARTNER_HUGO_SYMBOL, then the genomic query is done using a regex search of the free text
-        # STRUCTURAL_VARIANT_COMMENT field on the patient's genomic document.
-        if trial_key == 'variant_category' and trial_value == 'Structural Variation':
-            and_query = kwargs['and_query']
-            for negate, query in and_query:
-                if 'TRUE_HUGO_SYMBOL' in query and 'FUSION_PARTNER_HUGO_SYMBOL' not in query:
-                    index = and_query.index([negate, query])
-                    del and_query[index]
-            return and_query
-        else:
-            return kwargs['and_query']
