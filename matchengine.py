@@ -76,7 +76,7 @@ async def find_matches(sample_ids: list = None,
                        num_workers: int = 25,
                        match_on_closed: bool = False,
                        match_on_deceased: bool = False,
-                       cache: Cache = None) -> AsyncGenerator:  # Generator[Tuple[str, List[str], List[Dict]]]:
+                       cache: Cache = None) -> AsyncGenerator:
     """
     Take a list of sample ids and trial protocol numbers, return a dict of trial matches
     :param cache:
