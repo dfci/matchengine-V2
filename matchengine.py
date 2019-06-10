@@ -4,7 +4,7 @@ from networkx.drawing.nx_agraph import graphviz_layout
 from pymongo import UpdateMany, InsertOne
 from pymongo.errors import AutoReconnect, CursorNotFound
 
-from match_criteria_transform import MatchCriteriaTransform
+from match_criteria_transform import MatchCriteriaTransform, query_node_transform
 from mongo_connection import MongoDBConnection
 from collections import deque, defaultdict
 from typing import Generator, Set, Text, AsyncGenerator
@@ -391,14 +391,16 @@ def translate_match_path(match_clause_data: MatchClauseData,
                                                 trial_value=trial_value,
                                                 parent_path=match_clause_data.parent_path,
                                                 trial_path=genomic_or_clinical,
-                                                trial_key=trial_key)
+                                                trial_key=trial_key,
+                                                query_node=query_node)
                     sample_function_args.update(trial_key_settings)
                     sample_value, negate = sample_function(match_criteria_transformer, **sample_function_args)
-                    query_part = QueryPart(sample_value, negate)
+                    query_part = QueryPart(sample_value, negate, True)
                     query_node.query_parts.append(query_part)
                     # set the exclusion = True on the query node if ANY of the query parts are negate
                     query_node.exclusion = True if negate or query_node.exclusion else False
                 if query_node.exclusion is not None:
+                    query_node_transform(query_node)
                     query_node_hash = query_node.hash()
                     if query_node_hash not in query_cache:
                         getattr(multi_collection_query, genomic_or_clinical).append(query_node)
@@ -415,6 +417,8 @@ async def execute_clinical_queries(db: pymongo.database.Database,
     reasons = list()
     for query_node in query_nodes:
         for query_part in query_node.query_parts:
+            if not query_part.render:
+                continue
             # inner_query_part = {k: v}
 
             # hash the inner query to use as a reference for returned clinical ids, if necessary
@@ -477,9 +481,7 @@ async def execute_genomic_queries(db: pymongo.database.Database,
         join_field = match_criteria_transformer.collection_mappings['genomic']['join_field']
 
         # for negate, query in queries:
-        query = {k: v
-                 for query_part in genomic_query_node.query_parts
-                 for k, v in query_part.query.items()}
+        query = genomic_query_node.query_parts_to_single_query()
         uniq = comparable_dict(query).hash()
         clinical_ids = clinical_ids
         if uniq not in cache.ids:
