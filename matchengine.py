@@ -29,7 +29,7 @@ count = 0
 count2 = 0
 
 
-async def queue_worker(q, matches, config, worker_id) -> None:
+async def queue_worker(q, matches, config, worker_id, debug) -> None:
     global count
     global count2
     if not q.empty():
@@ -46,7 +46,8 @@ async def queue_worker(q, matches, config, worker_id) -> None:
                                                   ro_db,
                                                   match_criteria_transform,
                                                   task.query,
-                                                  task.clinical_ids):
+                                                  task.clinical_ids,
+                                                  debug):
                         trial_match = TrialMatch(task.trial,
                                                  task.match_clause_data,
                                                  task.match_path,
@@ -126,7 +127,7 @@ async def find_matches(sample_ids: list = None,
                                           _ids,
                                           cache))
         log.info("Protocol no {} qsize {}".format(trial['protocol_no'], q.qsize()))
-        workers = [asyncio.create_task(queue_worker(q, matches, config, i))
+        workers = [asyncio.create_task(queue_worker(q, matches, config, i, debug))
                    for i in range(0, min(q.qsize(), num_workers))]
         await asyncio.gather(*workers)
         await q.join()
@@ -412,7 +413,8 @@ async def execute_clinical_queries(db: pymongo.database.Database,
                                    cache: Cache,
                                    match_criteria_transformer: MatchCriteriaTransform,
                                    query_nodes: List[QueryNode],
-                                   clinical_ids: Set[ClinicalID]) -> Tuple[Set[ObjectId], List[ClinicalMatchReason]]:
+                                   clinical_ids: Set[ClinicalID],
+                                   debug: bool = False) -> Tuple[Set[ObjectId], List[ClinicalMatchReason]]:
     collection = match_criteria_transformer.CLINICAL
     reasons = list()
     for query_node in query_nodes:
@@ -434,6 +436,8 @@ async def execute_clinical_queries(db: pymongo.database.Database,
 
             if need_new:
                 new_query = {'$and': [{'_id': {'$in': list(need_new)}}, query_part.query]}
+                if debug:
+                    log.info("{}".format(new_query))
                 docs = await db[collection].find(new_query, {'_id': 1}).to_list(None)
 
                 # save returned ids
@@ -472,7 +476,8 @@ async def execute_genomic_queries(db: pymongo.database.Database,
                                   cache: Cache,
                                   match_criteria_transformer: MatchCriteriaTransform,
                                   query_nodes: List[QueryNode],
-                                  clinical_ids: Set[ClinicalID]) -> Tuple[Dict[ObjectId, Set[ObjectId]],
+                                  clinical_ids: Set[ClinicalID],
+                                  debug: bool = False) -> Tuple[Dict[ObjectId, Set[ObjectId]],
                                                                           List[GenomicMatchReason]]:
     all_results: Dict[ObjectId, Set[ObjectId]] = defaultdict(set)
     reasons = list()
@@ -493,6 +498,8 @@ async def execute_genomic_queries(db: pymongo.database.Database,
             new_query['$and'].insert(0,
                                      {join_field:
                                           {'$in': list(need_new)}})
+            if debug:
+                log.info("{}".format(new_query))
             cursor = await db['genomic'].find(new_query, {"_id": 1, "CLINICAL_ID": 1}).to_list(None)
             for result in cursor:
                 cache.ids[uniq][result["CLINICAL_ID"]] = result["_id"]
@@ -532,7 +539,8 @@ async def run_query(cache: Cache,
                     db: pymongo.database.Database,
                     match_criteria_transformer: MatchCriteriaTransform,
                     multi_collection_query: MultiCollectionQuery,
-                    initial_clinical_ids: List[ClinicalID]) -> Generator[MatchReason,
+                    initial_clinical_ids: List[ClinicalID],
+                    debug: bool = False) -> Generator[MatchReason,
                                                                          None,
                                                                          MatchReason]:
     """
@@ -552,7 +560,8 @@ async def run_query(cache: Cache,
                                                                               match_criteria_transformer,
                                                                               multi_collection_query.clinical,
                                                                               clinical_ids if clinical_ids else set(
-                                                                                  initial_clinical_ids))
+                                                                                  initial_clinical_ids),
+                                                                              debug)
     if not new_clinical_ids:
         return
 
@@ -566,7 +575,8 @@ async def run_query(cache: Cache,
                                                                        match_criteria_transformer,
                                                                        multi_collection_query.genomic,
                                                                        clinical_ids if clinical_ids else set(
-                                                                           initial_clinical_ids)
+                                                                           initial_clinical_ids),
+                                                                       debug
                                                                        )
 
     needed_clinical = list()
@@ -741,7 +751,8 @@ async def main(args):
                                    protocol_nos=args.trials,
                                    num_workers=args.workers[0],
                                    match_on_closed=args.match_on_closed,
-                                   match_on_deceased=args.match_on_deceased)
+                                   match_on_deceased=args.match_on_deceased,
+                                   debug=args.debug)
     async for protocol_no, sample_ids, matches in all_new_matches:
         log.info("{} all matches: {}".format(protocol_no, len(matches)))
         if not args.dry:
@@ -781,6 +792,7 @@ if __name__ == "__main__":
     upsert_help = 'When loading clinical or trial data, specify a field other than _id to use as a unique key. ' \
                   'Must be comma separated values if using more than one field e.g. name,age,gender'
     dry_help = "Execute a full matching run but do not insert any matches into the DB"
+    debug_help = "Enable debug logging"
 
     subp = parser.add_subparsers(help='sub-command help')
     subp_p = subp.add_parser('load', help='Sets up your MongoDB for matching.')
@@ -811,6 +823,7 @@ if __name__ == "__main__":
                         default=False,
                         help=closed_help)
     subp_p.add_argument("--dry-run", dest="dry", action="store_true", default=False, help=dry_help)
+    subp_p.add_argument("--debug", dest="debug", action="store_true", default=False, help=debug_help)
     subp_p.add_argument("--match-on-deceased-patients",
                         dest="match_on_deceased",
                         action="store_true",
