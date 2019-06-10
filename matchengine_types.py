@@ -69,11 +69,19 @@ class MatchClauseData:
 
 
 @dataclass
-class RawQueryResult:
-    query: QueryNode
+class GenomicMatchReason:
+    query_node: QueryNode
     clinical_id: ClinicalID
-    clinical_doc: MongoQueryResult
-    genomic_doc: Union[MongoQueryResult, None]
+    genomic_id: Union[GenomicID, None]
+
+
+@dataclass
+class ClinicalMatchReason:
+    query_node: QueryNode
+    clinical_id: ClinicalID
+
+
+MatchReason = NewType("MatchReason", Union[GenomicMatchReason, ClinicalMatchReason])
 
 
 @dataclass
@@ -82,7 +90,7 @@ class TrialMatch:
     match_clause_data: MatchClauseData
     match_criterion: MatchCriterion
     multi_collection_query: MultiCollectionQuery
-    raw_query_result: RawQueryResult
+    match_reason: MatchReason
 
 
 class Cache:
@@ -133,19 +141,3 @@ class QueryTask:
     query: MultiCollectionQuery
     clinical_ids: List[ClinicalID]
     cache: Cache
-
-
-@dataclass
-class GenomicMatchReason:
-    query_node: QueryNode
-    clinical_id: ClinicalID
-    genomic_id: Union[GenomicID, None]
-
-
-@dataclass
-class ClinicalMatchReason:
-    query_node: QueryNode
-    clinical_id: ClinicalID
-
-
-MatchReason = NewType("MatchReason", Union[GenomicMatchReason, ClinicalMatchReason])
