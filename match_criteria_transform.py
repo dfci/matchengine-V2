@@ -3,7 +3,7 @@ import datetime
 import re
 from dateutil.relativedelta import relativedelta
 
-from matchengine_types import QueryNode
+from matchengine_types import QueryNode, QueryPart
 
 
 def is_negate(trial_value):
@@ -16,6 +16,12 @@ def is_negate(trial_value):
     negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
     trial_value = trial_value[1::] if negate else trial_value
     return trial_value, negate
+
+
+def get_query_part_by_key(query_node: QueryNode, key: str) -> QueryPart:
+    return next((query_part
+                 for query_part in query_node.query_parts
+                 if key in query_part.query))
 
 
 def query_node_transform(query_node: QueryNode):
@@ -31,16 +37,15 @@ def query_node_transform(query_node: QueryNode):
     whole_query = query_node.query_parts_to_single_query()
     # encode as full search criteria
     if 'STRUCTURAL_VARIANT_COMMENT' in whole_query:
-        gene_part = next((query_part
-                          for query_part in query_node.query_parts
-                          if 'TRUE_HUGO_SYMBOL' in query_part.query))
-        sv_part = next((query_part
-                        for query_part in query_node.query_parts
-                        if 'STRUCTURAL_VARIANT_COMMENT' in query_part.query))
+        gene_part = get_query_part_by_key(query_node, 'TRUE_HUGO_SYMBOL')
+        sv_part = get_query_part_by_key(query_node, 'STRUCTURAL_VARIANT_COMMENT')
         gene_part.render = False
         gene = whole_query.pop('TRUE_HUGO_SYMBOL')
-        sv_part.query['STRUCTURAL_VARIANT_COMMENT'] = re.compile("(.*\W{0}\W.*)|(^{0}\W.*)|(.*\W{0}$)".format(gene),
+        sv_part.query['STRUCTURAL_VARIANT_COMMENT'] = re.compile(r"(.*\W{0}\W.*)|(^{0}\W.*)|(.*\W{0}$)".format(gene),
                                                                  re.IGNORECASE)
+    elif 'MMR_STATUS' in whole_query:
+        gene_part = get_query_part_by_key(query_node, 'TRUE_HUGO_SYMBOL')
+        gene_part.render = False
 
 
 class MatchCriteriaTransform(object):
@@ -153,7 +158,11 @@ class MatchCriteriaTransform(object):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
         cnv_map = {
-            "High Amplification": "High level amplification"
+            "High Amplification": "High level amplification",
+            "Homozygous Deletion": "Homozygous deletion",
+            'Low Amplification': 'Gain',
+            'Heterozygous Deletion': 'Heterozygous deletion'
+
         }
 
         trial_value, negate = is_negate(trial_value)
@@ -176,7 +185,7 @@ class MatchCriteriaTransform(object):
         if trial_value == 'Structural Variation':
             return {'STRUCTURAL_VARIANT_COMMENT': None}, negate
         elif trial_value in variant_category_map:
-            return {sample_key: variant_category_map[trial_value]}, negate, None
+            return {sample_key: variant_category_map[trial_value]}, negate
         else:
             return {sample_key: trial_value.upper()}, negate
 
@@ -204,3 +213,17 @@ class MatchCriteriaTransform(object):
         trial_value, negate = is_negate(trial_value)
         trial_value = '^%s[A-Z]' % trial_value
         return {kwargs['sample_key']: {'$regex': trial_value}}, negate
+
+    def mmr_ms_map(self, **kwargs):
+        mmr_map = {
+            'MMR-Proficient': 'Proficient (MMR-P / MSS)',
+            'MMR-Deficient': 'Deficient (MMR-D / MSI-H)',
+            'MSI-H': 'Deficient (MMR-D / MSI-H)',
+            'MSI-L': 'Proficient (MMR-P / MSS)',
+            'MSS': 'Proficient (MMR-P / MSS)'
+        }
+        trial_value = kwargs['trial_value']
+        trial_value, negate = is_negate(trial_value)
+        sample_key = kwargs['sample_key']
+        sample_value = mmr_map[trial_value]
+        return {sample_key: sample_value}, negate

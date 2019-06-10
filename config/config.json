@@ -73,11 +73,17 @@
       },
       "MMR_STATUS": {
         "sample_key": "MMR_STATUS",
-        "sample_value": "nomap"
+        "sample_value": "mmr_ms_map"
       },
       "MS_STATUS": {
-        "sample_key": "MS_STATUS",
-        "sample_value": "nomap"
+        "sample_key": "MMR_STATUS",
+        "sample_value": "mmr_ms_map"
+      },
+      "DISPLAY_NAME": {
+        "ignore": true
+      },
+      "FUSION_PARTNER_HUGO_SYMBOL": {
+        "ignore": true
       }
     },
     "clinical": {
