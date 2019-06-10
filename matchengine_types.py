@@ -136,7 +136,16 @@ class QueryTask:
 
 
 @dataclass
-class MatchReason:
+class GenomicMatchReason:
     query_node: QueryNode
     clinical_id: ClinicalID
-    genomic_id: Union[None, GenomicID]
+    genomic_id: Union[GenomicID, None]
+
+
+@dataclass
+class ClinicalMatchReason:
+    query_node: QueryNode
+    clinical_id: ClinicalID
+
+
+MatchReason = NewType("MatchReason", Union[GenomicMatchReason, ClinicalMatchReason])

@@ -34,7 +34,6 @@ async def queue_worker(q, matches, config, worker_id) -> None:
     global count2
     if not q.empty():
         match_criteria_transform = MatchCriteriaTransform(config)
-        match_task_count = 0
         with MongoDBConnection(read_only=True) as ro_db, MongoDBConnection(read_only=False) as rw_db:
             while not q.empty():
                 task: QueryTask = await q.get()
@@ -99,7 +98,7 @@ async def find_matches(sample_ids: list = None,
     match_criteria_transform = MatchCriteriaTransform(config)
 
     if cache is None:
-        cache = Cache(int(), int(), int(), int(), dict(), dict(), dict())
+        cache = Cache()
 
     with MongoDBConnection(read_only=True) as db:
         trials = [trial async for trial in get_trials(db, match_criteria_transform, protocol_nos, match_on_closed)]
@@ -372,97 +371,155 @@ def translate_match_path(match_clause_data: MatchClauseData,
     :param match_criteria_transformer:
     :return:
     """
-    output = defaultdict(list)
+    multi_collection_query = MultiCollectionQuery(list(), list())
     query_cache = set()
     for node in match_criterion:
-        categories = MultiCollectionQuery(defaultdict(list))
         for criteria in node:
             for genomic_or_clinical, values in criteria.items():
-                and_query = list()
+                query_node = QueryNode(genomic_or_clinical, list(), None)
                 for trial_key, trial_value in values.items():
                     trial_key_settings = match_criteria_transformer.trial_key_mappings[genomic_or_clinical].setdefault(
                         trial_key.upper(),
                         dict())
 
-                    if 'ignore' in trial_key_settings and trial_key_settings['ignore']:
+                    if trial_key_settings.setdefault('ignore', False):
                         continue
 
                     sample_value_function_name = trial_key_settings.setdefault('sample_value', 'nomap')
-                    sample_function = MatchCriteriaTransform.__dict__[sample_value_function_name]
-                    args = dict(sample_key=trial_key.upper(),
-                                trial_value=trial_value,
-                                parent_path=match_clause_data.parent_path,
-                                trial_path=genomic_or_clinical,
-                                trial_key=trial_key)
-                    args.update(trial_key_settings)
-                    sample_value, negate = sample_function(match_criteria_transformer, **args)
-                    # if not any_negate and negate:
-                    #     any_negate = True
-                    and_query.append([negate, sample_value])
-                if and_query:
-                    if comparable_dict({"tmp": and_query}).hash() not in query_cache:
-                        output[genomic_or_clinical].append(and_query)
-                        query_cache.add(comparable_dict({"tmp": and_query}).hash())
-        # if categories:
-        #     for k, v in categories.items():
-        #         output[k].extend(v)
-        # output.append(categories)
-    return MultiCollectionQuery(output)
+                    sample_function = getattr(MatchCriteriaTransform, sample_value_function_name)
+                    sample_function_args = dict(sample_key=trial_key.upper(),
+                                                trial_value=trial_value,
+                                                parent_path=match_clause_data.parent_path,
+                                                trial_path=genomic_or_clinical,
+                                                trial_key=trial_key)
+                    sample_function_args.update(trial_key_settings)
+                    sample_value, negate = sample_function(match_criteria_transformer, **sample_function_args)
+                    query_part = QueryPart(sample_value, negate)
+                    query_node.query_parts.append(query_part)
+                    # set the exclusion = True on the query node if ANY of the query parts are negate
+                    query_node.exclusion = True if negate or query_node.exclusion else False
+                if query_node.exclusion is not None:
+                    query_node_hash = query_node.hash()
+                    if query_node_hash not in query_cache:
+                        getattr(multi_collection_query, genomic_or_clinical).append(query_node)
+                        query_cache.add(query_node_hash)
+    return multi_collection_query
 
 
-async def execute_clinical_query(db: pymongo.database.Database,
-                                 cache: Cache,
-                                 match_criteria_transformer: MatchCriteriaTransform,
-                                 multi_collection_query: MultiCollectionQuery,
-                                 initial_clinical_ids: Set[ClinicalID]) -> Set[ObjectId]:
-    if match_criteria_transformer.CLINICAL in multi_collection_query:
-        collection = match_criteria_transformer.CLINICAL
-        for inner_query in multi_collection_query[collection]:
-            for negate, inner_query_part in inner_query:
-                # inner_query_part = {k: v}
+async def execute_clinical_queries(db: pymongo.database.Database,
+                                   cache: Cache,
+                                   match_criteria_transformer: MatchCriteriaTransform,
+                                   query_nodes: List[QueryNode],
+                                   clinical_ids: Set[ClinicalID]) -> Tuple[Set[ObjectId], List[ClinicalMatchReason]]:
+    collection = match_criteria_transformer.CLINICAL
+    reasons = list()
+    for query_node in query_nodes:
+        for query_part in query_node.query_parts:
+            # inner_query_part = {k: v}
 
-                # hash the inner query to use as a reference for returned clinical ids, if necessary
-                query_hash = comparable_dict(inner_query_part).hash()
-                if query_hash not in cache.ids:
-                    cache.ids[query_hash] = dict()
+            # hash the inner query to use as a reference for returned clinical ids, if necessary
+            query_hash = query_part.hash()
+            if query_hash not in cache.ids:
+                cache.ids[query_hash] = dict()
 
-                # create a nested id_cache where the key is the clinical ID being queried and the vals
-                # are the clinical IDs returned
-                id_cache = cache.ids[query_hash]
-                queried_ids = id_cache.keys()
-                need_new = initial_clinical_ids - set(queried_ids)
+            # create a nested id_cache where the key is the clinical ID being queried and the vals
+            # are the clinical IDs returned
+            id_cache = cache.ids[query_hash]
+            queried_ids = id_cache.keys()
+            need_new = clinical_ids - set(queried_ids)
 
-                if need_new:
-                    new_query = {'$and': [{'_id': {'$in': list(need_new)}}, inner_query_part]}
-                    docs = await db[collection].find(new_query, {'_id': 1}).to_list(None)
+            if need_new:
+                new_query = {'$and': [{'_id': {'$in': list(need_new)}}, query_part.query]}
+                docs = await db[collection].find(new_query, {'_id': 1}).to_list(None)
 
-                    # save returned ids
-                    for doc in docs:
-                        id_cache[doc['_id']] = doc['_id']
+                # save returned ids
+                for doc in docs:
+                    id_cache[doc['_id']] = doc['_id']
 
-                    # save IDs NOT returned as None so if a query is run in the future which is the same, it will skip
-                    for unfound in need_new - set(id_cache.keys()):
-                        id_cache[unfound] = None
+                # save IDs NOT returned as None so if a query is run in the future which is the same, it will skip
+                for unfound in need_new - set(id_cache.keys()):
+                    id_cache[unfound] = None
 
-                for clinical_id in list(initial_clinical_ids):
+            for clinical_id in list(clinical_ids):
 
-                    # an exclusion criteria returned a clinical document hence doc is not a match
-                    if id_cache[clinical_id] is not None and negate:
-                        initial_clinical_ids.remove(clinical_id)
+                # an exclusion criteria returned a clinical document hence doc is not a match
+                if id_cache[clinical_id] is not None and query_part.negate:
+                    clinical_ids.remove(clinical_id)
 
-                    # clinical doc fulfills exclusion criteria
-                    elif id_cache[clinical_id] is None and negate:
-                        pass
+                # clinical doc fulfills exclusion criteria
+                elif id_cache[clinical_id] is None and query_part.negate:
+                    pass
 
-                    # doc meets inclusion criteria
-                    elif id_cache[clinical_id] is not None and not negate:
-                        pass
+                # doc meets inclusion criteria
+                elif id_cache[clinical_id] is not None and not query_part.negate:
+                    pass
 
-                    # no clinical doc returned for an inclusion critera query, so remove _id from future queries
-                    elif id_cache[clinical_id] is None and not negate:
-                        initial_clinical_ids.remove(clinical_id)
+                # no clinical doc returned for an inclusion critera query, so remove _id from future queries
+                elif id_cache[clinical_id] is None and not query_part.negate:
+                    clinical_ids.remove(clinical_id)
 
-        return initial_clinical_ids
+    for clinical_id in clinical_ids:
+        for query_node in query_nodes:
+            reasons.append(ClinicalMatchReason(query_node, clinical_id))
+    return clinical_ids, reasons
+
+
+async def execute_genomic_queries(db: pymongo.database.Database,
+                                  cache: Cache,
+                                  match_criteria_transformer: MatchCriteriaTransform,
+                                  query_nodes: List[QueryNode],
+                                  clinical_ids: Set[ClinicalID]) -> Tuple[Dict[ObjectId, Set[ObjectId]],
+                                                                          List[GenomicMatchReason]]:
+    all_results: Dict[ObjectId, Set[ObjectId]] = defaultdict(set)
+    reasons = list()
+    for genomic_query_node in query_nodes:
+
+        join_field = match_criteria_transformer.collection_mappings['genomic']['join_field']
+
+        # for negate, query in queries:
+        query = {k: v
+                 for query_part in genomic_query_node.query_parts
+                 for k, v in query_part.query.items()}
+        uniq = comparable_dict(query).hash()
+        clinical_ids = clinical_ids
+        if uniq not in cache.ids:
+            cache.ids[uniq] = dict()
+        need_new = clinical_ids - set(cache.ids[uniq].keys())
+        if need_new:
+            new_query = query
+            new_query['$and'] = new_query.setdefault('$and', list())
+            new_query['$and'].insert(0,
+                                     {join_field:
+                                          {'$in': list(need_new)}})
+            cursor = await db['genomic'].find(new_query, {"_id": 1, "CLINICAL_ID": 1}).to_list(None)
+            for result in cursor:
+                cache.ids[uniq][result["CLINICAL_ID"]] = result["_id"]
+            for unfound in need_new - set(cache.ids[uniq].keys()):
+                cache.ids[uniq][unfound] = None
+        clinical_result_ids = set()
+        for query_clinical_id in clinical_ids:
+            if cache.ids[uniq][query_clinical_id] is not None:
+                genomic_id = cache.ids[uniq][query_clinical_id]
+                clinical_result_ids.add(query_clinical_id)
+                if not genomic_query_node.exclusion:
+                    all_results[query_clinical_id].add(genomic_id)
+                    reasons.append(GenomicMatchReason(genomic_query_node, query_clinical_id, genomic_id))
+                elif genomic_query_node.exclusion and query_clinical_id in all_results:
+                    del all_results[query_clinical_id]
+            elif cache.ids[uniq][query_clinical_id] is None and genomic_query_node.exclusion:
+                if query_clinical_id not in all_results:
+                    all_results[query_clinical_id] = set()
+                reasons.append(GenomicMatchReason(genomic_query_node, query_clinical_id, None))
+        if not genomic_query_node.exclusion:
+            clinical_ids.intersection_update(clinical_result_ids)
+        else:
+            clinical_ids.difference_update(clinical_result_ids)
+        if not clinical_ids:
+            return dict(), list()
+        else:
+            for id_to_remove in set(all_results.keys()) - clinical_ids:
+                del all_results[id_to_remove]
+    return all_results, reasons
 
 
 async def perform_db_call(db, collection, query, projection):
@@ -480,93 +537,35 @@ async def run_query(cache: Cache,
     Execute a mongo query on the clinical and genomic collections to find trial matches.
     First execute the clinical query. If no records are returned short-circuit and return.
 
+    :param initial_clinical_ids:
+    :param multi_collection_query:
     :param db:
     :param match_criteria_transformer:
-    :param multi_collection_queries:
     :return:
     """
-    # TODO refactor into smaller functions
-    all_results: Dict[ObjectId, Set[ObjectId]] = defaultdict(set)
-    reasons = list()
     clinical_ids = set(initial_clinical_ids)
 
-    # get clinical docs first
-    if match_criteria_transformer.CLINICAL in multi_collection_query:
-        new_clinical_ids = await execute_clinical_query(db,
-                                                        cache,
-                                                        match_criteria_transformer,
-                                                        multi_collection_query,
-                                                        clinical_ids if clinical_ids else set(initial_clinical_ids))
-        if not new_clinical_ids:
-            return
+    new_clinical_ids, clinical_match_reasons = await execute_clinical_queries(db,
+                                                                              cache,
+                                                                              match_criteria_transformer,
+                                                                              multi_collection_query.clinical,
+                                                                              clinical_ids if clinical_ids else set(
+                                                                                  initial_clinical_ids))
+    if not new_clinical_ids:
+        return
 
-        # If no clinical docs are returned, skip executing genomic portion of the query
-        for key in new_clinical_ids:
-            clinical_ids.add(key)
+    # If no clinical docs are returned, skip executing genomic portion of the query
+    for key in new_clinical_ids:
+        clinical_ids.add(key)
 
     # iterate over all queries
-    for items in multi_collection_query.items():
-        genomic_or_clinical, queries = items
-
-        # skip clinical queries as they've already been executed
-        if genomic_or_clinical == match_criteria_transformer.CLINICAL and clinical_ids:
-            continue
-
-        join_field = match_criteria_transformer.collection_mappings[genomic_or_clinical]['join_field']
-
-        # for negate, query in queries:
-        for query_wrapper in queries:
-            negate = any([query[0] for query in query_wrapper])
-
-            query = {k: v for query in query_wrapper for k, v in query[1].items()}
-            # cache hit or miss should be here
-            uniq = comparable_dict(query).hash()
-            query_clinical_ids = clinical_ids if clinical_ids else set(initial_clinical_ids)
-            if uniq not in cache.ids:
-                cache.ids[uniq] = dict()
-                # log.info("cache miss, {}".format(query))
-            else:
-                pass
-                # log.info("cache hit, {}".format(query))
-            need_new = query_clinical_ids - set(cache.ids[uniq].keys())
-            if need_new:
-                new_query = query
-                new_query['$and'] = new_query.setdefault('$and', list())
-                new_query['$and'].insert(0,
-                                         {join_field:
-                                              {'$in': list(need_new)}})
-                cursor = await db[genomic_or_clinical].find(new_query, {"_id": 1, "CLINICAL_ID": 1}).to_list(None)
-                for result in cursor:
-                    cache.ids[uniq][result["CLINICAL_ID"]] = result["_id"]
-                for unfound in need_new - set(cache.ids[uniq].keys()):
-                    cache.ids[uniq][unfound] = None
-
-            clinical_result_ids = set()
-
-            for query_clinical_id in query_clinical_ids:
-                if cache.ids[uniq][query_clinical_id] is not None:
-                    genomic_id = cache.ids[uniq][query_clinical_id]
-                    clinical_result_ids.add(query_clinical_id)
-                    if not negate:
-                        all_results[query_clinical_id].add(genomic_id)
-                        reasons.append((negate, query, query_clinical_id, genomic_id))
-                    elif negate and query_clinical_id in all_results:
-                        del all_results[query_clinical_id]
-                elif cache.ids[uniq][query_clinical_id] is None and negate:
-                    if query_clinical_id not in all_results:
-                        all_results[query_clinical_id] = set()
-                    reasons.append((negate, query, query_clinical_id, None))
-
-            if not negate:
-                clinical_ids.intersection_update(clinical_result_ids)
-            else:
-                clinical_ids.difference_update(clinical_result_ids)
-
-            if not clinical_ids:
-                return
-            else:
-                for id_to_remove in set(all_results.keys()) - clinical_ids:
-                    del all_results[id_to_remove]
+    all_results, genomic_match_reasons = await execute_genomic_queries(db,
+                                                                       cache,
+                                                                       match_criteria_transformer,
+                                                                       multi_collection_query.genomic,
+                                                                       clinical_ids if clinical_ids else set(
+                                                                           initial_clinical_ids)
+                                                                       )
 
     needed_clinical = list()
     needed_genomic = list()
@@ -592,13 +591,15 @@ async def run_query(cache: Cache,
     for outer_result in results:
         for result in outer_result:
             cache.docs[result["_id"]] = result
-    for negate, query, query_clinical_id, genomic_id in reasons:
-        if query_clinical_id in all_results:
-            if negate:
-                yield RawQueryResult(query, ClinicalID(query_clinical_id), cache.docs[query_clinical_id], None)
-            elif genomic_id in all_results[query_clinical_id]:
-                yield RawQueryResult(query, ClinicalID(query_clinical_id), cache.docs[query_clinical_id],
-                                     cache.docs[genomic_id])
+    for genomic_reason in genomic_match_reasons:
+        if genomic_reason.clinical_id in all_results:
+            if genomic_reason.query_node.exclusion:
+                yield RawQueryResult(genomic_reason.query_node, ClinicalID(genomic_reason.clinical_id),
+                                     cache.docs[genomic_reason.clinical_id], None)
+            elif genomic_reason.genomic_id in all_results[genomic_reason.clinical_id]:
+                yield RawQueryResult(genomic_reason.query_node, ClinicalID(genomic_reason.clinical_id),
+                                     cache.docs[genomic_reason.clinical_id],
+                                     cache.docs[genomic_reason.genomic_id])
 
 
 def create_trial_matches(trial_match: TrialMatch) -> Dict:
@@ -609,7 +610,7 @@ def create_trial_matches(trial_match: TrialMatch) -> Dict:
     :return:
     """
     genomic_doc = trial_match.raw_query_result.genomic_doc
-    query = trial_match.raw_query_result.query
+    query = trial_match.raw_query_result.query.query_parts_to_single_query()
 
     new_trial_match = dict()
     new_trial_match.update(format(trial_match.raw_query_result.clinical_doc))
