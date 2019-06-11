@@ -1292,7 +1292,7 @@
     "Translocation-Associated Renal Cell Carcinoma",
     "Renal Oncocytoma",
     "Renal Medullary Carcinoma",
-    "Wilms' Tumor",
+    "Wilms Tumor",
     "Renal Angiomyolipoma",
     "Papillary Renal Cell Carcinoma"
   ],
@@ -2909,7 +2909,7 @@
     "Well-Differentiated Thyroid Cancer"
   ],
   "Wilms' Tumor": [
-    "Wilms' Tumor",
+    "Wilms Tumor",
     "Rhabdoid Cancer"
   ],
   "Yolk Sac Tumor": [
@@ -3391,7 +3391,7 @@
     "Esophageal Adenocarcinoma",
     "Mucoepidermoid Carcinoma",
     "Renal Clear Cell Carcinoma with Sarcomatoid Features",
-    "Wilms' Tumor",
+    "Wilms Tumor",
     "Myxoid Chondrosarcoma",
     "Glomangiosarcoma",
     "Solid Pseudopapillary Neoplasm of the Pancreas",
