@@ -1,3 +1,5 @@
+dateutil
+bson
 matplotlib
 PyYAML==5.1
 pandas==0.24.2
