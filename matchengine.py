@@ -56,6 +56,10 @@ class MatchEngine(object):
     _workers: Dict[int, asyncio.Task]
 
     def __enter__(self):
+        """
+
+        :return:
+        """
         return self
 
     async def _async_exit(self):
