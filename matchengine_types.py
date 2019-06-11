@@ -21,6 +21,8 @@ GenomicID = NewType("GenomicID", ObjectId)
 ClinicalID = NewType("ClinicalID", ObjectId)
 Collection = NewType("Collection", str)
 
+class PoisonPill(object):
+    pass
 
 @dataclass
 class QueryPart:
@@ -138,10 +140,8 @@ class Cache:
 
 @dataclass
 class QueryTask:
-    match_criteria_transform: object
     trial: Trial
     match_clause_data: MatchClauseData
     match_path: MatchCriterion
     query: MultiCollectionQuery
-    clinical_ids: List[ClinicalID]
-    cache: Cache
+    clinical_ids: Set[ClinicalID]
