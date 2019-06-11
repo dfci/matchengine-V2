@@ -21,70 +21,6 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
 
 
-async def updater_worker(worker_id, q) -> None:
-    if not q.empty():
-        with MongoDBConnection(read_only=False) as rw_db:
-            while not q.empty():
-                task: Union[list, int] = await q.get()
-                try:
-                    await rw_db.trial_match_test.bulk_write(task, ordered=False)
-                    q.task_done()
-                except Exception as e:
-                    log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
-                    if isinstance(e, AutoReconnect):
-                        q.task_done()
-                        await q.put(task)
-                    else:
-                        raise e
-
-
-async def update_trial_matches(trial_matches_by_sample_id: Dict[str, List[Dict]], protocol_no: str, num_workers: int):
-    """
-    Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
-    'Delete' matches by adding {is_disabled: true} and insert all new matches.
-    :param trial_matches_by_sample_id:
-    :param num_workers:
-    :param protocol_no:
-    :return:
-    """
-    q = asyncio.queues.Queue()
-    with MongoDBConnection(read_only=True) as db:
-        for sample_id in trial_matches_by_sample_id.keys():
-            # log.info("Sample ID {}".format(sample_id))
-            new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
-
-            query = {'hash': {'$in': new_matches_hashes}}
-
-            trial_matches_to_not_change = {result['hash']: result.setdefault('is_disabled', False)
-                                           for result
-                                           in await db.trial_match_test.find(query,
-                                                                             {"hash": 1,
-                                                                              "is_disabled": 1}).to_list(None)}
-
-            delete_where = {'hash': {'$nin': new_matches_hashes}, 'sample_id': sample_id, 'protocol_no': protocol_no}
-            update = {"$set": {'is_disabled': True}}
-
-            trial_matches_to_insert = [trial_match
-                                       for trial_match in trial_matches_by_sample_id[sample_id]
-                                       if trial_match['hash'] not in trial_matches_to_not_change]
-            trial_matches_to_mark_available = [trial_match
-                                               for trial_match in trial_matches_by_sample_id[sample_id]
-                                               if trial_match['hash'] in trial_matches_to_not_change
-                                               and trial_matches_to_not_change.setdefault('is_disabled', False)]
-
-            ops = list()
-            ops.append(UpdateMany(delete_where, update))
-            for to_insert in trial_matches_to_insert:
-                ops.append(InsertOne(to_insert))
-            ops.append(UpdateMany({'hash': {'$in': trial_matches_to_mark_available}}, {'$set': {'is_disabled': False}}))
-            await q.put(ops)
-
-    workers = [asyncio.create_task(updater_worker(i, q))
-               for i in range(0, min(q.qsize(), num_workers))]
-    await asyncio.gather(*workers)
-    await q.join()
-
-
 def check_indices():
     """
     Ensure indexes exist on the trial_match collection so queries are performant
@@ -103,21 +39,6 @@ def check_indices():
             db.trial_match_test.create_index(index)
 
 
-def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, None]:
-    leaves = list()
-    for node in match_tree.nodes:
-        if match_tree.out_degree(node) == 0:
-            leaves.append(node)
-    for leaf in leaves:
-        for path in nx.all_simple_paths(match_tree, 0, leaf) if leaf != 0 else [[leaf]]:
-            match_path = MatchCriterion(list())
-            for node in path:
-                if match_tree.nodes[node]['criteria_list']:
-                    match_path.append(match_tree.nodes[node]['criteria_list'])
-            if match_path:
-                yield match_path
-
-
 class MatchEngine(object):
     cache: Cache
     config: Dict
@@ -129,7 +50,7 @@ class MatchEngine(object):
     debug: bool
     num_workers: int
     clinical_ids: Set[ClinicalID]
-    _match_q: asyncio.queues.Queue
+    _task_q: asyncio.queues.Queue
     matches: Dict[str, Dict[str, List[Dict]]]
     _loop: asyncio.AbstractEventLoop
     _queue_task_count: int
@@ -140,11 +61,12 @@ class MatchEngine(object):
 
     async def _async_exit(self):
         for _ in range(0, self.num_workers):
-            await self._match_q.put(PoisonPill())
-        await self._match_q.join()
+            await self._task_q.put(PoisonPill())
+        await self._task_q.join()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._async_db_ro.__exit__(exc_type, exc_val, exc_tb)
+        self._async_db_rw.__exit__(exc_type, exc_val, exc_tb)
         self._db_ro.__exit__(exc_type, exc_val, exc_tb)
         self._loop.run_until_complete(self._async_exit())
         self._loop.stop()
@@ -152,7 +74,7 @@ class MatchEngine(object):
     def __init__(self,
                  cache: Cache = None, sample_ids: Set[str] = None, protocol_nos: Set[str] = None,
                  match_on_deceased: bool = False, match_on_closed: bool = False, debug: bool = False,
-                 num_workers: int = 25, save_figs: bool = False, fig_dir: str = None):
+                 num_workers: int = 25, save_figs: bool = False, fig_dir: str = None, dry: bool = True):
         self.cache = Cache() if cache is None else cache
         self.sample_ids = sample_ids
         self.protocol_nos = protocol_nos
@@ -165,6 +87,7 @@ class MatchEngine(object):
         self._loop = asyncio.new_event_loop()
         self.save_figs = save_figs
         self.fig_dir = fig_dir
+        self.dry = dry
         asyncio.set_event_loop(self._loop)
         self._queue_task_count = int()
         self.matches = defaultdict(lambda: defaultdict(list))
@@ -179,9 +102,11 @@ class MatchEngine(object):
         self._loop.run_until_complete(self._async_init())
 
     async def _async_init(self):
-        self._match_q = asyncio.queues.Queue()
+        self._task_q = asyncio.queues.Queue()
         self._async_db_ro = MongoDBConnection(read_only=True)
         self.async_db_ro = self._async_db_ro.__enter__()
+        self._async_db_rw = MongoDBConnection(read_only=False)
+        self.async_db_rw = self._async_db_rw.__enter__()
         self._workers = {
             worker_id: self._loop.create_task(self.queue_worker(worker_id))
             for worker_id in range(0, self.num_workers)
@@ -370,11 +295,11 @@ class MatchEngine(object):
 
     async def queue_worker(self, worker_id) -> None:
         while True:
-            task: Union[QueryTask, PoisonPill] = await self._match_q.get()
+            task: Union[QueryTask, UpdateTask, PoisonPill] = await self._task_q.get()
             if isinstance(task, PoisonPill):
                 log.info(
                     "Worker: {} got PoisonPill".format(worker_id))
-                self._match_q.task_done()
+                self._task_q.task_done()
                 break
             elif isinstance(task, QueryTask):
                 log.info(
@@ -386,11 +311,11 @@ class MatchEngine(object):
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
                     results = list()
                     if isinstance(e, AutoReconnect):
-                        await self._match_q.put(task)
-                        self._match_q.task_done()
+                        await self._task_q.put(task)
+                        self._task_q.task_done()
                     elif isinstance(e, CursorNotFound):
-                        await self._match_q.put(task)
-                        self._match_q.task_done()
+                        await self._task_q.put(task)
+                        self._task_q.task_done()
                     else:
                         raise e
                 for result in results:
@@ -404,7 +329,20 @@ class MatchEngine(object):
                                                                           result))
                     self.matches[task.trial['protocol_no']][match_document['sample_id']].append(
                         match_document)
-                self._match_q.task_done()
+                self._task_q.task_done()
+            elif isinstance(task, UpdateTask):
+                # log.info(
+                #     "Worker: {}, protocol_no: {} got new UpdateTask".format(worker_id,
+                #                                                             task.protocol_no))
+                try:
+                    await self.async_db_rw.trial_match_test.bulk_write(task.ops, ordered=False)
+                except Exception as e:
+                    log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
+                    if isinstance(e, AutoReconnect):
+                        self._task_q.task_done()
+                        await self._task_q.put(task)
+                    else:
+                        raise e
 
     def extract_match_clauses_from_trial(self,
                                          protocol_no: str) -> Generator[MatchClauseData, None, None]:
@@ -584,6 +522,21 @@ class MatchEngine(object):
             graph_match_clause()
         return MatchTree(graph)
 
+    @staticmethod
+    def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, None]:
+        leaves = list()
+        for node in match_tree.nodes:
+            if match_tree.out_degree(node) == 0:
+                leaves.append(node)
+        for leaf in leaves:
+            for path in nx.all_simple_paths(match_tree, 0, leaf) if leaf != 0 else [[leaf]]:
+                match_path = MatchCriterion(list())
+                for node in path:
+                    if match_tree.nodes[node]['criteria_list']:
+                        match_path.append(match_tree.nodes[node]['criteria_list'])
+                if match_path:
+                    yield match_path
+
     def translate_match_path(self,
                              match_clause_data: MatchClauseData,
                              match_criterion: MatchCriterion) -> MultiCollectionQuery:
@@ -632,6 +585,58 @@ class MatchEngine(object):
                             query_cache.add(query_node_hash)
         return multi_collection_query
 
+    def update_matches_for_protocol_number(self, protocol_no):
+        self._loop.run_until_complete(self._async_update_matches_by_protocol_no(protocol_no))
+
+    def update_all_matches(self):
+        for protocol_number in self.protocol_nos:
+            self.update_matches_for_protocol_number(protocol_number)
+
+    async def _async_update_matches_by_protocol_no(self, protocol_no):
+        """
+        Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
+        'Delete' matches by adding {is_disabled: true} and insert all new matches.
+        :param trial_matches_by_sample_id:
+        :param num_workers:
+        :param protocol_no:
+        :return:
+        """
+        trial_matches_by_sample_id = self.matches.setdefault(protocol_no, dict())
+        with MongoDBConnection(read_only=True) as db:
+            for sample_id in trial_matches_by_sample_id.keys():
+                # log.info("Sample ID {}".format(sample_id))
+                new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
+
+                query = {'hash': {'$in': new_matches_hashes}}
+
+                trial_matches_to_not_change = {result['hash']: result.setdefault('is_disabled', False)
+                                               for result
+                                               in await db.trial_match_test.find(query,
+                                                                                 {"hash": 1,
+                                                                                  "is_disabled": 1}).to_list(None)}
+
+                delete_where = {'hash': {'$nin': new_matches_hashes}, 'sample_id': sample_id,
+                                'protocol_no': protocol_no}
+                update = {"$set": {'is_disabled': True}}
+
+                trial_matches_to_insert = [trial_match
+                                           for trial_match in trial_matches_by_sample_id[sample_id]
+                                           if trial_match['hash'] not in trial_matches_to_not_change]
+                trial_matches_to_mark_available = [trial_match
+                                                   for trial_match in trial_matches_by_sample_id[sample_id]
+                                                   if trial_match['hash'] in trial_matches_to_not_change
+                                                   and trial_matches_to_not_change.setdefault('is_disabled', False)]
+
+                ops = list()
+                ops.append(UpdateMany(delete_where, update))
+                for to_insert in trial_matches_to_insert:
+                    ops.append(InsertOne(to_insert))
+                ops.append(
+                    UpdateMany({'hash': {'$in': trial_matches_to_mark_available}}, {'$set': {'is_disabled': False}}))
+                await self._task_q.put(UpdateTask(ops, protocol_no))
+
+        await self._task_q.join()
+
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
         for protocol_no in self.trials.keys():
             self.get_matches_for_trial(protocol_no)
@@ -646,18 +651,18 @@ class MatchEngine(object):
         trial = self.trials[protocol_no]
         match_clauses = self.extract_match_clauses_from_trial(protocol_no)
         for match_clause in match_clauses:
-            match_paths = get_match_paths(self.create_match_tree(match_clause))
+            match_paths = self.get_match_paths(self.create_match_tree(match_clause))
             for match_path in match_paths:
                 query = self.translate_match_path(match_clause, match_path)
                 if self.debug:
                     log.info("Query: {}".format(query))
                 if query:
-                    await self._match_q.put(QueryTask(trial,
-                                                      match_clause,
-                                                      match_path,
-                                                      query,
-                                                      self.clinical_ids))
-        await self._match_q.join()
+                    await self._task_q.put(QueryTask(trial,
+                                                     match_clause,
+                                                     match_path,
+                                                     query,
+                                                     self.clinical_ids))
+        await self._task_q.join()
         logging.info("Total results: {}".format(len(self.matches[protocol_no])))
         return self.matches[protocol_no]
 
@@ -666,9 +671,7 @@ class MatchEngine(object):
         query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
         if self.sample_ids is not None:
             query.update({"SAMPLE_ID": {"$in": self.sample_ids}})
-        with MongoDBConnection(read_only=True, async_init=False) as db:
-            results = {result['_id'] for result in db.clinical.find(query, {'_id': 1})}
-        return results
+        return {result['_id'] for result in self.db_ro.clinical.find(query, {'_id': 1})}
 
     def get_trials(self) -> Dict[str, Trial]:
         trial_find_query = dict()
@@ -744,13 +747,12 @@ def main(run_args):
             match_on_closed=run_args.match_on_closed,
             match_on_deceased=run_args.match_on_deceased,
             debug=run_args.debug,
-            num_workers=run_args.workers[0]
+            num_workers=run_args.workers[0],
+            dry=args.dry
     ) as me:
-        matches = me.get_matches_for_all_trials()
-        for protocol_no, matches_by_sample_id in matches.items():
-            asyncio.run(update_trial_matches(protocol_no=protocol_no,
-                                             trial_matches_by_sample_id=matches_by_sample_id,
-                                             num_workers=args.workers[0]))
+        me.get_matches_for_all_trials()
+        if not args.dry:
+            me.update_all_matches()
     # all_new_matches = find_matches(sample_ids=args.samples,
     #                                protocol_nos=args.trials,
     #                                num_workers=args.workers[0],

@@ -8,14 +8,14 @@ class MongoDBConnection(object):
         "MONGO_PORT": 27019,
         # "MONGO_DBNAME": "matchengine_test",
         "MONGO_DBNAME": "staging",
-        #"MONGO_AUTH_SOURCE": "admin",
+        # "MONGO_AUTH_SOURCE": "admin",
         "MONGO_RO_USERNAME": "mmReadOnlyUser",
         "MONGO_RO_PASSWORD": "awifbv4ouwnvkjsdbff",
         "MONGO_USERNAME": "mmAdminUser",
         "MONGO_PW": "cn2dJy4aKmFtSQM8nxjfhJ7wMeXAP8EE"
 
     }
-    uri = "mongodb://{username}:{password}@{hostname}:{port}/{db}?authSource=admin&replicaSet=rs0"
+    uri = "mongodb://{username}:{password}@{hostname}:{port}/{db}?authSource=admin&replicaSet=rs0&maxPoolSize=1000"
     read_only = None
     db = None
     client = None

@@ -145,3 +145,9 @@ class QueryTask:
     match_path: MatchCriterion
     query: MultiCollectionQuery
     clinical_ids: Set[ClinicalID]
+
+
+@dataclass
+class UpdateTask:
+    ops: List
+    protocol_no: str
