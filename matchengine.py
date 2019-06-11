@@ -1,25 +1,21 @@
-import time
+import argparse
+import asyncio
+import json
+import logging
+from collections import deque, defaultdict
+from multiprocessing import cpu_count
+from typing import Generator
 
+import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
 from pymongo import UpdateMany, InsertOne
 from pymongo.errors import AutoReconnect, CursorNotFound
 
+from load import load
 from match_criteria_transform import MatchCriteriaTransform, query_node_transform
 from mongo_connection import MongoDBConnection
-from collections import deque, defaultdict
-from typing import Generator, AsyncGenerator
-from multiprocessing import cpu_count
-
-import pymongo.database
-import networkx as nx
-import logging
-import json
-import argparse
-import asyncio
-
 from matchengine_types import *
 from trial_match_utils import *
-from load import load
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
@@ -31,8 +27,6 @@ async def updater_worker(worker_id, q) -> None:
             while not q.empty():
                 task: Union[list, int] = await q.get()
                 try:
-                    # log.info(
-                    #     "Worker: {} got new UpdateTask {}".format(worker_id, count3)),
                     await rw_db.trial_match_test.bulk_write(task, ordered=False)
                     q.task_done()
                 except Exception as e:
@@ -48,10 +42,9 @@ async def update_trial_matches(trial_matches_by_sample_id: Dict[str, List[Dict]]
     """
     Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
     'Delete' matches by adding {is_disabled: true} and insert all new matches.
+    :param trial_matches_by_sample_id:
     :param num_workers:
     :param protocol_no:
-    :param trial_matches:
-    :param sample_ids:
     :return:
     """
     q = asyncio.queues.Queue()
@@ -110,6 +103,21 @@ def check_indices():
             db.trial_match_test.create_index(index)
 
 
+def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, None]:
+    leaves = list()
+    for node in match_tree.nodes:
+        if match_tree.out_degree(node) == 0:
+            leaves.append(node)
+    for leaf in leaves:
+        for path in nx.all_simple_paths(match_tree, 0, leaf) if leaf != 0 else [[leaf]]:
+            match_path = MatchCriterion(list())
+            for node in path:
+                if match_tree.nodes[node]['criteria_list']:
+                    match_path.append(match_tree.nodes[node]['criteria_list'])
+            if match_path:
+                yield match_path
+
+
 class MatchEngine(object):
     cache: Cache
     config: Dict
@@ -144,7 +152,7 @@ class MatchEngine(object):
     def __init__(self,
                  cache: Cache = None, sample_ids: Set[str] = None, protocol_nos: Set[str] = None,
                  match_on_deceased: bool = False, match_on_closed: bool = False, debug: bool = False,
-                 num_workers: int = 25):
+                 num_workers: int = 25, save_figs: bool = False, fig_dir: str = None):
         self.cache = Cache() if cache is None else cache
         self.sample_ids = sample_ids
         self.protocol_nos = protocol_nos
@@ -155,6 +163,8 @@ class MatchEngine(object):
         self._db_ro = MongoDBConnection(read_only=True, async_init=False)
         self.db_ro = self._db_ro.__enter__()
         self._loop = asyncio.new_event_loop()
+        self.save_figs = save_figs
+        self.fig_dir = fig_dir
         asyncio.set_event_loop(self._loop)
         self._queue_task_count = int()
         self.matches = defaultdict(lambda: defaultdict(list))
@@ -176,7 +186,6 @@ class MatchEngine(object):
             worker_id: self._loop.create_task(self.queue_worker(worker_id))
             for worker_id in range(0, self.num_workers)
         }
-        pass
 
     async def execute_clinical_queries(self,
                                        multi_collection_query: MultiCollectionQuery,
@@ -251,7 +260,7 @@ class MatchEngine(object):
 
             # for negate, query in queries:
             query = genomic_query_node.query_parts_to_single_query()
-            uniq = comparable_dict(query).hash()
+            uniq = ComparableDict(query).hash()
             clinical_ids = clinical_ids
             if uniq not in self.cache.ids:
                 self.cache.ids[uniq] = dict()
@@ -260,8 +269,11 @@ class MatchEngine(object):
                 new_query = query
                 new_query['$and'] = new_query.setdefault('$and', list())
                 new_query['$and'].insert(0,
-                                         {join_field:
-                                              {'$in': list(need_new)}})
+                                         {
+                                             join_field: {
+                                                 '$in': list(need_new)
+                                             }
+                                         })
                 if debug:
                     log.info("{}".format(new_query))
                 cursor = await self.async_db_ro['genomic'].find(new_query, {"_id": 1, "CLINICAL_ID": 1}).to_list(None)
@@ -306,8 +318,6 @@ class MatchEngine(object):
 
         :param initial_clinical_ids:
         :param multi_collection_query:
-        :param db:
-        :param match_criteria_transformer:
         :return:
         """
         clinical_ids = set(initial_clinical_ids)
@@ -353,9 +363,9 @@ class MatchEngine(object):
         return [
             genomic_reason
             for genomic_reason in genomic_match_reasons
-            if genomic_reason.clinical_id in all_results
-               and (genomic_reason.query_node.exclusion
-                    or genomic_reason.genomic_id in all_results[genomic_reason.clinical_id])
+            if genomic_reason.clinical_id in all_results and any([genomic_reason.query_node.exclusion,
+                                                                  genomic_reason.genomic_id in all_results[
+                                                                      genomic_reason.clinical_id]])
         ]
 
     async def queue_worker(self, worker_id) -> None:
@@ -402,12 +412,10 @@ class MatchEngine(object):
         Pull out all of the matches from a trial curation.
         Return the parent path and the values of that match clause.
 
-        Default to only extracting match clauses on steps, arms or dose levels which are open to accrual unless otherwise
-        specified
+        Default to only extracting match clauses on steps,
+         arms or dose levels which are open to accrual unless otherwise specified
 
-        :param match_criteria_transform:
-        :param match_on_closed:
-        :param trial:
+        :param protocol_no:
         :return:
         """
 
@@ -443,7 +451,7 @@ class MatchEngine(object):
                                     continue
                             elif match_level == 'step':
                                 if all([arm.setdefault('arm_suspended', 'n').lower().strip() == 'y'
-                                        for arm in parent_value.setdefault('arm', list({'arm_suspended': 'y'}))]):
+                                        for arm in parent_value.setdefault('arm', list())]):
                                     continue
 
                         parent_path = ParentPath(path + (parent_key, inner_key))
@@ -482,8 +490,9 @@ class MatchEngine(object):
             else:
                 process_q.append((NodeID(0), item))
 
-        def grapth_match_clause():
+        def graph_match_clause():
             import matplotlib.pyplot as plt
+            import os
             labels = {node: graph.nodes[node]['label'] for node in graph.nodes}
             for node in graph.nodes:
                 if graph.nodes[node]['label_list']:
@@ -491,12 +500,14 @@ class MatchEngine(object):
             pos = graphviz_layout(graph, prog="dot", root=0)
             plt.figure(figsize=(30, 30))
             nx.draw_networkx(graph, pos, with_labels=True, node_size=[600 for _ in graph.nodes], labels=labels)
-            # plt.show()
+            plt.savefig(os.path.join(self.fig_dir, '{}-{}-{}.png'.format(match_clause_data.protocol_no,
+                                                                         match_clause_data.match_clause_level,
+                                                                         match_clause_data.internal_id)))
             return plt
 
         while process_q:
             parent_id, values = process_q.pop()
-            parent_is_or = True if graph.nodes[parent_id].setdefault('is_or', False) else False
+            # parent_is_or = True if graph.nodes[parent_id].setdefault('is_or', False) else False
             parent_is_and = True if graph.nodes[parent_id].setdefault('is_and', False) else False
             for label, value in values.items():  # label is 'and', 'or', 'genomic' or 'clinical'
                 if label.startswith('and'):
@@ -568,21 +579,10 @@ class MatchEngine(object):
                         })
                         graph.add_edge(parent_id, node_id)
                         node_id += 1
-        return MatchTree(graph)
 
-    def get_match_paths(self, match_tree: MatchTree) -> Generator[MatchCriterion, None, None]:
-        leaves = list()
-        for node in match_tree.nodes:
-            if match_tree.out_degree(node) == 0:
-                leaves.append(node)
-        for leaf in leaves:
-            for path in nx.all_simple_paths(match_tree, 0, leaf) if leaf != 0 else [[leaf]]:
-                match_path = MatchCriterion(list())
-                for node in path:
-                    if match_tree.nodes[node]['criteria_list']:
-                        match_path.append(match_tree.nodes[node]['criteria_list'])
-                if match_path:
-                    yield match_path
+        if self.save_figs:
+            graph_match_clause()
+        return MatchTree(graph)
 
     def translate_match_path(self,
                              match_clause_data: MatchClauseData,
@@ -593,7 +593,6 @@ class MatchEngine(object):
 
         :param match_clause_data:
         :param match_criterion:
-        :param match_criteria_transformer:
         :return:
         """
         multi_collection_query = MultiCollectionQuery(list(), list())
@@ -647,7 +646,7 @@ class MatchEngine(object):
         trial = self.trials[protocol_no]
         match_clauses = self.extract_match_clauses_from_trial(protocol_no)
         for match_clause in match_clauses:
-            match_paths = self.get_match_paths(self.create_match_tree(match_clause))
+            match_paths = get_match_paths(self.create_match_tree(match_clause))
             for match_path in match_paths:
                 query = self.translate_match_path(match_clause, match_path)
                 if self.debug:
@@ -664,7 +663,7 @@ class MatchEngine(object):
 
     def get_clinical_ids_from_sample_ids(self) -> Set[ClinicalID]:
         # if no sample ids are passed in as args, get all clinical documents
-        query = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
+        query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
         if self.sample_ids is not None:
             query.update({"SAMPLE_ID": {"$in": self.sample_ids}})
         with MongoDBConnection(read_only=True, async_init=False) as db:
@@ -702,7 +701,6 @@ class MatchEngine(object):
         """
         Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
         in config.json
-        :param cache:
         :param trial_match:
         :return:
         """
@@ -710,12 +708,12 @@ class MatchEngine(object):
         query = trial_match.match_reason.query_node.query_parts_to_single_query()
 
         new_trial_match = dict()
-        new_trial_match.update(format(self.cache.docs[trial_match.match_reason.clinical_id]))
+        new_trial_match.update(format_trial_match_k_v(self.cache.docs[trial_match.match_reason.clinical_id]))
 
         if genomic_doc is None:
-            new_trial_match.update(format(format_exclusion_match(query)))
+            new_trial_match.update(format_trial_match_k_v(format_exclusion_match(query)))
         else:
-            new_trial_match.update(format(get_genomic_details(genomic_doc, query)))
+            new_trial_match.update(format_trial_match_k_v(get_genomic_details(genomic_doc, query)))
 
         new_trial_match.update(
             {'match_level': trial_match.match_clause_data.match_clause_level,
@@ -730,23 +728,23 @@ class MatchEngine(object):
                                                                                    '_elasticsearch',
                                                                                    'match'}
                                 })
-        new_trial_match['query_hash'] = comparable_dict({'query': trial_match.match_criterion}).hash()
-        new_trial_match['hash'] = comparable_dict(new_trial_match).hash()
+        new_trial_match['query_hash'] = ComparableDict({'query': trial_match.match_criterion}).hash()
+        new_trial_match['hash'] = ComparableDict(new_trial_match).hash()
         new_trial_match["is_disabled"] = False
         new_trial_match.update(
             {'match_path': '.'.join([str(item) for item in trial_match.match_clause_data.parent_path])})
         return new_trial_match
 
 
-def main(args):
+def main(run_args):
     check_indices()
     with MatchEngine(
-            sample_ids=args.samples,
-            protocol_nos=args.trials,
-            match_on_closed=args.match_on_closed,
-            match_on_deceased=args.match_on_deceased,
-            debug=args.debug,
-            num_workers=args.workers[0]
+            sample_ids=run_args.samples,
+            protocol_nos=run_args.trials,
+            match_on_closed=run_args.match_on_closed,
+            match_on_deceased=run_args.match_on_deceased,
+            debug=run_args.debug,
+            num_workers=run_args.workers[0]
     ) as me:
         matches = me.get_matches_for_all_trials()
         for protocol_no, matches_by_sample_id in matches.items():
@@ -828,6 +826,15 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help=closed_help)
+    subp_p.add_argument("--save-figs",
+                        dest="save_figs",
+                        action="store_true",
+                        default=False,
+                        help="Enable to render images of all match paths")
+    subp_p.add_argument("--fig-dir",
+                        dest="fig_dir",
+                        default='img',
+                        help="Directory to store match path images")
     subp_p.add_argument("--dry-run", dest="dry", action="store_true", default=False, help=dry_help)
     subp_p.add_argument("--debug", dest="debug", action="store_true", default=False, help=debug_help)
     subp_p.add_argument("--match-on-deceased-patients",

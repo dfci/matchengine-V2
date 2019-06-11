@@ -1,8 +1,3 @@
-from matchengine import ParentPath, Trial, TrialMatch
-
-from matchengine_types import MongoQuery
-
-
 def get_genomic_details(genomic_doc, query):
     mmr_map_rev = {
         'Proficient (MMR-P / MSS)': 'MMR-P/MSS',
@@ -102,5 +97,5 @@ def format_exclusion_match(query):
     }
 
 
-def format(clinical_doc):
+def format_trial_match_k_v(clinical_doc):
     return {key.lower(): val for key, val in clinical_doc.items() if key != "_id"}

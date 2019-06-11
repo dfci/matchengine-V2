@@ -1,11 +1,10 @@
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import NewType, Tuple, Union, List, Dict, Any, Set
 from bson import ObjectId
 from networkx import DiGraph
 from threading import Lock
 
-from frozendict import comparable_dict
+from frozendict import ComparableDict
 
 Trial = NewType("Trial", dict)
 ParentPath = NewType("ParentPath", Tuple[Union[str, int]])
@@ -21,8 +20,10 @@ GenomicID = NewType("GenomicID", ObjectId)
 ClinicalID = NewType("ClinicalID", ObjectId)
 Collection = NewType("Collection", str)
 
+
 class PoisonPill(object):
     pass
+
 
 @dataclass
 class QueryPart:
@@ -31,7 +32,7 @@ class QueryPart:
     render: bool
 
     def hash(self) -> str:
-        return comparable_dict(self.query).hash()
+        return ComparableDict(self.query).hash()
 
 
 @dataclass
@@ -41,7 +42,7 @@ class QueryNode:
     exclusion: Union[None, bool]
 
     def hash(self) -> str:
-        return comparable_dict({
+        return ComparableDict({
             "_tmp1": [query_part.hash()
                       for query_part in self.query_parts],
             '_tmp2': self.exclusion
@@ -54,7 +55,6 @@ class QueryNode:
             for key, value in query_part.query.items()
             if query_part.render
         }
-
 
 
 @dataclass
