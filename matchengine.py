@@ -7,7 +7,6 @@ from multiprocessing import cpu_count
 from typing import Generator
 
 import networkx as nx
-from networkx.drawing.nx_agraph import graphviz_layout
 from pymongo import UpdateMany, InsertOne
 from pymongo.errors import AutoReconnect, CursorNotFound
 
@@ -430,6 +429,7 @@ class MatchEngine(object):
 
         def graph_match_clause():
             import matplotlib.pyplot as plt
+            from networkx.drawing.nx_agraph import graphviz_layout
             import os
             labels = {node: graph.nodes[node]['label'] for node in graph.nodes}
             for node in graph.nodes:
