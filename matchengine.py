@@ -44,7 +44,7 @@ async def updater_worker(worker_id, q) -> None:
                         raise e
 
 
-async def update_trial_matches(trial_matches: List[Dict], protocol_no: str, sample_ids: List[str], num_workers: int):
+async def update_trial_matches(trial_matches_by_sample_id: Dict[str, List[Dict]], protocol_no: str, num_workers: int):
     """
     Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
     'Delete' matches by adding {is_disabled: true} and insert all new matches.
@@ -55,13 +55,8 @@ async def update_trial_matches(trial_matches: List[Dict], protocol_no: str, samp
     :return:
     """
     q = asyncio.queues.Queue()
-    trial_matches_by_sample_id = defaultdict(list)
-    for trial_match in trial_matches:
-        trial_matches_by_sample_id[trial_match['sample_id']].append(trial_match)
-    if sample_ids is None:
-        sample_ids = list(trial_matches_by_sample_id.keys())
     with MongoDBConnection(read_only=True) as db:
-        for sample_id in sample_ids:
+        for sample_id in trial_matches_by_sample_id.keys():
             # log.info("Sample ID {}".format(sample_id))
             new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
 
@@ -754,6 +749,10 @@ def main(args):
             num_workers=args.workers[0]
     ) as me:
         matches = me.get_matches_for_all_trials()
+        for protocol_no, matches_by_sample_id in matches.items():
+            asyncio.run(update_trial_matches(protocol_no=protocol_no,
+                                             trial_matches_by_sample_id=matches_by_sample_id,
+                                             num_workers=args.workers[0]))
     # all_new_matches = find_matches(sample_ids=args.samples,
     #                                protocol_nos=args.trials,
     #                                num_workers=args.workers[0],
