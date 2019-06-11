@@ -1,7 +1,8 @@
 import csv
 from collections import defaultdict
 
-with open("/Users/emarriott/PycharmProjects/data_push_matchengine_new/matchminer-engine/matchengine/data/tumor_tree.txt") as f:
+with open(
+        "/Users/emarriott/PycharmProjects/data_push_matchengine_new/matchminer-engine/matchengine/data/tumor_tree.txt") as f:
     r = csv.DictReader(f, delimiter='\t')
     rows = [row for row in r]
 mapping = defaultdict(set)
@@ -21,13 +22,15 @@ del mapping['']
 for s in mapping.values():
     if '' in s:
         s.remove('')
-for k in [k for k in mapping.keys() if k not in {'Lymph', 'Blood'}]:
-    mapping['_SOLID_'].update(mapping[k])
 mapping['_LIQUID_'] = mapping['Lymph'] | mapping['Blood']
+for k in list(mapping.keys()):
+    if k not in mapping['_LIQUID_']:
+        mapping['_SOLID_'].add(k)
 
 for k in mapping.keys():
     mapping[k] = list(mapping[k])
 
 import json
+
 with open('oncotree_mapping.json', 'w') as f:
-    json.dump(mapping, f)
+    json.dump(mapping, f, sort_keys=True, indent=2)
