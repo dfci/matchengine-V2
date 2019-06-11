@@ -75,6 +75,10 @@ class MatchCriteriaTransform(object):
         'arm': 'arm',
         'step': 'step'
     }
+    suspension_mapping = {
+        'dose_level': 'level_suspended',
+        'arm': 'arm_suspended'
+    }
     internal_id_mapping = {'dose': 'level_internal_id',
                            'step': 'step_internal_id',
                            'arm': 'arm_internal_id'}
