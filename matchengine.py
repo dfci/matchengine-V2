@@ -59,11 +59,20 @@ class MatchEngine(object):
         return self
 
     async def _async_exit(self):
+        """
+
+        """
         for _ in range(0, self.num_workers):
             await self._task_q.put(PoisonPill())
         await self._task_q.join()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+
+        :param exc_type:
+        :param exc_val:
+        :param exc_tb:
+        """
         self._async_db_ro.__exit__(exc_type, exc_val, exc_tb)
         self._async_db_rw.__exit__(exc_type, exc_val, exc_tb)
         self._db_ro.__exit__(exc_type, exc_val, exc_tb)
@@ -74,6 +83,19 @@ class MatchEngine(object):
                  cache: Cache = None, sample_ids: Set[str] = None, protocol_nos: Set[str] = None,
                  match_on_deceased: bool = False, match_on_closed: bool = False, debug: bool = False,
                  num_workers: int = 25, save_figs: bool = False, fig_dir: str = None, dry: bool = True):
+        """
+
+        :param cache:
+        :param sample_ids:
+        :param protocol_nos:
+        :param match_on_deceased:
+        :param match_on_closed:
+        :param debug:
+        :param num_workers:
+        :param save_figs:
+        :param fig_dir:
+        :param dry:
+        """
         self.cache = Cache() if cache is None else cache
         self.sample_ids = sample_ids
         self.protocol_nos = protocol_nos
@@ -101,20 +123,29 @@ class MatchEngine(object):
         self._loop.run_until_complete(self._async_init())
 
     async def _async_init(self):
+        """
+
+        """
         self._task_q = asyncio.queues.Queue()
         self._async_db_ro = MongoDBConnection(read_only=True)
         self.async_db_ro = self._async_db_ro.__enter__()
         self._async_db_rw = MongoDBConnection(read_only=False)
         self.async_db_rw = self._async_db_rw.__enter__()
         self._workers = {
-            worker_id: self._loop.create_task(self.queue_worker(worker_id))
+            worker_id: self._loop.create_task(self._queue_worker(worker_id))
             for worker_id in range(0, self.num_workers)
         }
 
-    async def execute_clinical_queries(self,
-                                       multi_collection_query: MultiCollectionQuery,
-                                       clinical_ids: Set[ClinicalID]) -> Tuple[Set[ObjectId],
-                                                                               List[ClinicalMatchReason]]:
+    async def _execute_clinical_queries(self,
+                                        multi_collection_query: MultiCollectionQuery,
+                                        clinical_ids: Set[ClinicalID]) -> Tuple[Set[ObjectId],
+                                                                                List[ClinicalMatchReason]]:
+        """
+
+        :param multi_collection_query:
+        :param clinical_ids:
+        :return:
+        """
         collection = self.match_criteria_transform.CLINICAL
         reasons = list()
         for query_node in multi_collection_query.clinical:
@@ -171,11 +202,18 @@ class MatchEngine(object):
                 reasons.append(ClinicalMatchReason(query_node, clinical_id))
         return clinical_ids, reasons
 
-    async def execute_genomic_queries(self,
-                                      multi_collection_query: MultiCollectionQuery,
-                                      clinical_ids: Set[ClinicalID],
-                                      debug: bool = False) -> Tuple[Dict[ObjectId, Set[ObjectId]],
-                                                                    List[GenomicMatchReason]]:
+    async def _execute_genomic_queries(self,
+                                       multi_collection_query: MultiCollectionQuery,
+                                       clinical_ids: Set[ClinicalID],
+                                       debug: bool = False) -> Tuple[Dict[ObjectId, Set[ObjectId]],
+                                                                     List[GenomicMatchReason]]:
+        """
+
+        :param multi_collection_query:
+        :param clinical_ids:
+        :param debug:
+        :return:
+        """
         all_results: Dict[ObjectId, Set[ObjectId]] = defaultdict(set)
         reasons = list()
         for genomic_query_node in multi_collection_query.genomic:
@@ -233,9 +271,9 @@ class MatchEngine(object):
                     del all_results[id_to_remove]
         return all_results, reasons
 
-    async def run_query(self,
-                        multi_collection_query: MultiCollectionQuery,
-                        initial_clinical_ids: Set[ClinicalID]) -> List[MatchReason]:
+    async def _run_query(self,
+                         multi_collection_query: MultiCollectionQuery,
+                         initial_clinical_ids: Set[ClinicalID]) -> List[MatchReason]:
         """
         Execute a mongo query on the clinical and genomic collections to find trial matches.
         First execute the clinical query. If no records are returned short-circuit and return.
@@ -246,21 +284,21 @@ class MatchEngine(object):
         """
         clinical_ids = set(initial_clinical_ids)
 
-        new_clinical_ids, clinical_match_reasons = await self.execute_clinical_queries(multi_collection_query,
-                                                                                       clinical_ids
-                                                                                       if clinical_ids
-                                                                                       else set(initial_clinical_ids))
+        new_clinical_ids, clinical_match_reasons = await self._execute_clinical_queries(multi_collection_query,
+                                                                                        clinical_ids
+                                                                                        if clinical_ids
+                                                                                        else set(initial_clinical_ids))
         clinical_ids = new_clinical_ids
         # If no clinical docs are returned, skip executing genomic portion of the query
         if not clinical_ids:
             return list()
 
         # iterate over all queries
-        all_results, genomic_match_reasons = await self.execute_genomic_queries(multi_collection_query,
-                                                                                clinical_ids
-                                                                                if clinical_ids
-                                                                                else set(
-                                                                                    initial_clinical_ids))
+        all_results, genomic_match_reasons = await self._execute_genomic_queries(multi_collection_query,
+                                                                                 clinical_ids
+                                                                                 if clinical_ids
+                                                                                 else set(
+                                                                                     initial_clinical_ids))
 
         needed_clinical = list()
         needed_genomic = list()
@@ -275,12 +313,12 @@ class MatchEngine(object):
         genomic_projection = self.match_criteria_transform.genomic_projection
         clinical_projection = self.match_criteria_transform.clinical_projection
 
-        results = await asyncio.gather(self.perform_db_call("clinical",
-                                                            {"_id": {"$in": list(needed_clinical)}},
-                                                            clinical_projection),
-                                       self.perform_db_call("genomic",
-                                                            {"_id": {"$in": list(needed_genomic)}},
-                                                            genomic_projection))
+        results = await asyncio.gather(self._perform_db_call("clinical",
+                                                             MongoQuery({"_id": {"$in": list(needed_clinical)}}),
+                                                             clinical_projection),
+                                       self._perform_db_call("genomic",
+                                                             MongoQuery({"_id": {"$in": list(needed_genomic)}}),
+                                                             genomic_projection))
         for outer_result in results:
             for result in outer_result:
                 self.cache.docs[result["_id"]] = result
@@ -292,7 +330,11 @@ class MatchEngine(object):
                                                                       genomic_reason.clinical_id]])
         ]
 
-    async def queue_worker(self, worker_id) -> None:
+    async def _queue_worker(self, worker_id) -> None:
+        """
+
+        :param worker_id:
+        """
         while True:
             task: Union[QueryTask, UpdateTask, PoisonPill] = await self._task_q.get()
             if isinstance(task, PoisonPill):
@@ -305,7 +347,7 @@ class MatchEngine(object):
                     "Worker: {}, protocol_no: {} got new QueryTask".format(worker_id,
                                                                            task.trial['protocol_no']))
                 try:
-                    results = await self.run_query(task.query, task.clinical_ids)
+                    results = await self._run_query(task.query, task.clinical_ids)
                 except Exception as e:
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
                     results = list()
@@ -330,9 +372,6 @@ class MatchEngine(object):
                         match_document)
                 self._task_q.task_done()
             elif isinstance(task, UpdateTask):
-                # log.info(
-                #     "Worker: {}, protocol_no: {} got new UpdateTask".format(worker_id,
-                #                                                             task.protocol_no))
                 try:
                     await self.async_db_rw.trial_match_test.bulk_write(task.ops, ordered=False)
                 except Exception as e:
@@ -411,6 +450,11 @@ class MatchEngine(object):
                     process_q.append((path + (parent_key,), index, item))
 
     def create_match_tree(self, match_clause_data: MatchClauseData) -> MatchTree:
+        """
+
+        :param match_clause_data:
+        :return:
+        """
         match_clause = match_clause_data.match_clause
         process_q: deque[Tuple[NodeID, Dict[str, Any]]] = deque()
         graph = nx.DiGraph()
@@ -428,6 +472,10 @@ class MatchEngine(object):
                 process_q.append((NodeID(0), item))
 
         def graph_match_clause():
+            """
+
+            :return:
+            """
             import matplotlib.pyplot as plt
             from networkx.drawing.nx_agraph import graphviz_layout
             import os
@@ -524,6 +572,10 @@ class MatchEngine(object):
 
     @staticmethod
     def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, None]:
+        """
+
+        :param match_tree:
+        """
         leaves = list()
         for node in match_tree.nodes:
             if match_tree.out_degree(node) == 0:
@@ -586,13 +638,20 @@ class MatchEngine(object):
         return multi_collection_query
 
     def update_matches_for_protocol_number(self, protocol_no):
+        """
+
+        :param protocol_no:
+        """
         self._loop.run_until_complete(self._async_update_matches_by_protocol_no(protocol_no))
 
     def update_all_matches(self):
+        """
+
+        """
         for protocol_number in self.protocol_nos:
             self.update_matches_for_protocol_number(protocol_number)
 
-    async def _async_update_matches_by_protocol_no(self, protocol_no):
+    async def _async_update_matches_by_protocol_no(self, protocol_no: str):
         """
         Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
         'Delete' matches by adding {is_disabled: true} and insert all new matches.
@@ -638,16 +697,30 @@ class MatchEngine(object):
         await self._task_q.join()
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
+        """
+
+        :return:
+        """
         for protocol_no in self.trials.keys():
             self.get_matches_for_trial(protocol_no)
         return self.matches
 
     def get_matches_for_trial(self, protocol_no: str):
+        """
+
+        :param protocol_no:
+        :return:
+        """
         log.info("Begin Protocol No: {}".format(protocol_no))
         task = self._loop.create_task(self._async_get_matches_for_trial(protocol_no))
         return self._loop.run_until_complete(task)
 
     async def _async_get_matches_for_trial(self, protocol_no: str) -> Dict[str, List[Dict]]:
+        """
+
+        :param protocol_no:
+        :return:
+        """
         trial = self.trials[protocol_no]
         match_clauses = self.extract_match_clauses_from_trial(protocol_no)
         for match_clause in match_clauses:
@@ -667,6 +740,10 @@ class MatchEngine(object):
         return self.matches[protocol_no]
 
     def get_clinical_ids_from_sample_ids(self) -> Set[ClinicalID]:
+        """
+
+        :return:
+        """
         # if no sample ids are passed in as args, get all clinical documents
         query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
         if self.sample_ids is not None:
@@ -674,6 +751,10 @@ class MatchEngine(object):
         return {result['_id'] for result in self.db_ro.clinical.find(query, {'_id': 1})}
 
     def get_trials(self) -> Dict[str, Trial]:
+        """
+
+        :return:
+        """
         trial_find_query = dict()
 
         # matching criteria can be set and extended in config.json. for more details see the README
@@ -697,7 +778,14 @@ class MatchEngine(object):
                     open_trials.update({protocol_no: trial})
             return open_trials
 
-    async def perform_db_call(self, collection, query, projection):
+    async def _perform_db_call(self, collection: str, query: MongoQuery, projection: Dict):
+        """
+
+        :param collection:
+        :param query:
+        :param projection:
+        :return:
+        """
         return await self.async_db_ro[collection].find(query, projection).to_list(None)
 
     def create_trial_matches(self, trial_match: TrialMatch) -> Dict:
@@ -740,6 +828,10 @@ class MatchEngine(object):
 
 
 def main(run_args):
+    """
+
+    :param run_args:
+    """
     check_indices()
     with MatchEngine(
             sample_ids=run_args.samples,
