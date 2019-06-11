@@ -100,6 +100,7 @@ class Cache:
     docs: Dict[ObjectId, MongoQueryResult]
     matches: dict
     lock: Lock
+    ids: dict
 
     def __init__(self):
         self.docs = dict()

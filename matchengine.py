@@ -502,19 +502,22 @@ async def execute_genomic_queries(db: pymongo.database.Database,
                 log.info("{}".format(new_query))
             cursor = await db['genomic'].find(new_query, {"_id": 1, "CLINICAL_ID": 1}).to_list(None)
             for result in cursor:
-                cache.ids[uniq][result["CLINICAL_ID"]] = result["_id"]
+                if result["CLINICAL_ID"] not in cache.ids[uniq]:
+                    cache.ids[uniq][result["CLINICAL_ID"]] = set()
+                cache.ids[uniq][result["CLINICAL_ID"]].add(result["_id"])
             for unfound in need_new - set(cache.ids[uniq].keys()):
                 cache.ids[uniq][unfound] = None
         clinical_result_ids = set()
         for query_clinical_id in clinical_ids:
             if cache.ids[uniq][query_clinical_id] is not None:
-                genomic_id = cache.ids[uniq][query_clinical_id]
+                genomic_ids = cache.ids[uniq][query_clinical_id]
                 clinical_result_ids.add(query_clinical_id)
-                if not genomic_query_node.exclusion:
-                    all_results[query_clinical_id].add(genomic_id)
-                    reasons.append(GenomicMatchReason(genomic_query_node, query_clinical_id, genomic_id))
-                elif genomic_query_node.exclusion and query_clinical_id in all_results:
-                    del all_results[query_clinical_id]
+                for genomic_id in genomic_ids:
+                    if not genomic_query_node.exclusion:
+                        all_results[query_clinical_id].add(genomic_id)
+                        reasons.append(GenomicMatchReason(genomic_query_node, query_clinical_id, genomic_id))
+                    elif genomic_query_node.exclusion and query_clinical_id in all_results:
+                        del all_results[query_clinical_id]
             elif cache.ids[uniq][query_clinical_id] is None and genomic_query_node.exclusion:
                 if query_clinical_id not in all_results:
                     all_results[query_clinical_id] = set()
