@@ -162,7 +162,7 @@ class MatchEngine(object):
                     elif id_cache[clinical_id] is not None and not query_part.negate:
                         pass
 
-                    # no clinical doc returned for an inclusion critera query, so remove _id from future queries
+                    # no clinical doc returned for an inclusion criteria query, so remove _id from future queries
                     elif id_cache[clinical_id] is None and not query_part.negate:
                         clinical_ids.remove(clinical_id)
 
