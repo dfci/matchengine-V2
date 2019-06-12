@@ -1,3 +1,4 @@
+import datetime
 from dataclasses import dataclass
 from typing import NewType, Tuple, Union, List, Dict, Any, Set
 from bson import ObjectId
@@ -61,6 +62,16 @@ class QueryNode:
 class MultiCollectionQuery:
     genomic: List[QueryNode]
     clinical: List[QueryNode]
+
+
+@dataclass
+class RunLog:
+    protocol_nos: list
+    sample_ids: list
+    marked_available: list
+    inserted: list
+    marked_disabled: list
+    _created: datetime.datetime
 
 
 @dataclass
