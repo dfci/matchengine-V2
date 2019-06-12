@@ -788,14 +788,11 @@ class MatchEngine(object):
              'internal_id': trial_match.match_clause_data.internal_id})
 
         # remove extra fields from trial_match output
-        new_trial_match.update({k: v
-                                for k, v in trial_match.trial.items() if k not in {'treatment_list',
-                                                                                   '_summary',
-                                                                                   'status',
-                                                                                   '_id',
-                                                                                   '_elasticsearch',
-                                                                                   'match'}
-                                })
+        new_trial_match.update({
+            k: v
+            for k, v in trial_match.trial.items()
+            if k not in {'treatment_list', '_summary', 'status', '_id', '_elasticsearch', 'match'}
+        })
         new_trial_match['query_hash'] = ComparableDict({'query': trial_match.match_criterion}).hash()
         new_trial_match['hash'] = ComparableDict(new_trial_match).hash()
         new_trial_match["is_disabled"] = False
