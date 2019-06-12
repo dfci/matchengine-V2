@@ -845,16 +845,6 @@ def main(run_args):
         me.get_matches_for_all_trials()
         if not args.dry:
             me.update_all_matches()
-    # all_new_matches = find_matches(sample_ids=args.samples,
-    #                                protocol_nos=args.trials,
-    #                                num_workers=args.workers[0],
-    #                                match_on_closed=args.match_on_closed,
-    #                                match_on_deceased=args.match_on_deceased,
-    #                                debug=args.debug)
-    # async for protocol_no, sample_ids, matches in all_new_matches:
-    #     log.info("{} all matches: {}".format(protocol_no, len(matches)))
-    #     if not args.dry:
-    #         await update_trial_matches(matches, protocol_no, sample_ids, args.workers[0])
 
 
 if __name__ == "__main__":
