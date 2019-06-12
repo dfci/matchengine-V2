@@ -158,7 +158,7 @@ class MatchEngine(object):
                 if need_new:
                     new_query = {'$and': [{'_id': {'$in': list(need_new)}}, query_part.query]}
                     if self.debug:
-                        log.info("{}".format(new_query))
+                        log.info("{}".format(query_part.query))
                     docs = await self.async_db_ro[collection].find(new_query, {'_id': 1}).to_list(None)
 
                     # save returned ids
@@ -652,8 +652,8 @@ class MatchEngine(object):
         'Delete' matches by adding {is_disabled: true} and insert all new matches.
         """
         trial_matches_by_sample_id = self.matches.setdefault(protocol_no, dict())
+        log.info("Updating trial matches for {}".format(protocol_no))
         for sample_id in trial_matches_by_sample_id.keys():
-            # log.info("Sample ID {}".format(sample_id))
             new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
 
             query = {'hash': {'$in': new_matches_hashes}}
@@ -671,10 +671,9 @@ class MatchEngine(object):
             trial_matches_to_insert = [trial_match
                                        for trial_match in trial_matches_by_sample_id[sample_id]
                                        if trial_match['hash'] not in trial_matches_to_not_change]
-            trial_matches_to_mark_available = [trial_match
+            trial_matches_to_mark_available = [trial_match['hash']
                                                for trial_match in trial_matches_by_sample_id[sample_id]
-                                               if trial_match['hash'] in trial_matches_to_not_change
-                                               and trial_matches_to_not_change.setdefault('is_disabled', False)]
+                                               if trial_matches_to_not_change.setdefault(trial_match['hash'], False)]
 
             ops = list()
             ops.append(UpdateMany(delete_where, update))
@@ -682,8 +681,11 @@ class MatchEngine(object):
                 ops.append(InsertOne(to_insert))
             ops.append(
                 UpdateMany({'hash': {'$in': trial_matches_to_mark_available}}, {'$set': {'is_disabled': False}}))
+
             await self._task_q.put(UpdateTask(ops, protocol_no))
 
+        delete_ops = UpdateMany({'protocol_no': protocol_no, "sample_id": {'$nin': list(trial_matches_by_sample_id.keys()) }}, {'$set': {"is_disabled": True}})
+        await self._task_q.put(UpdateTask([delete_ops], protocol_no))
         await self._task_q.join()
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
