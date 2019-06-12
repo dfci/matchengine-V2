@@ -25,7 +25,7 @@ def check_indices():
     Ensure indexes exist on the trial_match collection so queries are performant
     """
     with MongoDBConnection(read_only=False, async_init=False) as db:
-        indexes = db.trial_match_test.list_indexes()
+        indexes = db.trial_match_raw.list_indexes()
         existing_indexes = set()
         desired_indexes = {'hash', 'mrn', 'sample_id', 'clinical_id', 'protocol_no'}
         for index in indexes:
@@ -34,7 +34,7 @@ def check_indices():
         indexes_to_create = desired_indexes - existing_indexes
         for index in indexes_to_create:
             log.info('Creating index %s' % index)
-            db.trial_match_test.create_index(index)
+            db.trial_match_raw.create_index(index)
 
 
 class MatchEngine(object):
@@ -379,7 +379,7 @@ class MatchEngine(object):
                 try:
                     if self.debug:
                         log.info("Worker {} got new update task {}".format(worker_id, task.protocol_no))
-                    await self.async_db_rw.trial_match_test.bulk_write(task.ops, ordered=False)
+                    await self.async_db_rw.trial_match_raw.bulk_write(task.ops, ordered=False)
                 except Exception as e:
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
                     if isinstance(e, AutoReconnect):
@@ -405,10 +405,8 @@ class MatchEngine(object):
 
             # include top level match clauses
             if key == 'match':
-                # TODO uncomment, for now don't match on top level match clauses
-                continue
-            #     parent_path = ParentPath(tuple())
-            #     yield parent_path, val
+                parent_path = ParentPath(tuple())
+                yield parent_path, val
             else:
                 process_q.append((tuple(), key, val))
 
@@ -662,7 +660,7 @@ class MatchEngine(object):
             trial_matches_to_not_change = {
                 result['hash']: result.setdefault('is_disabled', False)
                 for result
-                in await self.async_db_ro.trial_match_test.find(query, projection).to_list(None)
+                in await self.async_db_ro.trial_match_raw.find(query, projection).to_list(None)
             }
 
             delete_where = {'hash': {'$nin': new_matches_hashes}, 'sample_id': sample_id, 'protocol_no': protocol_no}
@@ -709,22 +707,26 @@ class MatchEngine(object):
 
         """
         trial = self.trials[protocol_no]
-        match_clauses = self.extract_match_clauses_from_trial(protocol_no)
-        for match_clause in match_clauses:
-            match_paths = self.get_match_paths(self.create_match_tree(match_clause))
-            for match_path in match_paths:
-                query = self.translate_match_path(match_clause, match_path)
-                if self.debug:
-                    log.info("Query: {}".format(query))
-                if query:
-                    await self._task_q.put(QueryTask(trial,
-                                                     match_clause,
-                                                     match_path,
-                                                     query,
-                                                     self.clinical_ids))
-        await self._task_q.join()
-        logging.info("Total results: {}".format(len(self.matches[protocol_no])))
-        return self.matches[protocol_no]
+        if trial['status'].lower().strip() not in {"open to accrual"}:
+            logging.info('Trial %s is closed, skipping' % trial['protocol_no'])
+            return dict()
+        else:
+            match_clauses = self.extract_match_clauses_from_trial(protocol_no)
+            for match_clause in match_clauses:
+                match_paths = self.get_match_paths(self.create_match_tree(match_clause))
+                for match_path in match_paths:
+                    query = self.translate_match_path(match_clause, match_path)
+                    if self.debug:
+                        log.info("Query: {}".format(query))
+                    if query:
+                        await self._task_q.put(QueryTask(trial,
+                                                         match_clause,
+                                                         match_path,
+                                                         query,
+                                                         self.clinical_ids))
+            await self._task_q.join()
+            logging.info("Total results: {}".format(len(self.matches[protocol_no])))
+            return self.matches[protocol_no]
 
     def get_clinical_ids_from_sample_ids(self) -> Set[ClinicalID]:
         """
@@ -757,10 +759,7 @@ class MatchEngine(object):
         else:
             open_trials = dict()
             for protocol_no, trial in all_trials.items():
-                if trial['status'].lower().strip() not in {"open to accrual"}:
-                    logging.info('Trial %s is closed, skipping' % trial['protocol_no'])
-                else:
-                    open_trials.update({protocol_no: trial})
+                open_trials.update({protocol_no: trial})
             return open_trials
 
     async def _perform_db_call(self, collection: str, query: MongoQuery, projection: Dict):
@@ -821,7 +820,6 @@ if __name__ == "__main__":
     # todo output CSV file functions
     # todo update/delete/insert run log
     # todo failsafes for insert logic (fallback?)
-    # todo trial_match_test -> trial_match
     # todo increase db cursor timeout
     # todo db connection timeout
     # todo trial_match view (for sort_order)
