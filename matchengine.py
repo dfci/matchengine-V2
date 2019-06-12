@@ -123,6 +123,8 @@ class MatchEngine(object):
         self.match_criteria_transform = MatchCriteriaTransform(self.config)
 
         self.trials = self.get_trials()
+        if self.protocol_nos is None:
+            self.protocol_nos = list(self.trials.keys())
         self.clinical_ids = self.get_clinical_ids_from_sample_ids()
         self._loop.run_until_complete(self._async_init())
 
@@ -705,7 +707,7 @@ class MatchEngine(object):
 
         :return:
         """
-        for protocol_no in self.trials.keys():
+        for protocol_no in self.protocol_nos:
             self.get_matches_for_trial(protocol_no)
         return self.matches
 
