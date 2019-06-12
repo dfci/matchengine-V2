@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import logging
+import datetime
 from collections import deque, defaultdict
 from multiprocessing import cpu_count
 from typing import Generator
@@ -53,6 +54,7 @@ class MatchEngine(object):
     _loop: asyncio.AbstractEventLoop
     _queue_task_count: int
     _workers: Dict[int, asyncio.Task]
+    run_log: RunLog
 
     def __enter__(self):
         return self
@@ -110,6 +112,15 @@ class MatchEngine(object):
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._async_init())
+
+        self.run_log = {
+            "protocol_nos": self.protocol_nos,
+            "sample_ids": self.sample_ids,
+            "marked_available": None,
+            "inserted": None,
+            "marked_disabled": None,
+            "_created": datetime.datetime.now()
+        }
 
     async def _async_init(self):
         """
@@ -669,16 +680,20 @@ class MatchEngine(object):
             trial_matches_to_insert = [trial_match
                                        for trial_match in trial_matches_by_sample_id[sample_id]
                                        if trial_match['hash'] not in trial_matches_to_not_change]
-            trial_matches_to_mark_available = [trial_match['hash']
+            trial_matches_to_mark_available = [trial_match
                                                for trial_match in trial_matches_by_sample_id[sample_id]
                                                if trial_matches_to_not_change.setdefault(trial_match['hash'], False)]
+            trial_matches_hashes_to_mark_available = [trial_match['hash'] for trial_match in trial_matches_to_mark_available]
+
+            self.run_log.inserted.extend(trial_matches_to_insert)
+            self.run_log.marked_available.extend(trial_matches_to_mark_available)
 
             ops = list()
             ops.append(UpdateMany(delete_where, update))
             for to_insert in trial_matches_to_insert:
                 ops.append(InsertOne(to_insert))
             ops.append(
-                UpdateMany({'hash': {'$in': trial_matches_to_mark_available}}, {'$set': {'is_disabled': False}}))
+                UpdateMany({'hash': {'$in': trial_matches_hashes_to_mark_available}}, {'$set': {'is_disabled': False}}))
 
             await self._task_q.put(UpdateTask(ops, protocol_no))
 
