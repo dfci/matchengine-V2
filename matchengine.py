@@ -56,15 +56,11 @@ class MatchEngine(object):
     _workers: Dict[int, asyncio.Task]
 
     def __enter__(self):
-        """
-
-        :return:
-        """
         return self
 
     async def _async_exit(self):
         """
-
+        Ensure that all async workers exit gracefully.
         """
         for _ in range(0, self.num_workers):
             await self._task_q.put(PoisonPill())
@@ -72,7 +68,7 @@ class MatchEngine(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """
-
+        Teardown database connections (async + synchronous) and async workers gracefully.
         :param exc_type:
         :param exc_val:
         :param exc_tb:
@@ -86,19 +82,16 @@ class MatchEngine(object):
     def __init__(self,
                  cache: Cache = None, sample_ids: Set[str] = None, protocol_nos: Set[str] = None,
                  match_on_deceased: bool = False, match_on_closed: bool = False, debug: bool = False,
-                 num_workers: int = cpu_count() * 5, save_figs: bool = False, fig_dir: str = None):
-        """
+                 num_workers: int = cpu_count() * 5, visualize_match_paths: bool = False, fig_dir: str = None,
+                 config_path: str = None):
 
-        :param cache:
-        :param sample_ids:
-        :param protocol_nos:
-        :param match_on_deceased:
-        :param match_on_closed:
-        :param debug:
-        :param num_workers:
-        :param save_figs:
-        :param fig_dir:
-        """
+        with open(config_path) as config_file_handle:
+            self.config = json.load(config_file_handle)
+
+        self._db_ro = MongoDBConnection(read_only=True, async_init=False)
+        self.db_ro = self._db_ro.__enter__()
+
+        # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
         self.sample_ids = sample_ids
         self.protocol_nos = protocol_nos
@@ -106,30 +99,26 @@ class MatchEngine(object):
         self.match_on_deceased = match_on_deceased
         self.debug = debug
         self.num_workers = num_workers
-        self._db_ro = MongoDBConnection(read_only=True, async_init=False)
-        self.db_ro = self._db_ro.__enter__()
-        self._loop = asyncio.new_event_loop()
-        self.save_figs = save_figs
+        self.visualize_match_paths = visualize_match_paths
         self.fig_dir = fig_dir
-        self.dry = dry
-        asyncio.set_event_loop(self._loop)
         self._queue_task_count = int()
         self.matches = defaultdict(lambda: defaultdict(list))
-
-        with open("config/config.json") as config_file_handle:
-            self.config = json.load(config_file_handle)
-
         self.match_criteria_transform = MatchCriteriaTransform(self.config)
 
         self.trials = self.get_trials()
         if self.protocol_nos is None:
             self.protocol_nos = list(self.trials.keys())
         self.clinical_ids = self.get_clinical_ids_from_sample_ids()
+
+        # instantiate a new async event loop to allow class to be used as if it is synchronous
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._async_init())
 
     async def _async_init(self):
         """
-
+        Instantiate asynchronous db connections and workers.
+        Create a task que which holds all matching and update tasks for processing via workers.
         """
         self._task_q = asyncio.queues.Queue()
         self._async_db_ro = MongoDBConnection(read_only=True)
@@ -146,10 +135,11 @@ class MatchEngine(object):
                                         clinical_ids: Set[ClinicalID]) -> Tuple[Set[ObjectId],
                                                                                 List[ClinicalMatchReason]]:
         """
+        Take in a list of queries and only execute the clinical ones. Take the resulting clinical ids, and pass that
+        to the next clinical query. Repeat for all clinical queries, continuously subsetting the returned ids.
+        Finally, return all clinical IDs which matched every query, and match reasons.
 
-        :param multi_collection_query:
-        :param clinical_ids:
-        :return:
+        Match Reasons are not used by default, but are composed of QueryNode objects and a clinical ID.
         """
         collection = self.match_criteria_transform.CLINICAL
         reasons = list()
@@ -157,7 +147,6 @@ class MatchEngine(object):
             for query_part in query_node.query_parts:
                 if not query_part.render:
                     continue
-                # inner_query_part = {k: v}
 
                 # hash the inner query to use as a reference for returned clinical ids, if necessary
                 query_hash = query_part.hash()
@@ -213,68 +202,85 @@ class MatchEngine(object):
                                        debug: bool = False) -> Tuple[Dict[ObjectId, Set[ObjectId]],
                                                                      List[GenomicMatchReason]]:
         """
-
-        :param multi_collection_query:
-        :param clinical_ids:
-        :param debug:
-        :return:
+        Take in a list of queries and clinical ids.
+        Return an object e.g.
+        { Clinical_ID : { GenomicID1, GenomicID2 etc } }
         """
         all_results: Dict[ObjectId, Set[ObjectId]] = defaultdict(set)
-        reasons = list()
+        potential_reasons = list()
         for genomic_query_node in multi_collection_query.genomic:
-
             join_field = self.match_criteria_transform.collection_mappings['genomic']['join_field']
+            query = genomic_query_node.extract_raw_query()
 
-            # for negate, query in queries:
-            query = genomic_query_node.query_parts_to_single_query()
-            uniq = ComparableDict(query).hash()
-            clinical_ids = clinical_ids
-            if uniq not in self.cache.ids:
-                self.cache.ids[uniq] = dict()
-            need_new = clinical_ids - set(self.cache.ids[uniq].keys())
+            # Create a nested id_cache where the key is the clinical ID being queried and the vals
+            # are the genomic IDs returned
+            query_hash = ComparableDict(query).hash()
+            if query_hash not in self.cache.ids:
+                self.cache.ids[query_hash] = dict()
+            id_cache = self.cache.ids[query_hash]
+            queried_ids = id_cache.keys()
+            need_new = clinical_ids - set(queried_ids)
+
             if need_new:
                 new_query = query
                 new_query['$and'] = new_query.setdefault('$and', list())
-                new_query['$and'].insert(0,
-                                         {
-                                             join_field: {
-                                                 '$in': list(need_new)
-                                             }
-                                         })
+                new_query['$and'].insert(0, {join_field: {'$in': list(need_new)}})
+
                 if debug:
                     log.info("{}".format(new_query))
-                cursor = await self.async_db_ro['genomic'].find(new_query, {"_id": 1, "CLINICAL_ID": 1}).to_list(None)
-                for result in cursor:
-                    if result["CLINICAL_ID"] not in self.cache.ids[uniq]:
-                        self.cache.ids[uniq][result["CLINICAL_ID"]] = set()
-                    self.cache.ids[uniq][result["CLINICAL_ID"]].add(result["_id"])
-                for unfound in need_new - set(self.cache.ids[uniq].keys()):
-                    self.cache.ids[uniq][unfound] = None
+
+                projection = {"_id": 1, join_field: 1}
+                genomic_docs = await self.async_db_ro['genomic'].find(new_query, projection).to_list(None)
+
+                for genomic_doc in genomic_docs:
+                    # If the clinical id of a returned genomic doc is not present in the cache, add it.
+                    if genomic_doc[join_field] not in id_cache:
+                        id_cache[genomic_doc[join_field]] = set()
+                    id_cache[genomic_doc[join_field]].add(genomic_doc["_id"])
+
+                # Clinical IDs which do not return genomic docs need to be recorded to cache exclusions
+                for unfound in need_new - set(id_cache.keys()):
+                    id_cache[unfound] = None
+
             clinical_result_ids = set()
-            for query_clinical_id in clinical_ids:
-                if self.cache.ids[uniq][query_clinical_id] is not None:
-                    genomic_ids = self.cache.ids[uniq][query_clinical_id]
-                    clinical_result_ids.add(query_clinical_id)
+            for clinical_id in clinical_ids:
+                if id_cache[clinical_id] is not None:
+                    genomic_ids = id_cache[clinical_id]
+                    clinical_result_ids.add(clinical_id)
+
+                    # Most of the time, queries associate one genomic doc to one query, but not always e.g. a patient
+                    # has 2 KRAS mutations and the query is for any KRAS mutation
                     for genomic_id in genomic_ids:
+                        # If an inclusion match...
                         if not genomic_query_node.exclusion:
-                            all_results[query_clinical_id].add(genomic_id)
-                            reasons.append(GenomicMatchReason(genomic_query_node, query_clinical_id, genomic_id))
-                        elif genomic_query_node.exclusion and query_clinical_id in all_results:
-                            del all_results[query_clinical_id]
-                elif self.cache.ids[uniq][query_clinical_id] is None and genomic_query_node.exclusion:
-                    if query_clinical_id not in all_results:
-                        all_results[query_clinical_id] = set()
-                    reasons.append(GenomicMatchReason(genomic_query_node, query_clinical_id, None))
+                            all_results[clinical_id].add(genomic_id)
+                            potential_reasons.append(GenomicMatchReason(genomic_query_node, clinical_id, genomic_id))
+
+                        # If an exclusion criteria returns a genomic doc, that means that clinical ID is not a match.
+                        elif genomic_query_node.exclusion and clinical_id in all_results:
+                            del all_results[clinical_id]
+
+                # If the genomic query returns nothing for an exclusion query, for a specific clinical ID, it is a match
+                elif id_cache[clinical_id] is None and genomic_query_node.exclusion:
+                    if clinical_id not in all_results:
+                        all_results[clinical_id] = set()
+                    potential_reasons.append(GenomicMatchReason(genomic_query_node, clinical_id, None))
+
+            # If processing an inclusion query, subset existing clinical ids with clinical ids returned by the genomic
+            # query. For exclusions, remove the IDs.
             if not genomic_query_node.exclusion:
                 clinical_ids.intersection_update(clinical_result_ids)
             else:
                 clinical_ids.difference_update(clinical_result_ids)
+
             if not clinical_ids:
                 return dict(), list()
             else:
+                # Remove everything from the output object which is not in the returned clinical IDs.
                 for id_to_remove in set(all_results.keys()) - clinical_ids:
                     del all_results[id_to_remove]
-        return all_results, reasons
+
+        return all_results, potential_reasons
 
     async def _run_query(self,
                          multi_collection_query: MultiCollectionQuery,
@@ -288,22 +294,18 @@ class MatchEngine(object):
         :return:
         """
         clinical_ids = set(initial_clinical_ids)
-
         new_clinical_ids, clinical_match_reasons = await self._execute_clinical_queries(multi_collection_query,
                                                                                         clinical_ids
                                                                                         if clinical_ids
                                                                                         else set(initial_clinical_ids))
         clinical_ids = new_clinical_ids
-        # If no clinical docs are returned, skip executing genomic portion of the query
         if not clinical_ids:
             return list()
 
-        # iterate over all queries
         all_results, genomic_match_reasons = await self._execute_genomic_queries(multi_collection_query,
                                                                                  clinical_ids
                                                                                  if clinical_ids
-                                                                                 else set(
-                                                                                     initial_clinical_ids))
+                                                                                 else set(initial_clinical_ids))
 
         needed_clinical = list()
         needed_genomic = list()
@@ -317,16 +319,16 @@ class MatchEngine(object):
         # matching criteria for clinical and genomic values can be set/extended in config.json
         genomic_projection = self.match_criteria_transform.genomic_projection
         clinical_projection = self.match_criteria_transform.clinical_projection
+        clinical_query = MongoQuery({"_id": {"$in": list(needed_clinical)}})
+        genomic_query = MongoQuery({"_id": {"$in": list(needed_genomic)}})
+        results = await asyncio.gather(self._perform_db_call("clinical", clinical_query, clinical_projection),
+                                       self._perform_db_call("genomic", genomic_query, genomic_projection))
 
-        results = await asyncio.gather(self._perform_db_call("clinical",
-                                                             MongoQuery({"_id": {"$in": list(needed_clinical)}}),
-                                                             clinical_projection),
-                                       self._perform_db_call("genomic",
-                                                             MongoQuery({"_id": {"$in": list(needed_genomic)}}),
-                                                             genomic_projection))
+        # asyncio.gather returns [[],[]]. Save the resulting values on the cache for use when creating trial matches
         for outer_result in results:
             for result in outer_result:
                 self.cache.docs[result["_id"]] = result
+
         return [
             genomic_reason
             for genomic_reason in genomic_match_reasons
@@ -337,20 +339,24 @@ class MatchEngine(object):
 
     async def _queue_worker(self, worker_id) -> None:
         """
-
+        Function which executes tasks placed on the task queue.
         :param worker_id:
         """
         while True:
+            # Execute update task
             task: Union[QueryTask, UpdateTask, PoisonPill] = await self._task_q.get()
             if isinstance(task, PoisonPill):
-                log.info(
-                    "Worker: {} got PoisonPill".format(worker_id))
+                if self.debug:
+                    log.info("Worker: {} got PoisonPill".format(worker_id))
                 self._task_q.task_done()
                 break
+
+            # Execute query task
             elif isinstance(task, QueryTask):
-                log.info(
-                    "Worker: {}, protocol_no: {} got new QueryTask".format(worker_id,
-                                                                           task.trial['protocol_no']))
+                if self.debug:
+                    log.info(
+                        "Worker: {}, protocol_no: {} got new QueryTask".format(worker_id,
+                                                                               task.trial['protocol_no']))
                 try:
                     results = await self._run_query(task.query, task.clinical_ids)
                 except Exception as e:
@@ -376,8 +382,12 @@ class MatchEngine(object):
                     self.matches[task.trial['protocol_no']][match_document['sample_id']].append(
                         match_document)
                 self._task_q.task_done()
+
+            # Execute update task
             elif isinstance(task, UpdateTask):
                 try:
+                    if self.debug:
+                        log.info("Worker {} got new update task {}".format(worker_id, task.protocol_no))
                     await self.async_db_rw.trial_match_test.bulk_write(task.ops, ordered=False)
                 except Exception as e:
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
@@ -386,22 +396,19 @@ class MatchEngine(object):
                         await self._task_q.put(task)
                     else:
                         raise e
+                finally:
+                    self._task_q.task_done()
 
-    def extract_match_clauses_from_trial(self,
-                                         protocol_no: str) -> Generator[MatchClauseData, None, None]:
+    def extract_match_clauses_from_trial(self, protocol_no: str) -> Generator[MatchClauseData, None, None]:
         """
         Pull out all of the matches from a trial curation.
         Return the parent path and the values of that match clause.
 
-        Default to only extracting match clauses on steps,
-         arms or dose levels which are open to accrual unless otherwise specified
-
-        :param protocol_no:
-        :return:
+        Default to only extracting match clauses on steps, arms or dose levels which are open to accrual unless
+        otherwise specified.
         """
 
         trial = self.trials[protocol_no]
-        # find all match clauses. place everything else (nested dicts/lists) on a queue
         process_q = deque()
         for key, val in trial.items():
 
@@ -571,7 +578,7 @@ class MatchEngine(object):
                         graph.add_edge(parent_id, node_id)
                         node_id += 1
 
-        if self.save_figs:
+        if self.visualize_match_paths:
             graph_match_clause()
         return MatchTree(graph)
 
@@ -802,7 +809,7 @@ class MatchEngine(object):
         :return:
         """
         genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.genomic_id, None)
-        query = trial_match.match_reason.query_node.query_parts_to_single_query()
+        query = trial_match.match_reason.query_node.extract_raw_query()
 
         new_trial_match = dict()
         new_trial_match.update(format_trial_match_k_v(self.cache.docs[trial_match.match_reason.clinical_id]))
@@ -841,7 +848,7 @@ def main(run_args):
     check_indices()
     with MatchEngine(sample_ids=run_args.samples, protocol_nos=run_args.trials,
                      match_on_closed=run_args.match_on_closed, match_on_deceased=run_args.match_on_deceased,
-                     debug=run_args.debug, num_workers=run_args.workers[0]) as me:
+                     debug=run_args.debug, num_workers=run_args.workers[0], config_path=args.config_path) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
             me.update_all_matches()
@@ -849,17 +856,14 @@ def main(run_args):
 
 if __name__ == "__main__":
     # todo unit tests
-    # todo refactor run_query
     # todo output CSV file functions
-    # todo regex SV matching
     # todo update/delete/insert run log
     # todo failsafes for insert logic (fallback?)
     # todo trial_match_test -> trial_match
     # todo increase db cursor timeout
+    # todo db connection timeout
     # todo trial_match view (for sort_order)
     # todo configuration of trial_match document logic
-    # todo - squash clinical criteria for age
-    # todo index every field in projections?
 
     param_trials_help = 'Path to your trial data file or a directory containing a file for each trial.' \
                         'Default expected format is YML.'
@@ -881,6 +885,8 @@ if __name__ == "__main__":
                   'Must be comma separated values if using more than one field e.g. name,age,gender'
     dry_help = "Execute a full matching run but do not insert any matches into the DB"
     debug_help = "Enable debug logging"
+    config_help = "Path to the config file. By default will look in config/config.json, but if this class is " \
+                  "imported, will need to be specified explicitly "
 
     subp = parser.add_subparsers(help='sub-command help')
     subp_p = subp.add_parser('load', help='Sets up your MongoDB for matching.')
@@ -910,8 +916,8 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help=closed_help)
-    subp_p.add_argument("--save-figs",
-                        dest="save_figs",
+    subp_p.add_argument("--visualize-match-paths",
+                        dest="visualize_match_paths",
                         action="store_true",
                         default=False,
                         help="Enable to render images of all match paths")
@@ -921,6 +927,7 @@ if __name__ == "__main__":
                         help="Directory to store match path images")
     subp_p.add_argument("--dry-run", dest="dry", action="store_true", default=False, help=dry_help)
     subp_p.add_argument("--debug", dest="debug", action="store_true", default=False, help=debug_help)
+    subp_p.add_argument("--config-path", dest="config_path", default="config/config.json", help=config_help)
     subp_p.add_argument("--match-on-deceased-patients",
                         dest="match_on_deceased",
                         action="store_true",

@@ -34,7 +34,7 @@ def query_node_transform(query_node: QueryNode):
     # If a trial curation calls for a structural variant but does NOT have the structured SV data field
     # FUSION_PARTNER_HUGO_SYMBOL, then the genomic query is done using a regex search of the free text
     # STRUCTURAL_VARIANT_COMMENT field on the patient's genomic document.
-    whole_query = query_node.query_parts_to_single_query()
+    whole_query = query_node.extract_raw_query()
     # encode as full search criteria
     if 'STRUCTURAL_VARIANT_COMMENT' in whole_query:
         gene_part = get_query_part_by_key(query_node, 'TRUE_HUGO_SYMBOL')
