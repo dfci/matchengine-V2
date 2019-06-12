@@ -86,7 +86,7 @@ class MatchEngine(object):
     def __init__(self,
                  cache: Cache = None, sample_ids: Set[str] = None, protocol_nos: Set[str] = None,
                  match_on_deceased: bool = False, match_on_closed: bool = False, debug: bool = False,
-                 num_workers: int = 25, save_figs: bool = False, fig_dir: str = None):
+                 num_workers: int = cpu_count() * 5, save_figs: bool = False, fig_dir: str = None):
         """
 
         :param cache:
