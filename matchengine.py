@@ -86,7 +86,7 @@ class MatchEngine(object):
     def __init__(self,
                  cache: Cache = None, sample_ids: Set[str] = None, protocol_nos: Set[str] = None,
                  match_on_deceased: bool = False, match_on_closed: bool = False, debug: bool = False,
-                 num_workers: int = 25, save_figs: bool = False, fig_dir: str = None, dry: bool = True):
+                 num_workers: int = 25, save_figs: bool = False, fig_dir: str = None):
         """
 
         :param cache:
@@ -98,7 +98,6 @@ class MatchEngine(object):
         :param num_workers:
         :param save_figs:
         :param fig_dir:
-        :param dry:
         """
         self.cache = Cache() if cache is None else cache
         self.sample_ids = sample_ids
@@ -677,8 +676,9 @@ class MatchEngine(object):
                 trial_matches_to_not_change = {result['hash']: result.setdefault('is_disabled', False)
                                                for result
                                                in await db.trial_match_test.find(query,
-                                                                                 {"hash": 1,
-                                                                                  "is_disabled": 1}).to_list(None)}
+                                                                                 {
+                                                                                     "hash": 1,
+                                                                                     "is_disabled": 1}).to_list(None)}
 
                 delete_where = {'hash': {'$nin': new_matches_hashes}, 'sample_id': sample_id,
                                 'protocol_no': protocol_no}
@@ -839,15 +839,9 @@ def main(run_args):
     :param run_args:
     """
     check_indices()
-    with MatchEngine(
-            sample_ids=run_args.samples,
-            protocol_nos=run_args.trials,
-            match_on_closed=run_args.match_on_closed,
-            match_on_deceased=run_args.match_on_deceased,
-            debug=run_args.debug,
-            num_workers=run_args.workers[0],
-            dry=args.dry
-    ) as me:
+    with MatchEngine(sample_ids=run_args.samples, protocol_nos=run_args.trials,
+                     match_on_closed=run_args.match_on_closed, match_on_deceased=run_args.match_on_deceased,
+                     debug=run_args.debug, num_workers=run_args.workers[0]) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
             me.update_all_matches()
