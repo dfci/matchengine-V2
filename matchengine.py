@@ -23,7 +23,6 @@ log = logging.getLogger('matchengine')
 def check_indices():
     """
     Ensure indexes exist on the trial_match collection so queries are performant
-    :return:
     """
     with MongoDBConnection(read_only=False, async_init=False) as db:
         indexes = db.trial_match_test.list_indexes()
@@ -69,9 +68,6 @@ class MatchEngine(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         """
         Teardown database connections (async + synchronous) and async workers gracefully.
-        :param exc_type:
-        :param exc_val:
-        :param exc_tb:
         """
         self._async_db_ro.__exit__(exc_type, exc_val, exc_tb)
         self._async_db_rw.__exit__(exc_type, exc_val, exc_tb)
@@ -288,10 +284,6 @@ class MatchEngine(object):
         """
         Execute a mongo query on the clinical and genomic collections to find trial matches.
         First execute the clinical query. If no records are returned short-circuit and return.
-
-        :param initial_clinical_ids:
-        :param multi_collection_query:
-        :return:
         """
         clinical_ids = set(initial_clinical_ids)
         new_clinical_ids, clinical_match_reasons = await self._execute_clinical_queries(multi_collection_query,
@@ -337,10 +329,9 @@ class MatchEngine(object):
                                                                       genomic_reason.clinical_id]])
         ]
 
-    async def _queue_worker(self, worker_id) -> None:
+    async def _queue_worker(self, worker_id: int) -> None:
         """
         Function which executes tasks placed on the task queue.
-        :param worker_id:
         """
         while True:
             # Execute update task
@@ -464,8 +455,6 @@ class MatchEngine(object):
     def create_match_tree(self, match_clause_data: MatchClauseData) -> MatchTree:
         """
 
-        :param match_clause_data:
-        :return:
         """
         match_clause = match_clause_data.match_clause
         process_q: deque[Tuple[NodeID, Dict[str, Any]]] = deque()
@@ -486,7 +475,6 @@ class MatchEngine(object):
         def graph_match_clause():
             """
 
-            :return:
             """
             import matplotlib.pyplot as plt
             from networkx.drawing.nx_agraph import graphviz_layout
@@ -586,7 +574,6 @@ class MatchEngine(object):
     def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, None]:
         """
 
-        :param match_tree:
         """
         leaves = list()
         for node in match_tree.nodes:
@@ -608,9 +595,6 @@ class MatchEngine(object):
         Translate the keys/values from the trial curation into keys/values used in a genomic/clinical document.
         Uses an external config file ./config/config.json
 
-        :param match_clause_data:
-        :param match_criterion:
-        :return:
         """
         multi_collection_query = MultiCollectionQuery(list(), list())
         query_cache = set()
@@ -652,7 +636,6 @@ class MatchEngine(object):
     def update_matches_for_protocol_number(self, protocol_no):
         """
 
-        :param protocol_no:
         """
         self._loop.run_until_complete(self._async_update_matches_by_protocol_no(protocol_no))
 
@@ -706,7 +689,6 @@ class MatchEngine(object):
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
         """
 
-        :return:
         """
         for protocol_no in self.protocol_nos:
             self.get_matches_for_trial(protocol_no)
@@ -715,8 +697,6 @@ class MatchEngine(object):
     def get_matches_for_trial(self, protocol_no: str):
         """
 
-        :param protocol_no:
-        :return:
         """
         log.info("Begin Protocol No: {}".format(protocol_no))
         task = self._loop.create_task(self._async_get_matches_for_trial(protocol_no))
@@ -725,8 +705,6 @@ class MatchEngine(object):
     async def _async_get_matches_for_trial(self, protocol_no: str) -> Dict[str, List[Dict]]:
         """
 
-        :param protocol_no:
-        :return:
         """
         trial = self.trials[protocol_no]
         match_clauses = self.extract_match_clauses_from_trial(protocol_no)
@@ -749,7 +727,6 @@ class MatchEngine(object):
     def get_clinical_ids_from_sample_ids(self) -> Set[ClinicalID]:
         """
 
-        :return:
         """
         # if no sample ids are passed in as args, get all clinical documents
         query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
@@ -760,7 +737,6 @@ class MatchEngine(object):
     def get_trials(self) -> Dict[str, Trial]:
         """
 
-        :return:
         """
         trial_find_query = dict()
 
@@ -788,10 +764,6 @@ class MatchEngine(object):
     async def _perform_db_call(self, collection: str, query: MongoQuery, projection: Dict):
         """
 
-        :param collection:
-        :param query:
-        :param projection:
-        :return:
         """
         return await self.async_db_ro[collection].find(query, projection).to_list(None)
 
@@ -799,8 +771,6 @@ class MatchEngine(object):
         """
         Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
         in config.json
-        :param trial_match:
-        :return:
         """
         genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.genomic_id, None)
         query = trial_match.match_reason.query_node.extract_raw_query()
@@ -837,7 +807,6 @@ class MatchEngine(object):
 def main(run_args):
     """
 
-    :param run_args:
     """
     check_indices()
     with MatchEngine(sample_ids=run_args.samples, protocol_nos=run_args.trials,
