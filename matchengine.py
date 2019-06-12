@@ -667,45 +667,39 @@ class MatchEngine(object):
         """
         Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
         'Delete' matches by adding {is_disabled: true} and insert all new matches.
-        :param trial_matches_by_sample_id:
-        :param num_workers:
-        :param protocol_no:
-        :return:
         """
         trial_matches_by_sample_id = self.matches.setdefault(protocol_no, dict())
-        with MongoDBConnection(read_only=True) as db:
-            for sample_id in trial_matches_by_sample_id.keys():
-                # log.info("Sample ID {}".format(sample_id))
-                new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
+        for sample_id in trial_matches_by_sample_id.keys():
+            # log.info("Sample ID {}".format(sample_id))
+            new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
 
-                query = {'hash': {'$in': new_matches_hashes}}
+            query = {'hash': {'$in': new_matches_hashes}}
 
-                trial_matches_to_not_change = {result['hash']: result.setdefault('is_disabled', False)
-                                               for result
-                                               in await db.trial_match_test.find(query,
-                                                                                 {
-                                                                                     "hash": 1,
-                                                                                     "is_disabled": 1}).to_list(None)}
+            projection = {"hash": 1, "is_disabled": 1}
+            trial_matches_to_not_change = {
+                result['hash']: result.setdefault('is_disabled', False)
+                for result
+                in await self.async_db_ro.trial_match_test.find(query, projection).to_list(None)
+            }
 
-                delete_where = {'hash': {'$nin': new_matches_hashes}, 'sample_id': sample_id,
-                                'protocol_no': protocol_no}
-                update = {"$set": {'is_disabled': True}}
+            delete_where = {'hash': {'$nin': new_matches_hashes}, 'sample_id': sample_id, 'protocol_no': protocol_no}
+            update = {"$set": {'is_disabled': True}}
 
-                trial_matches_to_insert = [trial_match
-                                           for trial_match in trial_matches_by_sample_id[sample_id]
-                                           if trial_match['hash'] not in trial_matches_to_not_change]
-                trial_matches_to_mark_available = [trial_match
-                                                   for trial_match in trial_matches_by_sample_id[sample_id]
-                                                   if trial_match['hash'] in trial_matches_to_not_change
-                                                   and trial_matches_to_not_change.setdefault('is_disabled', False)]
+            trial_matches_to_insert = [trial_match
+                                       for trial_match in trial_matches_by_sample_id[sample_id]
+                                       if trial_match['hash'] not in trial_matches_to_not_change]
+            trial_matches_to_mark_available = [trial_match
+                                               for trial_match in trial_matches_by_sample_id[sample_id]
+                                               if trial_match['hash'] in trial_matches_to_not_change
+                                               and trial_matches_to_not_change.setdefault('is_disabled', False)]
 
-                ops = list()
-                ops.append(UpdateMany(delete_where, update))
-                for to_insert in trial_matches_to_insert:
-                    ops.append(InsertOne(to_insert))
-                ops.append(
-                    UpdateMany({'hash': {'$in': trial_matches_to_mark_available}}, {'$set': {'is_disabled': False}}))
-                await self._task_q.put(UpdateTask(ops, protocol_no))
+            ops = list()
+            ops.append(UpdateMany(delete_where, update))
+            for to_insert in trial_matches_to_insert:
+                ops.append(InsertOne(to_insert))
+            ops.append(
+                UpdateMany({'hash': {'$in': trial_matches_to_mark_available}}, {'$set': {'is_disabled': False}}))
+            await self._task_q.put(UpdateTask(ops, protocol_no))
 
         await self._task_q.join()
 
