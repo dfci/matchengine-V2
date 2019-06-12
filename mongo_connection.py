@@ -46,11 +46,12 @@ class MongoDBConnection(object):
                                 port=self.SECRETS["MONGO_PORT"],
                                 db=self.db))
         else:
-            self.client = MongoClient(self.uri.format(username=username,
-                                                      password=password,
-                                                      hostname=self.SECRETS["MONGO_HOST"],
-                                                      port=self.SECRETS["MONGO_PORT"],
-                                                      db=self.db))
+            self.client = MongoClient(
+                self.uri.format(username=username if self.read_only else self.SECRETS['MONGO_USERNAME'],
+                                password=password if self.read_only else self.SECRETS['MONGO_PW'],
+                                hostname=self.SECRETS["MONGO_HOST"],
+                                port=self.SECRETS["MONGO_PORT"],
+                                db=self.db))
         return self.client[self.db]
 
     def __exit__(self, exc_type, exc_val, exc_tb):

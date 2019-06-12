@@ -88,6 +88,8 @@ class MatchEngine(object):
 
         self._db_ro = MongoDBConnection(read_only=True, async_init=False)
         self.db_ro = self._db_ro.__enter__()
+        self._db_rw = MongoDBConnection(read_only=False, async_init=False)
+        self.db_rw = self._db_rw.__enter__()
 
         # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
@@ -113,14 +115,13 @@ class MatchEngine(object):
         asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._async_init())
 
-        self.run_log = {
-            "protocol_nos": self.protocol_nos,
-            "sample_ids": self.sample_ids,
-            "marked_available": None,
-            "inserted": None,
-            "marked_disabled": None,
-            "_created": datetime.datetime.now()
-        }
+        self.run_log = RunLog(
+            self.protocol_nos,
+            list(self.clinical_ids),
+            list(),
+            list(),
+            list(),
+            datetime.datetime.now())
 
     async def _async_init(self):
         """
@@ -654,6 +655,7 @@ class MatchEngine(object):
         """
         for protocol_number in self.protocol_nos:
             self.update_matches_for_protocol_number(protocol_number)
+        self.db_rw.matchengine_run_log.insert_one(self.run_log.__dict__)
 
     async def _async_update_matches_by_protocol_no(self, protocol_no: str):
         """
@@ -662,43 +664,71 @@ class MatchEngine(object):
         """
         trial_matches_by_sample_id = self.matches.setdefault(protocol_no, dict())
         log.info("Updating trial matches for {}".format(protocol_no))
+        remaining_to_disable = [result['hash']
+                                for result
+                                in await self._perform_db_call('trial_match_raw',
+                                                               MongoQuery({
+                                                                   'protocol_no': protocol_no,
+                                                                   "sample_id": {
+                                                                       '$nin': list(
+                                                                           trial_matches_by_sample_id.keys())}}),
+                                                               {'hash': 1})]
+        await self._task_q.put(UpdateTask([
+            UpdateMany({'hash': {'$in': remaining_to_disable}},
+                       {'$set': {"is_disabled": True}})
+        ], protocol_no))
+        self.run_log.marked_disabled.extend(remaining_to_disable)
         for sample_id in trial_matches_by_sample_id.keys():
             new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
 
-            query = {'hash': {'$in': new_matches_hashes}}
-
+            trial_matches_to_not_change_query = MongoQuery({'hash': {'$in': new_matches_hashes}})
+            trial_matches_to_disable_query = MongoQuery({'protocol_no': protocol_no,
+                                                         'sample_id': sample_id,
+                                                         'is_disabled': False,
+                                                         'hash': {'$nin': new_matches_hashes}})
             projection = {"hash": 1, "is_disabled": 1}
-            trial_matches_to_not_change = {
-                result['hash']: result.setdefault('is_disabled', False)
-                for result
-                in await self.async_db_ro.trial_match_raw.find(query, projection).to_list(None)
-            }
+            trial_matches_existent_results, trial_matches_to_disable = await asyncio.gather(
+                self._perform_db_call('trial_match_raw', trial_matches_to_not_change_query, projection),
+                self._perform_db_call('trial_match_raw', trial_matches_to_disable_query, projection)
+            )
 
-            delete_where = {'hash': {'$nin': new_matches_hashes}, 'sample_id': sample_id, 'protocol_no': protocol_no}
-            update = {"$set": {'is_disabled': True}}
+            trial_matches_hashes_existent = {
+                result['hash']
+                for result
+                in trial_matches_existent_results
+            }
+            trial_matches_disabled = {
+                result['hash']
+                for result in trial_matches_existent_results
+                if result['is_disabled']
+            }
 
             trial_matches_to_insert = [trial_match
                                        for trial_match in trial_matches_by_sample_id[sample_id]
-                                       if trial_match['hash'] not in trial_matches_to_not_change]
+                                       if trial_match['hash'] not in trial_matches_hashes_existent]
             trial_matches_to_mark_available = [trial_match
                                                for trial_match in trial_matches_by_sample_id[sample_id]
-                                               if trial_matches_to_not_change.setdefault(trial_match['hash'], False)]
-            trial_matches_hashes_to_mark_available = [trial_match['hash'] for trial_match in trial_matches_to_mark_available]
+                                               if trial_match['hash'] in trial_matches_disabled]
 
-            self.run_log.inserted.extend(trial_matches_to_insert)
-            self.run_log.marked_available.extend(trial_matches_to_mark_available)
+            self.run_log.inserted.extend([trial_match['hash'] for trial_match in trial_matches_to_insert])
+            self.run_log.marked_available.extend([trial_match['hash']
+                                                  for trial_match in trial_matches_to_mark_available])
+            self.run_log.marked_disabled.extend([trial_match['hash']
+                                                 for trial_match in trial_matches_to_disable])
+            # self.run_log.inserted.extend(trial_matches_to_insert)
+            # self.run_log.marked_available.extend(trial_matches_to_mark_available)
 
             ops = list()
-            ops.append(UpdateMany(delete_where, update))
+            ops.append(UpdateMany({'hash': {'$in': [trial_match['hash'] for trial_match in trial_matches_to_disable]}},
+                                  {'$set': {'is_disabled': True}}))
             for to_insert in trial_matches_to_insert:
                 ops.append(InsertOne(to_insert))
             ops.append(
-                UpdateMany({'hash': {'$in': trial_matches_hashes_to_mark_available}}, {'$set': {'is_disabled': False}}))
+                UpdateMany({'hash': {'$in': [trial_match['hash'] for trial_match in trial_matches_to_mark_available]}},
+                           {'$set': {'is_disabled': False}}))
 
             await self._task_q.put(UpdateTask(ops, protocol_no))
 
-        delete_ops = UpdateMany({'protocol_no': protocol_no, "sample_id": {'$nin': list(trial_matches_by_sample_id.keys()) }}, {'$set': {"is_disabled": True}})
-        await self._task_q.put(UpdateTask([delete_ops], protocol_no))
         await self._task_q.join()
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:

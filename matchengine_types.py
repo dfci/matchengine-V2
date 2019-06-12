@@ -67,7 +67,7 @@ class MultiCollectionQuery:
 @dataclass
 class RunLog:
     protocol_nos: list
-    sample_ids: list
+    clinical_ids: list
     marked_available: list
     inserted: list
     marked_disabled: list
