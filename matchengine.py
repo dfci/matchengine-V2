@@ -108,20 +108,16 @@ class MatchEngine(object):
         self.trials = self.get_trials()
         if self.protocol_nos is None:
             self.protocol_nos = list(self.trials.keys())
-        self.clinical_ids = self.get_clinical_ids_from_sample_ids()
+        self.clinical_mapping = self.get_clinical_ids_from_sample_ids()
+        self.sample_mapping = {sample_id: clinical_id for clinical_id, sample_id in self.clinical_mapping.items()}
+        self.clinical_ids = set(self.clinical_mapping.keys())
+        if self.sample_ids is None:
+            self.sample_ids = list(self.clinical_mapping.values())
 
         # instantiate a new async event loop to allow class to be used as if it is synchronous
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._async_init())
-
-        self.run_log = RunLog(
-            self.protocol_nos,
-            list(self.clinical_ids),
-            list(),
-            list(),
-            list(),
-            datetime.datetime.now())
 
     async def _async_init(self):
         """
@@ -347,7 +343,7 @@ class MatchEngine(object):
         """
         while True:
             # Execute update task
-            task: Union[QueryTask, UpdateTask, PoisonPill] = await self._task_q.get()
+            task: Union[QueryTask, UpdateTask, RunLogUpdateTask, PoisonPill] = await self._task_q.get()
             if isinstance(task, PoisonPill):
                 if self.debug:
                     log.info("Worker: {} got PoisonPill".format(worker_id))
@@ -392,6 +388,21 @@ class MatchEngine(object):
                     if self.debug:
                         log.info("Worker {} got new update task {}".format(worker_id, task.protocol_no))
                     await self.async_db_rw.trial_match_raw.bulk_write(task.ops, ordered=False)
+                except Exception as e:
+                    log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
+                    if isinstance(e, AutoReconnect):
+                        self._task_q.task_done()
+                        await self._task_q.put(task)
+                    else:
+                        raise e
+                finally:
+                    self._task_q.task_done()
+            elif isinstance(task, RunLogUpdateTask):
+                try:
+                    if self.debug:
+                        log.info("Worker {} got new run log update task {}".format(worker_id, task.run_log.protocol_no))
+                    if any([task.run_log.marked_disabled, task.run_log.marked_available, task.run_log.inserted]):
+                        await self.async_db_rw.matchengine_run_log.insert_one(task.run_log.__dict__)
                 except Exception as e:
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
                     if isinstance(e, AutoReconnect):
@@ -655,7 +666,6 @@ class MatchEngine(object):
         """
         for protocol_number in self.protocol_nos:
             self.update_matches_for_protocol_number(protocol_number)
-        self.db_rw.matchengine_run_log.insert_one(self.run_log.__dict__)
 
     async def _async_update_matches_by_protocol_no(self, protocol_no: str):
         """
@@ -664,7 +674,7 @@ class MatchEngine(object):
         """
         trial_matches_by_sample_id = self.matches.setdefault(protocol_no, dict())
         log.info("Updating trial matches for {}".format(protocol_no))
-        remaining_to_disable = [result['hash']
+        remaining_to_disable = [result
                                 for result
                                 in await self._perform_db_call('trial_match_raw',
                                                                MongoQuery({
@@ -672,13 +682,35 @@ class MatchEngine(object):
                                                                    "sample_id": {
                                                                        '$nin': list(
                                                                            trial_matches_by_sample_id.keys())}}),
-                                                               {'hash': 1})]
-        await self._task_q.put(UpdateTask([
-            UpdateMany({'hash': {'$in': remaining_to_disable}},
+                                                               {'_id': 1, 'hash': 1, 'clinical_id': 1})]
+        initial_delete_ops = [
+            UpdateMany({'hash': {'$in': [result['hash'] for result in remaining_to_disable]}},
                        {'$set': {"is_disabled": True}})
-        ], protocol_no))
-        self.run_log.marked_disabled.extend(remaining_to_disable)
+        ]
+        await self._task_q.put(UpdateTask(initial_delete_ops, protocol_no))
+        deleted_by_id: Dict[RunLog] = dict()
+        for to_disable in remaining_to_disable:
+            clinical_id = to_disable['clinical_id']
+            if clinical_id not in deleted_by_id:
+                deleted_by_id[clinical_id] = RunLog(protocol_no,
+                                                    clinical_id,
+                                                    list(),
+                                                    list(),
+                                                    list(),
+                                                    datetime.datetime.now())
+            run_log = deleted_by_id[clinical_id]
+            run_log.marked_disabled.append(to_disable['hash'])
+
+        for run_log in deleted_by_id.values():
+            await self._task_q.put(RunLogUpdateTask(run_log))
+        await self._task_q.put(UpdateTask(initial_delete_ops, protocol_no))
         for sample_id in trial_matches_by_sample_id.keys():
+            run_log = RunLog(protocol_no,
+                             self.sample_mapping[sample_id],
+                             list(),
+                             list(),
+                             list(),
+                             datetime.datetime.now())
             new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
 
             trial_matches_to_not_change_query = MongoQuery({'hash': {'$in': new_matches_hashes}})
@@ -710,11 +742,11 @@ class MatchEngine(object):
                                                for trial_match in trial_matches_by_sample_id[sample_id]
                                                if trial_match['hash'] in trial_matches_disabled]
 
-            self.run_log.inserted.extend([trial_match['hash'] for trial_match in trial_matches_to_insert])
-            self.run_log.marked_available.extend([trial_match['hash']
-                                                  for trial_match in trial_matches_to_mark_available])
-            self.run_log.marked_disabled.extend([trial_match['hash']
-                                                 for trial_match in trial_matches_to_disable])
+            run_log.inserted.extend([trial_match['hash'] for trial_match in trial_matches_to_insert])
+            run_log.marked_available.extend([trial_match['hash']
+                                             for trial_match in trial_matches_to_mark_available])
+            run_log.marked_disabled.extend([trial_match['hash']
+                                            for trial_match in trial_matches_to_disable])
             # self.run_log.inserted.extend(trial_matches_to_insert)
             # self.run_log.marked_available.extend(trial_matches_to_mark_available)
 
@@ -726,6 +758,7 @@ class MatchEngine(object):
             ops.append(
                 UpdateMany({'hash': {'$in': [trial_match['hash'] for trial_match in trial_matches_to_mark_available]}},
                            {'$set': {'is_disabled': False}}))
+            await self._task_q.put(RunLogUpdateTask(run_log))
 
             await self._task_q.put(UpdateTask(ops, protocol_no))
 
@@ -773,7 +806,7 @@ class MatchEngine(object):
             logging.info("Total results: {}".format(len(self.matches[protocol_no])))
             return self.matches[protocol_no]
 
-    def get_clinical_ids_from_sample_ids(self) -> Set[ClinicalID]:
+    def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
         """
 
         """
@@ -781,7 +814,8 @@ class MatchEngine(object):
         query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
         if self.sample_ids is not None:
             query.update({"SAMPLE_ID": {"$in": self.sample_ids}})
-        return {result['_id'] for result in self.db_ro.clinical.find(query, {'_id': 1})}
+        return {result['_id']: result['SAMPLE_ID']
+                for result in self.db_ro.clinical.find(query, {'_id': 1, 'SAMPLE_ID': 1})}
 
     def get_trials(self) -> Dict[str, Trial]:
         """

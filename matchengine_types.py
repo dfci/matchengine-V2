@@ -66,8 +66,8 @@ class MultiCollectionQuery:
 
 @dataclass
 class RunLog:
-    protocol_nos: list
-    clinical_ids: list
+    protocol_no: str
+    clinical_id: ObjectId
     marked_available: list
     inserted: list
     marked_disabled: list
@@ -131,3 +131,7 @@ class QueryTask:
 class UpdateTask:
     ops: List
     protocol_no: str
+
+@dataclass
+class RunLogUpdateTask:
+    run_log: RunLog
