@@ -1,8 +1,10 @@
 import argparse
 import asyncio
+import glob
 import json
 import logging
-import datetime
+import os
+import sys
 from collections import deque, defaultdict
 from multiprocessing import cpu_count
 from typing import Generator
@@ -11,10 +13,12 @@ import networkx as nx
 from pymongo import UpdateMany, InsertOne
 from pymongo.errors import AutoReconnect, CursorNotFound
 
+import query_transform
 from load import load
 from match_criteria_transform import MatchCriteriaTransform, query_node_transform
 from mongo_connection import MongoDBConnection
 from matchengine_types import *
+from query_transform import QueryTransformerContainer
 from trial_match_utils import *
 
 logging.basicConfig(level=logging.INFO)
@@ -81,11 +85,13 @@ class MatchEngine(object):
                  cache: Cache = None, sample_ids: Set[str] = None, protocol_nos: Set[str] = None,
                  match_on_deceased: bool = False, match_on_closed: bool = False, debug: bool = False,
                  num_workers: int = cpu_count() * 5, visualize_match_paths: bool = False, fig_dir: str = None,
-                 config_path: str = None):
+                 config_path: str = None, plugin_dir: str = None):
 
         with open(config_path) as config_file_handle:
             self.config = json.load(config_file_handle)
-
+        self.match_criteria_transform = MatchCriteriaTransform(self.config)
+        self.plugin_dir = plugin_dir
+        self._find_plugins()
         self._db_ro = MongoDBConnection(read_only=True, async_init=False)
         self.db_ro = self._db_ro.__enter__()
         self._db_rw = MongoDBConnection(read_only=False, async_init=False)
@@ -103,7 +109,6 @@ class MatchEngine(object):
         self.fig_dir = fig_dir
         self._queue_task_count = int()
         self.matches = defaultdict(lambda: defaultdict(list))
-        self.match_criteria_transform = MatchCriteriaTransform(self.config)
 
         self.trials = self.get_trials()
         if self.protocol_nos is None:
@@ -118,6 +123,27 @@ class MatchEngine(object):
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._async_init())
+
+    def _find_plugins(self):
+        potential_files = glob.glob(os.path.join(self.plugin_dir, "*.py"))
+        to_load = [(None, 'query_transform')]
+        for potential_file_path in potential_files:
+            dir_path = os.path.dirname(potential_file_path)
+            module_name = ''.join(os.path.basename(potential_file_path).split('.')[0:-1])
+            to_load.append((dir_path, module_name))
+        for dir_path, module_name in to_load:
+            if dir_path is not None:
+                sys.path.append(dir_path)
+            module = __import__(module_name)
+            if dir_path is not None:
+                sys.path.pop()
+            for item_name in getattr(module, '__shared__', list()):
+                setattr(self.match_criteria_transform.transform, item_name, getattr(module, item_name))
+            for item_name in module.__export__:
+                item = getattr(module, item_name)
+                if issubclass(item, QueryTransformerContainer):
+                    query_transform.attach_transformers_to_match_criteria_transform(self.match_criteria_transform,
+                                                                                    item)
 
     async def _async_init(self):
         """
@@ -634,7 +660,8 @@ class MatchEngine(object):
                             continue
 
                         sample_value_function_name = trial_key_settings.setdefault('sample_value', 'nomap')
-                        sample_function = getattr(MatchCriteriaTransform, sample_value_function_name)
+                        sample_function = getattr(self.match_criteria_transform.query_transformers,
+                                                  sample_value_function_name)
                         sample_function_args = dict(sample_key=trial_key.upper(),
                                                     trial_value=trial_value,
                                                     parent_path=match_clause_data.parent_path,
@@ -642,7 +669,7 @@ class MatchEngine(object):
                                                     trial_key=trial_key,
                                                     query_node=query_node)
                         sample_function_args.update(trial_key_settings)
-                        sample_value, negate = sample_function(self.match_criteria_transform, **sample_function_args)
+                        sample_value, negate = sample_function(**sample_function_args)
                         query_part = QueryPart(sample_value, negate, True)
                         query_node.query_parts.append(query_part)
                         # set the exclusion = True on the query node if ANY of the query parts are negate
@@ -897,7 +924,7 @@ def main(run_args):
 
     """
     check_indices()
-    with MatchEngine(sample_ids=run_args.samples, protocol_nos=run_args.trials,
+    with MatchEngine(plugin_dir=run_args.plugin_dir, sample_ids=run_args.samples, protocol_nos=run_args.trials,
                      match_on_closed=run_args.match_on_closed, match_on_deceased=run_args.match_on_deceased,
                      debug=run_args.debug, num_workers=run_args.workers[0], config_path=args.config_path) as me:
         me.get_matches_for_all_trials()
@@ -978,6 +1005,7 @@ if __name__ == "__main__":
     subp_p.add_argument("--dry-run", dest="dry", action="store_true", default=False, help=dry_help)
     subp_p.add_argument("--debug", dest="debug", action="store_true", default=False, help=debug_help)
     subp_p.add_argument("--config-path", dest="config_path", default="config/config.json", help=config_help)
+    subp_p.add_argument("--override-plugin-dir", dest="plugin_dir", default="plugins", help=config_help)
     subp_p.add_argument("--match-on-deceased-patients",
                         dest="match_on_deceased",
                         action="store_true",

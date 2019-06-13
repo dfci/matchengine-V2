@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import NewType, Tuple, Union, List, Dict, Any, Set
 from bson import ObjectId
 from networkx import DiGraph
-from threading import Lock
 
 from frozendict import ComparableDict
 
