@@ -386,7 +386,7 @@ class MatchEngine(object):
             elif isinstance(task, UpdateTask):
                 try:
                     if self.debug:
-                        log.info("Worker {} got new update task {}".format(worker_id, task.protocol_no))
+                        log.info("Worker {} got new UpdateTask {}".format(worker_id, task.protocol_no))
                     await self.async_db_rw.trial_match_raw.bulk_write(task.ops, ordered=False)
                 except Exception as e:
                     log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
@@ -400,7 +400,7 @@ class MatchEngine(object):
             elif isinstance(task, RunLogUpdateTask):
                 try:
                     if self.debug:
-                        log.info("Worker {} got new run log update task {}".format(worker_id, task.run_log.protocol_no))
+                        log.info("Worker {} got new RunLogUpdateTask {}".format(worker_id, task.run_log.protocol_no))
                     if any([task.run_log.marked_disabled, task.run_log.marked_available, task.run_log.inserted]):
                         await self.async_db_rw.matchengine_run_log.insert_one(task.run_log.__dict__)
                 except Exception as e:
@@ -594,7 +594,8 @@ class MatchEngine(object):
     @staticmethod
     def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, None]:
         """
-
+        Takes a MatchTree (from create_match_tree) and yields the criteria from each possible path on the tree,
+        from the root node to each leaf node
         """
         leaves = list()
         for node in match_tree.nodes:
@@ -656,13 +657,13 @@ class MatchEngine(object):
 
     def update_matches_for_protocol_number(self, protocol_no):
         """
-
+        Updates all trial matches for a given protocol number
         """
         self._loop.run_until_complete(self._async_update_matches_by_protocol_no(protocol_no))
 
     def update_all_matches(self):
         """
-
+        Synchronoususly iterates over each protocol number, updating the matches in the database for each
         """
         for protocol_number in self.protocol_nos:
             self.update_matches_for_protocol_number(protocol_number)
@@ -674,30 +675,29 @@ class MatchEngine(object):
         """
         trial_matches_by_sample_id = self.matches.setdefault(protocol_no, dict())
         log.info("Updating trial matches for {}".format(protocol_no))
-        remaining_to_disable = [result
-                                for result
-                                in await self._perform_db_call('trial_match_raw',
-                                                               MongoQuery({
-                                                                   'protocol_no': protocol_no,
-                                                                   "sample_id": {
-                                                                       '$nin': list(
-                                                                           trial_matches_by_sample_id.keys())}}),
-                                                               {'_id': 1, 'hash': 1, 'clinical_id': 1})]
+        remaining_to_disable = [
+            result
+            for result in await self._perform_db_call(collection='trial_match_raw',
+                                                      query=MongoQuery(
+                                                          {
+                                                              'protocol_no': protocol_no,
+                                                              "sample_id": {
+                                                                  '$nin': list(trial_matches_by_sample_id.keys())
+                                                              }
+                                                          }),
+                                                      projection={'_id': 1, 'hash': 1, 'clinical_id': 1})
+        ]
         initial_delete_ops = [
-            UpdateMany({'hash': {'$in': [result['hash'] for result in remaining_to_disable]}},
-                       {'$set': {"is_disabled": True}})
+            UpdateMany(filter={'hash': {'$in': [result['hash']
+                                                for result in remaining_to_disable]}},
+                       update={'$set': {"is_disabled": True}})
         ]
         await self._task_q.put(UpdateTask(initial_delete_ops, protocol_no))
         deleted_by_id: Dict[RunLog] = dict()
         for to_disable in remaining_to_disable:
             clinical_id = to_disable['clinical_id']
             if clinical_id not in deleted_by_id:
-                deleted_by_id[clinical_id] = RunLog(protocol_no,
-                                                    clinical_id,
-                                                    list(),
-                                                    list(),
-                                                    list(),
-                                                    datetime.datetime.now())
+                deleted_by_id[clinical_id] = RunLog(protocol_no, clinical_id)
             run_log = deleted_by_id[clinical_id]
             run_log.marked_disabled.append(to_disable['hash'])
 
@@ -705,12 +705,7 @@ class MatchEngine(object):
             await self._task_q.put(RunLogUpdateTask(run_log))
         await self._task_q.put(UpdateTask(initial_delete_ops, protocol_no))
         for sample_id in trial_matches_by_sample_id.keys():
-            run_log = RunLog(protocol_no,
-                             self.sample_mapping[sample_id],
-                             list(),
-                             list(),
-                             list(),
-                             datetime.datetime.now())
+            run_log = RunLog(protocol_no, self.sample_mapping[sample_id])
             new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
 
             trial_matches_to_not_change_query = MongoQuery({'hash': {'$in': new_matches_hashes}})
@@ -735,29 +730,39 @@ class MatchEngine(object):
                 if result['is_disabled']
             }
 
-            trial_matches_to_insert = [trial_match
-                                       for trial_match in trial_matches_by_sample_id[sample_id]
-                                       if trial_match['hash'] not in trial_matches_hashes_existent]
-            trial_matches_to_mark_available = [trial_match
-                                               for trial_match in trial_matches_by_sample_id[sample_id]
-                                               if trial_match['hash'] in trial_matches_disabled]
+            trial_matches_to_insert = [
+                trial_match
+                for trial_match in trial_matches_by_sample_id[sample_id]
+                if trial_match['hash'] not in trial_matches_hashes_existent
+            ]
+            trial_matches_to_mark_available = [
+                trial_match
+                for trial_match in trial_matches_by_sample_id[sample_id]
+                if trial_match['hash'] in trial_matches_disabled
+            ]
 
-            run_log.inserted.extend([trial_match['hash'] for trial_match in trial_matches_to_insert])
-            run_log.marked_available.extend([trial_match['hash']
-                                             for trial_match in trial_matches_to_mark_available])
-            run_log.marked_disabled.extend([trial_match['hash']
-                                            for trial_match in trial_matches_to_disable])
-            # self.run_log.inserted.extend(trial_matches_to_insert)
-            # self.run_log.marked_available.extend(trial_matches_to_mark_available)
+            run_log.inserted.extend([
+                trial_match['hash']
+                for trial_match in trial_matches_to_insert
+            ])
+            run_log.marked_available.extend([
+                trial_match['hash']
+                for trial_match in trial_matches_to_mark_available
+            ])
+            run_log.marked_disabled.extend([
+                trial_match['hash']
+                for trial_match in trial_matches_to_disable
+            ])
 
             ops = list()
-            ops.append(UpdateMany({'hash': {'$in': [trial_match['hash'] for trial_match in trial_matches_to_disable]}},
-                                  {'$set': {'is_disabled': True}}))
+            ops.append(UpdateMany(filter={'hash': {'$in': [trial_match['hash']
+                                                           for trial_match in trial_matches_to_disable]}},
+                                  update={'$set': {'is_disabled': True}}))
             for to_insert in trial_matches_to_insert:
-                ops.append(InsertOne(to_insert))
-            ops.append(
-                UpdateMany({'hash': {'$in': [trial_match['hash'] for trial_match in trial_matches_to_mark_available]}},
-                           {'$set': {'is_disabled': False}}))
+                ops.append(InsertOne(document=to_insert))
+            ops.append(UpdateMany(filter={'hash': {'$in': [trial_match['hash']
+                                                           for trial_match in trial_matches_to_mark_available]}},
+                                  update={'$set': {'is_disabled': False}}))
             await self._task_q.put(RunLogUpdateTask(run_log))
 
             await self._task_q.put(UpdateTask(ops, protocol_no))
@@ -766,7 +771,7 @@ class MatchEngine(object):
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
         """
-
+        Synchronously iterates over each protocol number, getting trial matches for each
         """
         for protocol_no in self.protocol_nos:
             self.get_matches_for_trial(protocol_no)
@@ -774,7 +779,7 @@ class MatchEngine(object):
 
     def get_matches_for_trial(self, protocol_no: str):
         """
-
+        Get the trial matches for a given protocol number
         """
         log.info("Begin Protocol No: {}".format(protocol_no))
         task = self._loop.create_task(self._async_get_matches_for_trial(protocol_no))
@@ -782,21 +787,26 @@ class MatchEngine(object):
 
     async def _async_get_matches_for_trial(self, protocol_no: str) -> Dict[str, List[Dict]]:
         """
-
+        Asynchronous function used by get_matches_for_trial, not meant to be called externally.
+        Gets the matches for a given trial
         """
         trial = self.trials[protocol_no]
-        if trial['status'].lower().strip() not in {"open to accrual"}:
+        if not self.match_on_deceased and trial['status'].lower().strip() not in {"open to accrual"}:
             logging.info('Trial %s is closed, skipping' % trial['protocol_no'])
             return dict()
         else:
+            # Get each match clause in the trial document
             match_clauses = self.extract_match_clauses_from_trial(protocol_no)
+            # for each match clause, create the match tree, and extract each possible match path from the tree
             for match_clause in match_clauses:
                 match_paths = self.get_match_paths(self.create_match_tree(match_clause))
+                # for each match path, translate the path into valid mongo queries
                 for match_path in match_paths:
                     query = self.translate_match_path(match_clause, match_path)
                     if self.debug:
                         log.info("Query: {}".format(query))
                     if query:
+                        # put the query onto the task queue for execution
                         await self._task_q.put(QueryTask(trial,
                                                          match_clause,
                                                          match_path,
@@ -819,7 +829,7 @@ class MatchEngine(object):
 
     def get_trials(self) -> Dict[str, Trial]:
         """
-
+        Gets all the trial documents in the database, or just the relevant trials (if protocol numbers supplied)
         """
         trial_find_query = dict()
 
@@ -843,7 +853,8 @@ class MatchEngine(object):
 
     async def _perform_db_call(self, collection: str, query: MongoQuery, projection: Dict):
         """
-
+        Asynchronously executes a find query on the database, with specified query and projection and a collection
+        Used to parallelize DB calls, with asyncio.gather
         """
         return await self.async_db_ro[collection].find(query, projection).to_list(None)
 

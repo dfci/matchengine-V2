@@ -64,7 +64,6 @@ class MultiCollectionQuery:
     clinical: List[QueryNode]
 
 
-@dataclass
 class RunLog:
     protocol_no: str
     clinical_id: ObjectId
@@ -72,6 +71,14 @@ class RunLog:
     inserted: list
     marked_disabled: list
     _created: datetime.datetime
+
+    def __init__(self, protocol_no: str, clinical_id: ObjectId):
+        self.protocol_no = protocol_no
+        self.clinical_id = clinical_id
+        self.marked_available = list()
+        self.inserted = list()
+        self.marked_disabled = list()
+        self._created = datetime.datetime.now()
 
 
 @dataclass
@@ -131,6 +138,7 @@ class QueryTask:
 class UpdateTask:
     ops: List
     protocol_no: str
+
 
 @dataclass
 class RunLogUpdateTask:
