@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import sys
+import time
 from collections import deque, defaultdict
 from multiprocessing import cpu_count
 from typing import Generator
@@ -71,13 +72,13 @@ class MatchEngine(object):
             await self._task_q.put(PoisonPill())
         await self._task_q.join()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exception_type, exception_value, exception_traceback):
         """
         Teardown database connections (async + synchronous) and async workers gracefully.
         """
-        self._async_db_ro.__exit__(exc_type, exc_val, exc_tb)
-        self._async_db_rw.__exit__(exc_type, exc_val, exc_tb)
-        self._db_ro.__exit__(exc_type, exc_val, exc_tb)
+        self._async_db_ro.__exit__(exception_type, exception_value, exception_traceback)
+        self._async_db_rw.__exit__(exception_type, exception_value, exception_traceback)
+        self._db_ro.__exit__(exception_type, exception_value, exception_traceback)
         self._loop.run_until_complete(self._async_exit())
         self._loop.stop()
 
@@ -125,6 +126,9 @@ class MatchEngine(object):
         self._loop.run_until_complete(self._async_init())
 
     def _find_plugins(self):
+        """
+
+        """
         potential_files = glob.glob(os.path.join(self.plugin_dir, "*.py"))
         to_load = [(None, 'query_transform')]
         for potential_file_path in potential_files:
