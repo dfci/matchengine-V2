@@ -71,13 +71,13 @@ class MatchEngine(object):
             await self._task_q.put(PoisonPill())
         await self._task_q.join()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exception_type, exception_value, exception_traceback):
         """
         Teardown database connections (async + synchronous) and async workers gracefully.
         """
-        self._async_db_ro.__exit__(exc_type, exc_val, exc_tb)
-        self._async_db_rw.__exit__(exc_type, exc_val, exc_tb)
-        self._db_ro.__exit__(exc_type, exc_val, exc_tb)
+        self._async_db_ro.__exit__(exception_type, exception_value, exception_traceback)
+        self._async_db_rw.__exit__(exception_type, exception_value, exception_traceback)
+        self._db_ro.__exit__(exception_type, exception_value, exception_traceback)
         self._loop.run_until_complete(self._async_exit())
         self._loop.stop()
 
@@ -228,9 +228,8 @@ class MatchEngine(object):
 
     async def _execute_genomic_queries(self,
                                        multi_collection_query: MultiCollectionQuery,
-                                       clinical_ids: Set[ClinicalID],
-                                       debug: bool = False) -> Tuple[Dict[ObjectId, Set[ObjectId]],
-                                                                     List[GenomicMatchReason]]:
+                                       clinical_ids: Set[ClinicalID]) -> Tuple[Dict[ObjectId, Set[ObjectId]],
+                                                                               List[GenomicMatchReason]]:
         """
         Take in a list of queries and clinical ids.
         Return an object e.g.
@@ -256,11 +255,10 @@ class MatchEngine(object):
                 new_query['$and'] = new_query.setdefault('$and', list())
                 new_query['$and'].insert(0, {join_field: {'$in': list(need_new)}})
 
-                if debug:
-                    log.info("{}".format(new_query))
-
                 projection = {"_id": 1, join_field: 1}
                 genomic_docs = await self.async_db_ro['genomic'].find(new_query, projection).to_list(None)
+                if self.debug:
+                    log.info("{} returned {}".format(new_query, genomic_docs))
 
                 for genomic_doc in genomic_docs:
                     # If the clinical id of a returned genomic doc is not present in the cache, add it.
@@ -423,6 +421,7 @@ class MatchEngine(object):
                         raise e
                 finally:
                     self._task_q.task_done()
+
             elif isinstance(task, RunLogUpdateTask):
                 try:
                     if self.debug:
@@ -501,7 +500,7 @@ class MatchEngine(object):
 
     def create_match_tree(self, match_clause_data: MatchClauseData) -> MatchTree:
         """
-
+        Turn a match clause from a trial curation into a digraph
         """
         match_clause = match_clause_data.match_clause
         process_q: deque[Tuple[NodeID, Dict[str, Any]]] = deque()
@@ -824,15 +823,18 @@ class MatchEngine(object):
         else:
             # Get each match clause in the trial document
             match_clauses = self.extract_match_clauses_from_trial(protocol_no)
+
             # for each match clause, create the match tree, and extract each possible match path from the tree
             for match_clause in match_clauses:
                 match_paths = self.get_match_paths(self.create_match_tree(match_clause))
+
                 # for each match path, translate the path into valid mongo queries
                 for match_path in match_paths:
                     query = self.translate_match_path(match_clause, match_path)
                     if self.debug:
                         log.info("Query: {}".format(query))
                     if query:
+
                         # put the query onto the task queue for execution
                         await self._task_q.put(QueryTask(trial,
                                                          match_clause,
@@ -895,6 +897,7 @@ class MatchEngine(object):
 
         new_trial_match = dict()
         new_trial_match.update(format_trial_match_k_v(self.cache.docs[trial_match.match_reason.clinical_id]))
+        new_trial_match['clinical_id'] = self.cache.docs[trial_match.match_reason.clinical_id]
 
         if genomic_doc is None:
             new_trial_match.update(format_trial_match_k_v(format_exclusion_match(query)))
