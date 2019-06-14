@@ -1,4 +1,5 @@
 import datetime
+import re
 
 from dateutil.relativedelta import relativedelta
 
@@ -63,7 +64,8 @@ class DFCITransformers(QueryTransformerContainer):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
         variant_category_map = {
-            "Copy Number Variation": "CNV"
+            "copy number variation": "CNV",
+            "any variation": {"$in": ["MUTATION", "CNV"]}
         }
 
         trial_value, negate = self._.transform.is_negate(trial_value)
@@ -72,7 +74,7 @@ class DFCITransformers(QueryTransformerContainer):
         # STRUCTURAL_VARIANT_COMMENT for mention of the TRUE_HUGO_SYMBOL
         if trial_value == 'Structural Variation':
             return {'STRUCTURAL_VARIANT_COMMENT': None}, negate
-        elif trial_value in variant_category_map:
+        elif trial_value.lower() in variant_category_map:
             return {sample_key: variant_category_map[trial_value]}, negate
         else:
             return {sample_key: trial_value.upper()}, negate
@@ -94,13 +96,12 @@ class DFCITransformers(QueryTransformerContainer):
         """
         trial_value = kwargs['trial_value']
 
+        trial_value, negate = self._.transform.is_negate(trial_value)
         # By convention, all protein changes being with "p."
         if not trial_value.startswith('p.'):
             trial_value = 'p.' + trial_value
-
-        trial_value, negate = self._.transform.is_negate(trial_value)
         trial_value = '^%s[A-Z]' % trial_value
-        return {kwargs['sample_key']: {'$regex': trial_value}}, negate
+        return {kwargs['sample_key']: {'$regex': re.compile(trial_value, re.IGNORECASE)}}, negate
 
     def mmr_ms_map(self, **kwargs):
         mmr_map = {
