@@ -54,5 +54,5 @@ class MongoDBConnection(object):
                                 db=self.db))
         return self.client[self.db]
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exception_type, exception_value, exception_traceback):
         self.client.close()
