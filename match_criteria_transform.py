@@ -78,6 +78,9 @@ class MatchCriteriaTransform(object):
     internal_id_mapping = {'dose': 'level_internal_id',
                            'step': 'step_internal_id',
                            'arm': 'arm_internal_id'}
+    code_mapping = {'step': 'step_code',
+                    'arm': 'arm_code',
+                    'dose_level': 'level_code'}
 
     def __init__(self, config):
         self.resources = dict()
