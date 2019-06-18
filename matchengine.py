@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import sys
-import time
 from collections import deque, defaultdict
 from multiprocessing import cpu_count
 from typing import Generator
@@ -196,7 +195,7 @@ class MatchEngine(object):
                 if need_new:
                     new_query = {'$and': [{'_id': {'$in': list(need_new)}}, query_part.query]}
                     if self.debug:
-                        log.info("{}".format(query_part.query))
+                        log.info(f"{query_part.query}")
                     docs = await self.async_db_ro[collection].find(new_query, {'_id': 1}).to_list(None)
 
                     # save returned ids
@@ -262,7 +261,7 @@ class MatchEngine(object):
                 projection = {"_id": 1, join_field: 1}
                 genomic_docs = await self.async_db_ro['genomic'].find(new_query, projection).to_list(None)
                 if self.debug:
-                    log.info("{} returned {}".format(new_query, genomic_docs))
+                    log.info(f"{new_query} returned {genomic_docs}")
 
                 for genomic_doc in genomic_docs:
                     # If the clinical id of a returned genomic doc is not present in the cache, add it.
@@ -374,7 +373,7 @@ class MatchEngine(object):
             task: Union[QueryTask, UpdateTask, RunLogUpdateTask, PoisonPill] = await self._task_q.get()
             if isinstance(task, PoisonPill):
                 if self.debug:
-                    log.info("Worker: {} got PoisonPill".format(worker_id))
+                    log.info(f"Worker: {worker_id} got PoisonPill")
                 self._task_q.task_done()
                 break
 
@@ -382,12 +381,11 @@ class MatchEngine(object):
             elif isinstance(task, QueryTask):
                 if self.debug:
                     log.info(
-                        "Worker: {}, protocol_no: {} got new QueryTask".format(worker_id,
-                                                                               task.trial['protocol_no']))
+                        f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask")
                 try:
                     results = await self._run_query(task.query, task.clinical_ids)
                 except Exception as e:
-                    log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
+                    log.error(f"ERROR: Worker: {worker_id}, error: {e}")
                     results = list()
                     if isinstance(e, AutoReconnect):
                         await self._task_q.put(task)
@@ -400,7 +398,7 @@ class MatchEngine(object):
                 for result in results:
                     self._queue_task_count += 1
                     if self._queue_task_count % 100 == 0:
-                        log.info("Trial match count: {}".format(self._queue_task_count))
+                        log.info(f"Trial match count: {self._queue_task_count}")
                     match_document = self.create_trial_matches(TrialMatch(task.trial,
                                                                           task.match_clause_data,
                                                                           task.match_path,
@@ -414,10 +412,10 @@ class MatchEngine(object):
             elif isinstance(task, UpdateTask):
                 try:
                     if self.debug:
-                        log.info("Worker {} got new UpdateTask {}".format(worker_id, task.protocol_no))
+                        log.info(f"Worker {worker_id} got new UpdateTask {task.protocol_no}")
                     await self.async_db_rw.trial_match_raw.bulk_write(task.ops, ordered=False)
                 except Exception as e:
-                    log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
+                    log.error(f"ERROR: Worker: {worker_id}, error: {e}")
                     if isinstance(e, AutoReconnect):
                         self._task_q.task_done()
                         await self._task_q.put(task)
@@ -429,11 +427,11 @@ class MatchEngine(object):
             elif isinstance(task, RunLogUpdateTask):
                 try:
                     if self.debug:
-                        log.info("Worker {} got new RunLogUpdateTask {}".format(worker_id, task.run_log.protocol_no))
+                        log.info(f"Worker {worker_id} got new RunLogUpdateTask {task.run_log.protocol_no}")
                     if any([task.run_log.marked_disabled, task.run_log.marked_available, task.run_log.inserted]):
                         await self.async_db_rw.matchengine_run_log.insert_one(task.run_log.__dict__)
                 except Exception as e:
-                    log.error("ERROR: Worker: {}, error: {}".format(worker_id, e))
+                    log.error(f"ERROR: Worker: {worker_id}, error: {e}")
                     if isinstance(e, AutoReconnect):
                         self._task_q.task_done()
                         await self._task_q.put(task)
@@ -544,9 +542,9 @@ class MatchEngine(object):
             pos = graphviz_layout(graph, prog="dot", root=0)
             plt.figure(figsize=(30, 30))
             nx.draw_networkx(graph, pos, with_labels=True, node_size=[600 for _ in graph.nodes], labels=labels)
-            plt.savefig(os.path.join(self.fig_dir, '{}-{}-{}.png'.format(match_clause_data.protocol_no,
-                                                                         match_clause_data.match_clause_level,
-                                                                         match_clause_data.internal_id)))
+            plt.savefig(os.path.join(self.fig_dir, (f'{match_clause_data.protocol_no}-'
+                                                    f'{match_clause_data.match_clause_level}-'
+                                                    f'{match_clause_data.internal_id}.png')))
             return plt
 
         while process_q:
@@ -712,7 +710,7 @@ class MatchEngine(object):
         'Delete' matches by adding {is_disabled: true} and insert all new matches.
         """
         trial_matches_by_sample_id = self.matches.setdefault(protocol_no, dict())
-        log.info("Updating trial matches for {}".format(protocol_no))
+        log.info(f"Updating trial matches for {protocol_no}")
         remaining_to_disable = [
             result
             for result in await self._perform_db_call(collection='trial_match_raw',
@@ -819,7 +817,7 @@ class MatchEngine(object):
         """
         Get the trial matches for a given protocol number
         """
-        log.info("Begin Protocol No: {}".format(protocol_no))
+        log.info(f"Begin Protocol No: {protocol_no}")
         task = self._loop.create_task(self._async_get_matches_for_trial(protocol_no))
         return self._loop.run_until_complete(task)
 
@@ -844,7 +842,7 @@ class MatchEngine(object):
                 for match_path in match_paths:
                     query = self.translate_match_path(match_clause, match_path)
                     if self.debug:
-                        log.info("Query: {}".format(query))
+                        log.info(f"Query: {query}")
                     if query:
                         # put the query onto the task queue for execution
                         await self._task_q.put(QueryTask(trial,
@@ -853,7 +851,7 @@ class MatchEngine(object):
                                                          query,
                                                          self.clinical_ids))
             await self._task_q.join()
-            logging.info("Total results: {}".format(len(self.matches[protocol_no])))
+            logging.info(f"Total results: {len(self.matches[protocol_no])}")
             return self.matches[protocol_no]
 
     def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:

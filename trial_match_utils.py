@@ -73,19 +73,19 @@ def format_exclusion_match(query):
     # TODO: regex
 
     if gene_key in query and query[gene_key] is not None:
-        alteration = '!{}'.format(query[gene_key])
+        alteration = f'!{query[gene_key]}'
 
     # add mutation
     if query.setdefault(protein_change_key, None) is not None:
-        alteration += ' {}'.format(query[protein_change_key])
+        alteration += f' {query[protein_change_key]}'
 
     # add cnv call
     elif query.setdefault(cnv_key, None) is not None:
-        alteration += ' {}'.format(query[cnv_key])
+        alteration += f' {query[cnv_key]}'
 
     # add variant classification
     elif query.setdefault(variant_classification_key, None) is not None:
-        alteration += ' {}'.format(query[variant_classification_key])
+        alteration += f' {query[variant_classification_key]}'
 
     # add structural variation
     elif query.setdefault(sv_key, str()) == 'SV':

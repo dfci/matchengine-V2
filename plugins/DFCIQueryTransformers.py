@@ -101,7 +101,7 @@ class DFCITransformers(QueryTransformerContainer):
         trial_value, negate = self._.transform.is_negate(trial_value)
         if not trial_value.startswith('p.'):
             trial_value = re.escape('p.' + trial_value)
-        trial_value = '^{}[A-Z]'.format(trial_value)
+        trial_value = f'^{trial_value}[A-Z]'
         return {kwargs['sample_key']: {'$regex': re.compile(trial_value, re.IGNORECASE)}}, negate
 
     def mmr_ms_map(self, **kwargs):
