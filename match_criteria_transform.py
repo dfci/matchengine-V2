@@ -26,7 +26,7 @@ def query_node_transform(query_node: QueryNode):
         sv_part = get_query_part_by_key(query_node, 'STRUCTURAL_VARIANT_COMMENT')
         gene_part.render = False
         gene = whole_query.pop('TRUE_HUGO_SYMBOL')
-        sv_part.query['STRUCTURAL_VARIANT_COMMENT'] = re.compile(r"(.*\W{0}\W.*)|(^{0}\W.*)|(.*\W{0}$)".format(gene),
+        sv_part.query['STRUCTURAL_VARIANT_COMMENT'] = re.compile(rf"(.*\W{gene}\W.*)|(^{gene}\W.*)|(.*\W{gene}$)",
                                                                  re.IGNORECASE)
     elif 'MMR_STATUS' in whole_query:
         gene_part = get_query_part_by_key(query_node, 'TRUE_HUGO_SYMBOL')
