@@ -98,4 +98,5 @@ def format_exclusion_match(query):
 
 
 def format_trial_match_k_v(clinical_doc):
-    return {key.lower(): val for key, val in clinical_doc.items() if key != "_id"}
+    return dict(clinical_id=clinical_doc['_id'],
+                **{key.lower(): val for key, val in clinical_doc.items() if key != "_id"})
