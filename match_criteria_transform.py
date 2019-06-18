@@ -80,7 +80,7 @@ class MatchCriteriaTransform(object):
                            'arm': 'arm_internal_id'}
     code_mapping = {'step': 'step_code',
                     'arm': 'arm_code',
-                    'dose_level': 'level_code'}
+                    'dose': 'level_code'}
 
     def __init__(self, config):
         self.resources = dict()
