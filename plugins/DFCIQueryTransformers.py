@@ -64,8 +64,8 @@ class DFCITransformers(QueryTransformerContainer):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
         variant_category_map = {
-            "Copy Number Variation": "CNV",
-            "Any Variation": {"$in": ["MUTATION", "CNV"]}
+            "Copy Number Variation".lower(): "CNV",
+            "Any Variation".lower(): {"$in": ["MUTATION", "CNV"]}
         }
 
         trial_value, negate = self._.transform.is_negate(trial_value)
@@ -74,8 +74,8 @@ class DFCITransformers(QueryTransformerContainer):
         # STRUCTURAL_VARIANT_COMMENT for mention of the TRUE_HUGO_SYMBOL
         if trial_value == 'Structural Variation':
             return {'STRUCTURAL_VARIANT_COMMENT': None}, negate
-        elif trial_value in variant_category_map:
-            return {sample_key: variant_category_map[trial_value]}, negate
+        elif trial_value.lower() in variant_category_map:
+            return {sample_key: variant_category_map[trial_value.lower()]}, negate
         else:
             return {sample_key: trial_value.upper()}, negate
 

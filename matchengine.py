@@ -448,6 +448,10 @@ class MatchEngine(object):
         """
 
         trial = self.trials[protocol_no]
+        trial_status = trial.setdefault('_summary', dict()).setdefault('status', [dict()])
+        site_status = trial_status[0].setdefault('value', 'open to accrual').lower()
+        status_for_match_clause = 'open' if site_status.lower() == 'open to accrual' else 'closed'
+        coordinating_center = trial.setdefault('_summary', dict()).setdefault('coordinating_center', 'unknown')
         process_q = deque()
         for key, val in trial.items():
 
@@ -486,8 +490,12 @@ class MatchEngine(object):
                                     0]])
 
                         internal_id = parent_value[self.match_criteria_transform.internal_id_mapping[level]]
+                        code = parent_value[self.match_criteria_transform.code_mapping[level]]
                         yield MatchClauseData(inner_value,
                                               internal_id,
+                                              code,
+                                              coordinating_center,
+                                              status_for_match_clause,
                                               parent_path,
                                               level,
                                               parent_value,
@@ -834,7 +842,6 @@ class MatchEngine(object):
                     if self.debug:
                         log.info("Query: {}".format(query))
                     if query:
-
                         # put the query onto the task queue for execution
                         await self._task_q.put(QueryTask(trial,
                                                          match_clause,
@@ -887,6 +894,40 @@ class MatchEngine(object):
         """
         return await self.async_db_ro[collection].find(query, projection).to_list(None)
 
+    def get_sort_order(self, match_document: Dict) -> str:
+        """
+        Sort trial matches based on sorting order specified in config.json under the key 'trial_match_sorting'.
+
+        The function will iterate over the objects in the 'trial_match_sorting', and then assess each trial match key
+        to determine a final sort string e.g. 001010111000
+
+        The sorting is multi-dimensional and currently organized as follows:
+        MMR status > Tier 1 > Tier 2 > CNV > Tier 3 > Tier 4 > wild type
+        Variant-level  > gene-level
+        Exact cancer match > all solid/liquid
+        DFCI > Coordinating centers
+        """
+        sub_level_padding = 2
+        sub_level_slots = 4
+        top_level_slots = 5
+        sort_order_mapping = self.config['trial_match_sorting']
+        top_level_sort = str()
+        for top_level_position, top_level_sort_mapping in enumerate(sort_order_mapping):
+            if top_level_position >= top_level_slots:
+                break
+            sub_level_sort = str()
+            for sub_level_position, sub_level_sort_mapping in enumerate(top_level_sort_mapping):
+                if sub_level_position >= sub_level_slots:
+                    break
+                sort_key, sort_values = sub_level_sort_mapping
+                if match_document.setdefault(sort_key, None) in sort_values:
+                    sub_level_sort += str(sort_values.index(match_document[sort_key])).ljust(sub_level_padding, '0')
+                else:
+                    sub_level_sort += str((10 ** sub_level_padding) - 1).ljust(sub_level_padding, '0')
+            top_level_sort += sub_level_sort
+        return top_level_sort
+        # return ''.join([top_level_sort[slot] for slot in range(0, top_level_slots)])
+
     def create_trial_matches(self, trial_match: TrialMatch) -> Dict:
         """
         Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
@@ -906,7 +947,10 @@ class MatchEngine(object):
 
         new_trial_match.update(
             {'match_level': trial_match.match_clause_data.match_clause_level,
-             'internal_id': trial_match.match_clause_data.internal_id})
+             'internal_id': trial_match.match_clause_data.internal_id,
+             'code': trial_match.match_clause_data.code,
+             'trial_accrual_status': trial_match.match_clause_data.status,
+             'coordinating_center': trial_match.match_clause_data.coordinating_center})
 
         # remove extra fields from trial_match output
         new_trial_match.update({
@@ -914,6 +958,8 @@ class MatchEngine(object):
             for k, v in trial_match.trial.items()
             if k not in {'treatment_list', '_summary', 'status', '_id', '_elasticsearch', 'match'}
         })
+        sort_order = self.get_sort_order(new_trial_match)
+        new_trial_match['sort_order_raw'] = sort_order
         new_trial_match['query_hash'] = ComparableDict({'query': trial_match.match_criterion}).hash()
         new_trial_match['hash'] = ComparableDict(new_trial_match).hash()
         new_trial_match["is_disabled"] = False
