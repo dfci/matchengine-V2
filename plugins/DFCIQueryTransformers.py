@@ -22,7 +22,7 @@ class DFCITransformers(QueryTransformerContainer):
         numeric = "".join([i for i in trial_value if i.isdigit() or i == '.'])
         split_time = numeric.split('.')
         years = int(split_time[0] if split_time[0].isdigit() else 0)
-        months_fraction = float(split_time[1]) if len(split_time) > 1 else 0
+        months_fraction = float(split_time[1]) * 0.1 if len(split_time) > 1 else 0
         months = int(months_fraction * 12)
         current_date = datetime.date.today()
         query_date = current_date - relativedelta(years=years, months=months) + relativedelta(hours=6)
