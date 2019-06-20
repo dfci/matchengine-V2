@@ -25,7 +25,7 @@ class DFCITransformers(QueryTransformerContainer):
         months_fraction = float(split_time[1]) if len(split_time) > 1 else 0
         months = int(months_fraction * 12)
         current_date = datetime.date.today()
-        query_date = current_date - relativedelta(years=years, months=months)
+        query_date = current_date - relativedelta(years=years, months=months) + relativedelta(hours=6)
         query_datetime = datetime.datetime(query_date.year, query_date.month, query_date.day, 0, 0, 0, 0)
         return {sample_key: {operator_map[operator]: query_datetime}}, False
 
