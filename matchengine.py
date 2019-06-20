@@ -940,7 +940,7 @@ class MatchEngine(object):
 
         new_trial_match = dict()
         new_trial_match.update(format_trial_match_k_v(self.cache.docs[trial_match.match_reason.clinical_id]))
-        new_trial_match['clinical_id'] = self.cache.docs[trial_match.match_reason.clinical_id]
+        new_trial_match['clinical_id'] = self.cache.docs[trial_match.match_reason.clinical_id]['_id']
 
         if genomic_doc is None:
             new_trial_match.update(format_trial_match_k_v(format_exclusion_match(query)))
