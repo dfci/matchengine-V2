@@ -14,8 +14,8 @@ class DFCITransformers(QueryTransformerContainer):
             "==": "$eq",
             "<=": "$gte",
             ">=": "$lte",
-            ">": "$lt",
-            "<": "$gt"
+            ">": "$lte",
+            "<": "$gte"
         }
         # funky logic is because 1 month curation is curated as "0.083" (1/12 a year)
         operator = ''.join([i for i in trial_value if not i.isdigit() and i != '.'])
