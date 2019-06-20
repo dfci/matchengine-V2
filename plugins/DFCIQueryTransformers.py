@@ -12,10 +12,10 @@ class DFCITransformers(QueryTransformerContainer):
         trial_value = kwargs['trial_value']
         operator_map = {
             "==": "$eq",
-            "<=": "$gt",
-            ">=": "$lt",
-            ">": "$lte",
-            "<": "$gte"
+            "<=": "$gte",
+            ">=": "$lte",
+            ">": "$lt",
+            "<": "$gt"
         }
         # funky logic is because 1 month curation is curated as "0.083" (1/12 a year)
         operator = ''.join([i for i in trial_value if not i.isdigit() and i != '.'])
