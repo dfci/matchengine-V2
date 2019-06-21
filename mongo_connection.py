@@ -1,4 +1,6 @@
-from pymongo import MongoClient
+from typing import Union
+
+import pymongo.database
 import motor.motor_asyncio
 
 
@@ -16,9 +18,9 @@ class MongoDBConnection(object):
 
     }
     uri = "mongodb://{username}:{password}@{hostname}:{port}/{db}?authSource=admin&replicaSet=rs0&maxPoolSize=1000"
-    read_only = None
-    db = None
-    client = None
+    read_only: bool
+    db: Union[pymongo.database.Database, motor.motor_asyncio.AsyncIOMotorDatabase]
+    client = Union[pymongo.MongoClient, motor.motor_asyncio.AsyncIOMotorClient]
 
     def __init__(self, read_only=True, uri=None, db=None, async_init=True):
         """
@@ -46,7 +48,7 @@ class MongoDBConnection(object):
                                 port=self.SECRETS["MONGO_PORT"],
                                 db=self.db))
         else:
-            self.client = MongoClient(
+            self.client = pymongo.MongoClient(
                 self.uri.format(username=username if self.read_only else self.SECRETS['MONGO_USERNAME'],
                                 password=password if self.read_only else self.SECRETS['MONGO_PW'],
                                 hostname=self.SECRETS["MONGO_HOST"],
