@@ -1069,7 +1069,7 @@ if __name__ == "__main__":
                         help="Directory to store match path images")
     subp_p.add_argument("--dry-run", dest="dry", action="store_true", default=False, help=dry_help)
     subp_p.add_argument("--debug", dest="debug", action="store_true", default=False, help=debug_help)
-    subp_p.add_argument("--config-path", dest="config_path", default="config/config.json", help=config_help)
+    subp_p.add_argument("--config-path", dest="config_path", default="config/dfci_config.json", help=config_help)
     subp_p.add_argument("--override-plugin-dir", dest="plugin_dir", default="plugins", help=config_help)
     subp_p.add_argument("--match-on-deceased-patients",
                         dest="match_on_deceased",
