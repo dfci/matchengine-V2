@@ -1,3 +1,4 @@
+from __future__ import annotations
 import argparse
 import asyncio
 import glob
@@ -75,27 +76,40 @@ class MatchEngine(object):
         """
         Teardown database connections (async + synchronous) and async workers gracefully.
         """
-        self._async_db_ro.__exit__(exception_type, exception_value, exception_traceback)
-        self._async_db_rw.__exit__(exception_type, exception_value, exception_traceback)
-        self._db_ro.__exit__(exception_type, exception_value, exception_traceback)
+        if self.db_init:
+            self._async_db_ro.__exit__(exception_type, exception_value, exception_traceback)
+            self._async_db_rw.__exit__(exception_type, exception_value, exception_traceback)
+            self._db_ro.__exit__(exception_type, exception_value, exception_traceback)
         self._loop.run_until_complete(self._async_exit())
         self._loop.stop()
 
     def __init__(self,
-                 cache: Cache = None, sample_ids: Set[str] = None, protocol_nos: Set[str] = None,
-                 match_on_deceased: bool = False, match_on_closed: bool = False, debug: bool = False,
-                 num_workers: int = cpu_count() * 5, visualize_match_paths: bool = False, fig_dir: str = None,
-                 config_path: str = None, plugin_dir: str = None):
+                 cache: Cache = None,
+                 sample_ids: Set[str] = None,
+                 protocol_nos: Set[str] = None,
+                 match_on_deceased: bool = False,
+                 match_on_closed: bool = False,
+                 debug: bool = False,
+                 num_workers: int = cpu_count() * 5,
+                 visualize_match_paths: bool = False,
+                 fig_dir: str = None,
+                 config: Union[str, dict] = None,
+                 plugin_dir: str = None,
+                 db_init: bool = True):
 
-        with open(config_path) as config_file_handle:
-            self.config = json.load(config_file_handle)
+        if isinstance(config, str):
+            with open(config) as config_file_handle:
+                self.config = json.load(config_file_handle)
+        else:
+            self.config = config
         self.match_criteria_transform = MatchCriteriaTransform(self.config)
         self.plugin_dir = plugin_dir
         self._find_plugins()
-        self._db_ro = MongoDBConnection(read_only=True, async_init=False)
-        self.db_ro = self._db_ro.__enter__()
-        self._db_rw = MongoDBConnection(read_only=False, async_init=False)
-        self.db_rw = self._db_rw.__enter__()
+        self.db_init = db_init
+        self._db_ro = MongoDBConnection(read_only=True, async_init=False) if self.db_init else None
+        self.db_ro = self._db_ro.__enter__() if self.db_init else None
+        self._db_rw = MongoDBConnection(read_only=False, async_init=False) if self.db_init else None
+        self.db_rw = self._db_rw.__enter__() if self.db_init else None
 
         # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
@@ -977,7 +991,7 @@ def main(run_args):
     check_indices()
     with MatchEngine(plugin_dir=run_args.plugin_dir, sample_ids=run_args.samples, protocol_nos=run_args.trials,
                      match_on_closed=run_args.match_on_closed, match_on_deceased=run_args.match_on_deceased,
-                     debug=run_args.debug, num_workers=run_args.workers[0], config_path=args.config_path) as me:
+                     debug=run_args.debug, num_workers=run_args.workers[0], config=args.config_path) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
             me.update_all_matches()
