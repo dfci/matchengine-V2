@@ -8,6 +8,7 @@ import os
 import sys
 from collections import deque, defaultdict
 from multiprocessing import cpu_count
+from types import MethodType
 from typing import Generator
 
 import networkx as nx
@@ -20,7 +21,7 @@ from match_criteria_transform import MatchCriteriaTransform, query_node_transfor
 from mongo_connection import MongoDBConnection
 from matchengine_types import *
 from query_transform import QueryTransformerContainer
-from trial_match_utils import *
+from TrialMatchDocumentCreator import TrialMatchDocumentCreator
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
@@ -95,7 +96,8 @@ class MatchEngine(object):
                  fig_dir: str = None,
                  config: Union[str, dict] = None,
                  plugin_dir: str = None,
-                 db_init: bool = True):
+                 db_init: bool = True,
+                 match_document_creator_class: str = None):
 
         if isinstance(config, str):
             with open(config) as config_file_handle:
@@ -104,6 +106,7 @@ class MatchEngine(object):
             self.config = config
         self.match_criteria_transform = MatchCriteriaTransform(self.config)
         self.plugin_dir = plugin_dir
+        self.match_document_creator_class = match_document_creator_class
         self._find_plugins()
         self.db_init = db_init
         self._db_ro = MongoDBConnection(read_only=True, async_init=False) if self.db_init else None
@@ -161,6 +164,12 @@ class MatchEngine(object):
                 if issubclass(item, QueryTransformerContainer):
                     query_transform.attach_transformers_to_match_criteria_transform(self.match_criteria_transform,
                                                                                     item)
+                elif issubclass(item, TrialMatchDocumentCreator):
+                    if item_name == self.match_document_creator_class:
+                        setattr(self,
+                                'create_trial_matches', MethodType(getattr(item, 'create_trial_matches'),
+                                                                   self))
+                        pass
 
     async def _async_init(self):
         """
@@ -910,78 +919,9 @@ class MatchEngine(object):
         """
         return await self.async_db_ro[collection].find(query, projection).to_list(None)
 
-    def get_sort_order(self, match_document: Dict) -> str:
-        """
-        Sort trial matches based on sorting order specified in config.json under the key 'trial_match_sorting'.
-
-        The function will iterate over the objects in the 'trial_match_sorting', and then assess each trial match key
-        to determine a final sort string e.g. 001010111000
-
-        The sorting is multi-dimensional and currently organized as follows:
-        MMR status > Tier 1 > Tier 2 > CNV > Tier 3 > Tier 4 > wild type
-        Variant-level  > gene-level
-        Exact cancer match > all solid/liquid
-        DFCI > Coordinating centers
-        """
-        sub_level_padding = 2
-        sub_level_slots = 4
-        top_level_slots = 5
-        sort_order_mapping = self.config['trial_match_sorting']
-        top_level_sort = str()
-        for top_level_position, top_level_sort_mapping in enumerate(sort_order_mapping):
-            if top_level_position >= top_level_slots:
-                break
-            sub_level_sort = str()
-            for sub_level_position, sub_level_sort_mapping in enumerate(top_level_sort_mapping):
-                if sub_level_position >= sub_level_slots:
-                    break
-                sort_key, sort_values = sub_level_sort_mapping
-                if match_document.setdefault(sort_key, None) in sort_values:
-                    sub_level_sort += str(sort_values.index(match_document[sort_key])).ljust(sub_level_padding, '0')
-                else:
-                    sub_level_sort += str((10 ** sub_level_padding) - 1).ljust(sub_level_padding, '0')
-            top_level_sort += sub_level_sort
-        return top_level_sort
-        # return ''.join([top_level_sort[slot] for slot in range(0, top_level_slots)])
-
     def create_trial_matches(self, trial_match: TrialMatch) -> Dict:
-        """
-        Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
-        in config.json
-        """
-        genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.genomic_id, None)
-        query = trial_match.match_reason.query_node.extract_raw_query()
-
-        new_trial_match = dict()
-        new_trial_match.update(format_trial_match_k_v(self.cache.docs[trial_match.match_reason.clinical_id]))
-        new_trial_match['clinical_id'] = self.cache.docs[trial_match.match_reason.clinical_id]['_id']
-
-        if genomic_doc is None:
-            new_trial_match.update(format_trial_match_k_v(format_exclusion_match(query)))
-        else:
-            new_trial_match.update(format_trial_match_k_v(get_genomic_details(genomic_doc, query)))
-
-        new_trial_match.update(
-            {'match_level': trial_match.match_clause_data.match_clause_level,
-             'internal_id': trial_match.match_clause_data.internal_id,
-             'code': trial_match.match_clause_data.code,
-             'trial_accrual_status': trial_match.match_clause_data.status,
-             'coordinating_center': trial_match.match_clause_data.coordinating_center})
-
-        # remove extra fields from trial_match output
-        new_trial_match.update({
-            k: v
-            for k, v in trial_match.trial.items()
-            if k not in {'treatment_list', '_summary', 'status', '_id', '_elasticsearch', 'match'}
-        })
-        sort_order = self.get_sort_order(new_trial_match)
-        new_trial_match['sort_order_raw'] = sort_order
-        new_trial_match['query_hash'] = ComparableDict({'query': trial_match.match_criterion}).hash()
-        new_trial_match['hash'] = ComparableDict(new_trial_match).hash()
-        new_trial_match["is_disabled"] = False
-        new_trial_match.update(
-            {'match_path': '.'.join([str(item) for item in trial_match.match_clause_data.parent_path])})
-        return new_trial_match
+        """Stub function to be overriden by plugin"""
+        return dict()
 
 
 def main(run_args):
@@ -991,7 +931,8 @@ def main(run_args):
     check_indices()
     with MatchEngine(plugin_dir=run_args.plugin_dir, sample_ids=run_args.samples, protocol_nos=run_args.trials,
                      match_on_closed=run_args.match_on_closed, match_on_deceased=run_args.match_on_deceased,
-                     debug=run_args.debug, num_workers=run_args.workers[0], config=args.config_path) as me:
+                     debug=run_args.debug, num_workers=run_args.workers[0], config=args.config_path,
+                     match_document_creator_class=args.match_document_creator_class) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
             me.update_all_matches()
@@ -1070,7 +1011,14 @@ if __name__ == "__main__":
     subp_p.add_argument("--dry-run", dest="dry", action="store_true", default=False, help=dry_help)
     subp_p.add_argument("--debug", dest="debug", action="store_true", default=False, help=debug_help)
     subp_p.add_argument("--config-path", dest="config_path", default="config/dfci_config.json", help=config_help)
-    subp_p.add_argument("--override-plugin-dir", dest="plugin_dir", default="plugins", help=config_help)
+    subp_p.add_argument("--override-plugin-dir",
+                        dest="plugin_dir",
+                        default="plugins",
+                        help="Location of plugin directory")
+    subp_p.add_argument("--match-document-creator",
+                        dest="match_document_creator_class",
+                        default="DFCITrialMatchDocumentCreator",
+                        help="Name of class for creating match documents. Should be located in the plugin directory")
     subp_p.add_argument("--match-on-deceased-patients",
                         dest="match_on_deceased",
                         action="store_true",
