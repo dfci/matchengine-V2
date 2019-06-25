@@ -138,7 +138,7 @@ def get_sort_order(sort_order_mapping: Dict, match_document: Dict) -> str:
             else:
                 sub_level_sort += str((10 ** sub_level_padding) - 1).ljust(sub_level_padding, '0')
         top_level_sort += sub_level_sort
-    return top_level_sort
+    return top_level_sort + match_document['protocol_no']
 
 
 class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
