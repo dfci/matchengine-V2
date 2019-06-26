@@ -37,7 +37,8 @@
       "protocol_no",
       "nct_id",
       "treatment_list",
-      "status"
+      "status",
+      "_summary"
     ]
   },
   "trial_key_mappings": {
@@ -118,67 +119,45 @@
     }
   },
   "trial_match_sorting": [
-    [
-      [
-        "mmr_status",
-        [
-          "Deficient(MMR - D / MSI - H)",
-          "Proficient(MMR - P / MSS)"
-        ]
-      ],
-      [
-        "tier",
-        [
-          1,
-          2,
-          3,
-          4
-        ]
-      ],
-      [
-        "cnv_call",
-        [
-          "Homozygous deletion",
-          "High level amplification",
-          "Gain",
-          "Heterozygous deletion"
-        ]
-      ],
-      [
-        "wildtype",
-        [
-          false,
-          true
-        ]
-      ]
-    ],
-    [
-      [
-        "match_type",
-        [
-          "variant",
-          "gene"
-        ]
-      ]
-    ],
-    [
-      [
-        "oncotree_primary_diagnosis_name",
-        [
-          "_SOLID_",
-          "_LIQUID_",
-          "__default"
-        ]
-      ]
-    ],
-    [
-      [
-        "coordinating_center",
-        [
-          "Dana-Farber Cancer Institute",
-          "__default"
-        ]
-      ]
-    ]
+    {
+      "mmr_status": {
+        "Deficient(MMR - D / MSI - H)": "00",
+        "Proficient(MMR - P / MSS)": "10"
+      },
+      "tier": {
+        "1": "20",
+        "2": "30",
+        "3": "60",
+        "4": "70"
+      },
+      "cnv_call": {
+        "Homozygous deletion": "40",
+        "High level amplification": "50",
+        "Gain": "80",
+        "Heterozygous deletion": "90"
+      },
+      "wildtype": {
+        "False": "97",
+        "True": "98"
+      }
+    },
+    {
+      "match_type": {
+        "variant": "01",
+        "gene": "02"
+      }
+    },
+    {
+      "oncotree_primary_diagnosis_name": {
+        "__default": "00",
+        "_SOLID_": "02",
+        "_LIQUID_": "02"
+      }
+    },
+    {
+      "coordinating_center": {
+        "Dana-Farber Cancer Institute": "00"
+      }
+    }
   ]
 }

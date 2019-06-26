@@ -121,24 +121,69 @@ def get_sort_order(sort_order_mapping: Dict, match_document: Dict) -> str:
     Exact cancer match > all solid/liquid
     DFCI > Coordinating centers
     """
-    sub_level_padding = 2
-    sub_level_slots = 4
-    top_level_slots = 5
-    top_level_sort = str()
-    for top_level_position, top_level_sort_mapping in enumerate(sort_order_mapping):
-        if top_level_position >= top_level_slots:
-            break
-        sub_level_sort = str()
-        for sub_level_position, sub_level_sort_mapping in enumerate(top_level_sort_mapping):
-            if sub_level_position >= sub_level_slots:
-                break
-            sort_key, sort_values = sub_level_sort_mapping
-            if match_document.setdefault(sort_key, None) in sort_values:
-                sub_level_sort += str(sort_values.index(match_document[sort_key])).ljust(sub_level_padding, '0')
-            else:
-                sub_level_sort += str((10 ** sub_level_padding) - 1).ljust(sub_level_padding, '0')
-        top_level_sort += sub_level_sort
-    return top_level_sort + match_document['protocol_no']
+
+    sort_string = ''
+
+    for sort_val in sort_order_mapping:
+        to_add = '99'
+        for sort_key in sort_val:
+            if match_document.setdefault(sort_key, None):
+                matched_val = str(match_document[sort_key])
+                # how to deal with oncotree primary diagnosis _LIQUID, or _SOLID
+                if matched_val is not None and matched_val in sort_val[sort_key]:
+                    to_add = sort_val[sort_key][matched_val]
+
+        sort_string += to_add
+
+    return sort_string + match_document['protocol_no'].replace("-", "")
+
+
+    # sub_level_padding = 2
+    # sub_level_slots = 4
+    # top_level_slots = 5
+    # top_level_sort = str()
+    # for top_level_position, top_level_sort_mapping in enumerate(sort_order_mapping):
+    #     if top_level_position >= top_level_slots:
+    #         break
+    #     sub_level_sort = str()
+    #     for sub_level_position, sub_level_sort_mapping in enumerate(top_level_sort_mapping):
+    #         if sub_level_position >= sub_level_slots:
+    #             break
+    #         sort_key, sort_values = sub_level_sort_mapping
+    #         if match_document.setdefault(sort_key, None) in sort_values:
+    #             sub_level_sort += str(sort_values.index(match_document[sort_key])).ljust(sub_level_padding, '0')
+    #         else:
+    #             sub_level_sort += str((10 ** sub_level_padding) - 1).ljust(sub_level_padding, '0')
+    #     top_level_sort += sub_level_sort
+    # return top_level_sort + match_document['protocol_no']
+
+    # sort_string = ''
+    # for sort_level_keys in self.trial_match_sorting:
+    #     for sort_key in sort_level_keys:
+    #         for trial_key in new_trial_match:
+    #             if trial_key == sort_key:
+    #                 new_trial_val = new_trial_match[trial_key]
+    #
+    #                 # Exact cancer match > all solid/liquid
+    #                 if trial_key == "oncotree_primary_diagnosis_name":
+    #                     diagnosis_from_query = trial_match.match_criterion[0]['clinical'][
+    #                         'oncotree_primary_diagnosis']
+    #                     new_trial_val = '__default'
+    #                     if diagnosis_from_query in ['_SOLID_', '_LIQUID_']:
+    #                         new_trial_val = diagnosis_from_query
+    #
+    #                 # lastly, sort on protocol_no
+    #                 if new_trial_val is not None:
+    #                     if trial_key == 'protocol_no':
+    #                         sort_string_prepend_val = new_trial_val
+    #                     else:
+    #                         sort_string_prepend_val = sort_level_keys[sort_key][str(new_trial_val)]
+    #
+    #                     sort_string = sort_string_prepend_val + sort_string
+    #
+    # sort_string = ''.join([digit for digit in sort_string if digit.isdigit()])
+    # new_trial_match['sort_order'] = sort_string
+    # yield new_trial_match
 
 
 class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
