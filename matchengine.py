@@ -32,7 +32,7 @@ def check_indices():
     Ensure indexes exist on the trial_match collection so queries are performant
     """
     with MongoDBConnection(read_only=False, async_init=False) as db:
-        indexes = db.trial_match_raw.list_indexes()
+        indexes = db.trial_match.list_indexes()
         existing_indexes = set()
         desired_indexes = {'hash', 'mrn', 'sample_id', 'clinical_id', 'protocol_no'}
         for index in indexes:
@@ -41,7 +41,7 @@ def check_indices():
         indexes_to_create = desired_indexes - existing_indexes
         for index in indexes_to_create:
             log.info('Creating index %s' % index)
-            db.trial_match_raw.create_index(index)
+            db.trial_match.create_index(index)
 
 
 class MatchEngine(object):
@@ -436,7 +436,7 @@ class MatchEngine(object):
                 try:
                     if self.debug:
                         log.info(f"Worker {worker_id} got new UpdateTask {task.protocol_no}")
-                    await self.async_db_rw.trial_match_raw.bulk_write(task.ops, ordered=False)
+                    await self.async_db_rw.trial_match.bulk_write(task.ops, ordered=False)
                 except Exception as e:
                     log.error(f"ERROR: Worker: {worker_id}, error: {e}")
                     if isinstance(e, AutoReconnect):
@@ -736,7 +736,7 @@ class MatchEngine(object):
         log.info(f"Updating trial matches for {protocol_no}")
         remaining_to_disable = [
             result
-            for result in await self._perform_db_call(collection='trial_match_raw',
+            for result in await self._perform_db_call(collection='trial_match',
                                                       query=MongoQuery(
                                                           {
                                                               'protocol_no': protocol_no,
@@ -774,8 +774,8 @@ class MatchEngine(object):
                                                          'hash': {'$nin': new_matches_hashes}})
             projection = {"hash": 1, "is_disabled": 1}
             trial_matches_existent_results, trial_matches_to_disable = await asyncio.gather(
-                self._perform_db_call('trial_match_raw', trial_matches_to_not_change_query, projection),
-                self._perform_db_call('trial_match_raw', trial_matches_to_disable_query, projection)
+                self._perform_db_call('trial_match', trial_matches_to_not_change_query, projection),
+                self._perform_db_call('trial_match', trial_matches_to_disable_query, projection)
             )
 
             trial_matches_hashes_existent = {
@@ -945,7 +945,6 @@ if __name__ == "__main__":
     # todo failsafes for insert logic (fallback?)
     # todo increase db cursor timeout
     # todo db connection timeout
-    # todo trial_match view (for sort_order)
     # todo configuration of trial_match document logic
 
     param_trials_help = 'Path to your trial data file or a directory containing a file for each trial.' \
