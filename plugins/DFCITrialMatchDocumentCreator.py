@@ -77,14 +77,15 @@ def format_exclusion_match(query):
     alteration = '!'
     is_variant = 'variant' if query.setdefault(protein_change_key, None) is not None else 'gene'
 
-    # TODO: regex
-
     if gene_key in query and query[gene_key] is not None:
         alteration = f'!{query[gene_key]}'
 
     # add mutation
     if query.setdefault(protein_change_key, None) is not None:
-        alteration += f' {query[protein_change_key]}'
+        if '$regex' in query[protein_change_key]:
+            alteration += query[protein_change_key]['$regex'].pattern[1:].replace('[A-Z]','')
+        else:
+            alteration += f' {query[protein_change_key]}'
 
     # add cnv call
     elif query.setdefault(cnv_key, None) is not None:
@@ -199,11 +200,6 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         new_trial_match.update(format_trial_match_k_v(self.cache.docs[trial_match.match_reason.clinical_id]))
         new_trial_match['clinical_id'] = self.cache.docs[trial_match.match_reason.clinical_id]['_id']
 
-        if genomic_doc is None:
-            new_trial_match.update(format_trial_match_k_v(format_exclusion_match(query)))
-        else:
-            new_trial_match.update(format_trial_match_k_v(get_genomic_details(genomic_doc, query)))
-
         new_trial_match.update(
             {'match_level': trial_match.match_clause_data.match_clause_level,
              'internal_id': trial_match.match_clause_data.internal_id,
@@ -217,6 +213,12 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
             for k, v in trial_match.trial.items()
             if k not in {'treatment_list', '_summary', 'status', '_id', '_elasticsearch', 'match'}
         })
+
+        if genomic_doc is None:
+            new_trial_match.update(format_trial_match_k_v(format_exclusion_match(query)))
+        else:
+            new_trial_match.update(format_trial_match_k_v(get_genomic_details(genomic_doc, query)))
+
         sort_order = get_sort_order(self.config['trial_match_sorting'], new_trial_match)
         new_trial_match['sort_order'] = sort_order
         new_trial_match['query_hash'] = ComparableDict({'query': trial_match.match_criterion}).hash()
