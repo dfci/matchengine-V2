@@ -173,7 +173,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
             if k not in {'treatment_list', '_summary', 'status', '_id', '_elasticsearch', 'match'}
         })
         sort_order = get_sort_order(self.config['trial_match_sorting'], new_trial_match)
-        new_trial_match['sort_order_raw'] = sort_order
+        new_trial_match['sort_order'] = sort_order
         new_trial_match['query_hash'] = ComparableDict({'query': trial_match.match_criterion}).hash()
         new_trial_match['hash'] = ComparableDict(new_trial_match).hash()
         new_trial_match["is_disabled"] = False
