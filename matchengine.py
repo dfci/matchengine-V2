@@ -143,7 +143,10 @@ class MatchEngine(object):
 
     def _find_plugins(self):
         """
+        Plugins are *.py files located in the ./plugins directory. They must be python classes which inherit either from
+        QueryTransformerContainer or TrialMatchDocumentCreator.
 
+        For more information on how the plugins function, see the README.
         """
         potential_files = glob.glob(os.path.join(self.plugin_dir, "*.py"))
         to_load = [(None, 'query_transform')]
@@ -533,7 +536,7 @@ class MatchEngine(object):
 
     def create_match_tree(self, match_clause_data: MatchClauseData) -> MatchTree:
         """
-        Turn a match clause from a trial curation into a digraph
+        Turn a match clause from a trial curation into a digraph.
         """
         match_clause = match_clause_data.match_clause
         process_q: deque[Tuple[NodeID, Dict[str, Any]]] = deque()
@@ -553,7 +556,8 @@ class MatchEngine(object):
 
         def graph_match_clause():
             """
-
+            A debugging function used if the --visualize-match-paths flag is passed. This function will output images
+            of the digraphs which are an intermediate data structure used to generate mongo queries later.
             """
             import matplotlib.pyplot as plt
             from networkx.drawing.nx_agraph import graphviz_layout
@@ -572,9 +576,10 @@ class MatchEngine(object):
 
         while process_q:
             parent_id, values = process_q.pop()
-            # parent_is_or = True if graph.nodes[parent_id].setdefault('is_or', False) else False
             parent_is_and = True if graph.nodes[parent_id].setdefault('is_and', False) else False
-            for label, value in values.items():  # label is 'and', 'or', 'genomic' or 'clinical'
+
+            # label is 'and', 'or', 'genomic' or 'clinical'
+            for label, value in values.items():
                 if label.startswith('and'):
                     criteria_list = list()
                     label_list = list()
@@ -722,7 +727,7 @@ class MatchEngine(object):
 
     def update_all_matches(self):
         """
-        Synchronoususly iterates over each protocol number, updating the matches in the database for each
+        Synchronously iterates over each protocol number, updating the matches in the database for each
         """
         for protocol_number in self.protocol_nos:
             self.update_matches_for_protocol_number(protocol_number)
@@ -879,7 +884,7 @@ class MatchEngine(object):
 
     def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
         """
-
+        Clinical ids are unique to sample_ids
         """
         # if no sample ids are passed in as args, get all clinical documents
         query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
