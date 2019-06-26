@@ -83,7 +83,7 @@ def format_exclusion_match(query):
     # add mutation
     if query.setdefault(protein_change_key, None) is not None:
         if '$regex' in query[protein_change_key]:
-            alteration += query[protein_change_key]['$regex'].pattern[1:].replace('[A-Z]','')
+            alteration += f' {query[protein_change_key]["$regex"].pattern[1:].replace("[A-Z]","")}'
         else:
             alteration += f' {query[protein_change_key]}'
 
