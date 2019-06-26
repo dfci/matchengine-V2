@@ -8,7 +8,7 @@ class MongoDBConnection(object):
     SECRETS = {
         "MONGO_HOST": "immuno5.dfci.harvard.edu",
         "MONGO_PORT": 27019,
-        "MONGO_DBNAME": "matchengine_test",
+        "MONGO_DBNAME": "dev",
         # "MONGO_DBNAME": "staging",
         "MONGO_AUTH_SOURCE": "admin",
         "MONGO_RO_USERNAME": "mmReadOnlyUser",
