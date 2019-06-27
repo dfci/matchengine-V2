@@ -420,18 +420,25 @@ class MatchEngine(object):
                         await self._task_q.put(task)
                         self._task_q.task_done()
                     else:
-                        raise e
-                for result in results:
-                    self._queue_task_count += 1
-                    if self._queue_task_count % 100 == 0:
-                        log.info(f"Trial match count: {self._queue_task_count}")
-                    match_document = self.create_trial_matches(TrialMatch(task.trial,
-                                                                          task.match_clause_data,
-                                                                          task.match_path,
-                                                                          task.query,
-                                                                          result))
-                    self.matches[task.trial['protocol_no']][match_document['sample_id']].append(
-                        match_document)
+                        self._loop.stop()
+                        log.error(e)
+
+                try:
+                    for result in results:
+                        self._queue_task_count += 1
+                        if self._queue_task_count % 100 == 0:
+                            log.info(f"Trial match count: {self._queue_task_count}")
+                        match_document = self.create_trial_matches(TrialMatch(task.trial,
+                                                                              task.match_clause_data,
+                                                                              task.match_path,
+                                                                              task.query,
+                                                                              result))
+                        self.matches[task.trial['protocol_no']][match_document['sample_id']].append(
+                            match_document)
+                except Exception as e:
+                    self._loop.stop()
+                    log.error(e)
+
                 self._task_q.task_done()
 
             # Execute update task
