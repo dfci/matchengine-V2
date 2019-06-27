@@ -37,7 +37,8 @@
       "protocol_no",
       "nct_id",
       "treatment_list",
-      "status"
+      "status",
+      "_summary"
     ]
   },
   "trial_key_mappings": {
@@ -118,67 +119,44 @@
     }
   },
   "trial_match_sorting": [
-    [
-      [
-        "mmr_status",
-        [
-          "Deficient(MMR - D / MSI - H)",
-          "Proficient(MMR - P / MSS)"
-        ]
-      ],
-      [
-        "tier",
-        [
-          1,
-          2,
-          3,
-          4
-        ]
-      ],
-      [
-        "cnv_call",
-        [
-          "Homozygous deletion",
-          "High level amplification",
-          "Gain",
-          "Heterozygous deletion"
-        ]
-      ],
-      [
-        "wildtype",
-        [
-          false,
-          true
-        ]
-      ]
-    ],
-    [
-      [
-        "match_type",
-        [
-          "variant",
-          "gene"
-        ]
-      ]
-    ],
-    [
-      [
-        "oncotree_primary_diagnosis_name",
-        [
-          "_SOLID_",
-          "_LIQUID_",
-          "__default"
-        ]
-      ]
-    ],
-    [
-      [
-        "coordinating_center",
-        [
-          "Dana-Farber Cancer Institute",
-          "__default"
-        ]
-      ]
-    ]
+    {
+      "mmr_status": {
+        "Deficient(MMR - D / MSI - H)": 0,
+        "Proficient(MMR - P / MSS)": 1
+      },
+      "tier": {
+        "1": 2,
+        "2": 3,
+        "3": 6,
+        "4": 7
+      },
+      "cnv_call": {
+        "Homozygous deletion": 4,
+        "High level amplification": 5,
+        "Gain": 8,
+        "Heterozygous deletion": 9
+      },
+      "wildtype": {
+        "False": 10,
+        "True": 11
+      }
+    },
+    {
+      "match_type": {
+        "variant": 0,
+        "gene": 1
+      }
+    },
+    {
+      "cancer_type_match": {
+        "_SOLID_": 100,
+        "_LIQUID_": 100
+      }
+    },
+    {
+      "coordinating_center": {
+        "Dana-Farber Cancer Institute": 0
+      }
+    }
   ]
 }
