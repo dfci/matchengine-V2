@@ -23,15 +23,12 @@
       "POSITION"
     ],
     "clinical": [
-      "ORD_PHYSICIAN_NAME",
-      "ORD_PHYSICIAN_EMAIL",
       "REPORT_DATE",
       "GENDER",
       "SAMPLE_ID",
       "MRN",
       "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
       "VITAL_STATUS",
-      "FIRST_LAST"
     ],
     "trial": [
       "protocol_no",
