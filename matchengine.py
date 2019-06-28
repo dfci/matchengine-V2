@@ -861,33 +861,29 @@ class MatchEngine(object):
         Asynchronous function used by get_matches_for_trial, not meant to be called externally.
         Gets the matches for a given trial
         """
+        # Get each match clause in the trial document
         trial = self.trials[protocol_no]
-        if not self.match_on_deceased and trial['status'].lower().strip() not in {"open to accrual"}:
-            logging.info('Trial %s is closed, skipping' % trial['protocol_no'])
-            return dict()
-        else:
-            # Get each match clause in the trial document
-            match_clauses = self.extract_match_clauses_from_trial(protocol_no)
+        match_clauses = self.extract_match_clauses_from_trial(protocol_no)
 
-            # for each match clause, create the match tree, and extract each possible match path from the tree
-            for match_clause in match_clauses:
-                match_paths = self.get_match_paths(self.create_match_tree(match_clause))
+        # for each match clause, create the match tree, and extract each possible match path from the tree
+        for match_clause in match_clauses:
+            match_paths = self.get_match_paths(self.create_match_tree(match_clause))
 
-                # for each match path, translate the path into valid mongo queries
-                for match_path in match_paths:
-                    query = self.translate_match_path(match_clause, match_path)
-                    if self.debug:
-                        log.info(f"Query: {query}")
-                    if query:
-                        # put the query onto the task queue for execution
-                        await self._task_q.put(QueryTask(trial,
-                                                         match_clause,
-                                                         match_path,
-                                                         query,
-                                                         self.clinical_ids))
-            await self._task_q.join()
-            logging.info(f"Total results: {len(self.matches[protocol_no])}")
-            return self.matches[protocol_no]
+            # for each match path, translate the path into valid mongo queries
+            for match_path in match_paths:
+                query = self.translate_match_path(match_clause, match_path)
+                if self.debug:
+                    log.info(f"Query: {query}")
+                if query:
+                    # put the query onto the task queue for execution
+                    await self._task_q.put(QueryTask(trial,
+                                                     match_clause,
+                                                     match_path,
+                                                     query,
+                                                     self.clinical_ids))
+        await self._task_q.join()
+        logging.info(f"Total results: {len(self.matches[protocol_no])}")
+        return self.matches[protocol_no]
 
     def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
         """
@@ -921,7 +917,11 @@ class MatchEngine(object):
         else:
             open_trials = dict()
             for protocol_no, trial in all_trials.items():
-                open_trials.update({protocol_no: trial})
+                if trial['status'].lower().strip() not in {"open to accrual"}:
+                    logging.info(f'Trial {trial["protocol_no"]} has status {trial["status"]}, skipping')
+                    continue
+                else:
+                    open_trials.update({protocol_no: trial})
             return open_trials
 
     async def _perform_db_call(self, collection: str, query: MongoQuery, projection: Dict):
