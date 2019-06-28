@@ -1,0 +1,33 @@
+{
+  "protocol_no": "11-111",
+  "treatment_list": {
+    "step": [
+      {
+        "step_internal_id": 321,
+        "step_code": "2",
+        "arm": [
+          {
+            "arm_code": "EXP 3",
+            "arm_description": "DESCRIPTION 123",
+            "arm_suspended": "N",
+            "dose_level": [],
+            "match": [
+              {
+                "and": [
+                  {
+                    "genomic": {
+                      "hugo_symbol": "NRAS",
+                      "protein_change": "p.G12D",
+                      "variant_category": "!Mutation"
+                    }
+                  }
+                ]
+              }
+            ],
+            "arm_internal_id": 345
+          }
+        ]
+      }
+    ]
+  }
+}
