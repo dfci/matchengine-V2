@@ -92,21 +92,24 @@ class MatchEngine(object):
         self._loop.run_until_complete(self._async_exit())
         self._loop.stop()
 
-    def __init__(self,
-                 cache: Cache = None,
-                 sample_ids: Set[str] = None,
-                 protocol_nos: Set[str] = None,
-                 match_on_deceased: bool = False,
-                 match_on_closed: bool = False,
-                 debug: bool = False,
-                 num_workers: int = cpu_count() * 5,
-                 visualize_match_paths: bool = False,
-                 fig_dir: str = None,
-                 config: Union[str, dict] = None,
-                 plugin_dir: str = None,
-                 db_init: bool = True,
-                 match_document_creator_class: str = None,
-                 use_run_log: bool = True):
+    def __init__(
+            self,
+            cache: Cache = None,
+            sample_ids: Set[str] = None,
+            protocol_nos: Set[str] = None,
+            match_on_deceased: bool = False,
+            match_on_closed: bool = False,
+            debug: bool = False,
+            num_workers: int = cpu_count() * 5,
+            visualize_match_paths: bool = False,
+            fig_dir: str = None,
+            config: Union[str, dict] = None,
+            plugin_dir: str = None,
+            db_init: bool = True,
+            match_document_creator_class: str = None,
+            use_run_log: bool = True,
+            report_clinical_reasons: bool = True
+    ):
 
         if isinstance(config, str):
             with open(config) as config_file_handle:
@@ -129,6 +132,7 @@ class MatchEngine(object):
         self.protocol_nos = protocol_nos
         self.match_on_closed = match_on_closed
         self.match_on_deceased = match_on_deceased
+        self.report_clinical_reasons = report_clinical_reasons
         self.debug = debug
         self.num_workers = num_workers
         self.visualize_match_paths = visualize_match_paths
@@ -428,7 +432,7 @@ class MatchEngine(object):
             clinical_reason
             for clinical_reason in clinical_match_reasons
             if clinical_reason.clinical_id in all_results
-        ]
+        ] if self.report_clinical_reasons else list()
         return valid_genomic_reasons + valid_clinical_reasons
 
     async def _queue_worker(self, worker_id: int) -> None:
@@ -929,7 +933,8 @@ class MatchEngine(object):
 
         # for each match clause, create the match tree, and extract each possible match path from the tree
         for match_clause in match_clauses:
-            match_paths = self.get_match_paths(self.create_match_tree(match_clause))
+            match_tree = self.create_match_tree(match_clause)
+            match_paths = list(self.get_match_paths(match_tree))
 
             # for each match path, translate the path into valid mongo queries
             for match_path in match_paths:
@@ -947,9 +952,9 @@ class MatchEngine(object):
                                                      match_path,
                                                      query,
                                                      clinical_ids))
-            await self._task_q.join()
-            logging.info(f"Total results: {len(self.matches[protocol_no])}")
-            return self.matches[protocol_no]
+        await self._task_q.join()
+        logging.info(f"Total results: {len(self.matches[protocol_no])}")
+        return self.matches[protocol_no]
 
     def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
         """
@@ -1007,10 +1012,19 @@ def main(run_args):
 
     """
     check_indices()
-    with MatchEngine(plugin_dir=run_args.plugin_dir, sample_ids=run_args.samples, protocol_nos=run_args.trials,
-                     match_on_closed=run_args.match_on_closed, match_on_deceased=run_args.match_on_deceased,
-                     debug=run_args.debug, num_workers=run_args.workers[0], config=args.config_path,
-                     match_document_creator_class=args.match_document_creator_class, use_run_log=False) as me:
+    with MatchEngine(
+            plugin_dir=run_args.plugin_dir,
+            sample_ids=run_args.samples,
+            protocol_nos=run_args.trials,
+            match_on_closed=run_args.match_on_closed,
+            match_on_deceased=run_args.match_on_deceased,
+            debug=run_args.debug,
+            num_workers=run_args.workers[0],
+            config=args.config_path,
+            match_document_creator_class=args.match_document_creator_class,
+            use_run_log=args.use_run_log,
+            report_clinical_reasons=args.report_clinical_reasons
+    ) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
             me.update_all_matches()
@@ -1099,6 +1113,16 @@ if __name__ == "__main__":
     subp_p.add_argument("--match-on-deceased-patients",
                         dest="match_on_deceased",
                         action="store_true",
+                        help=deceased_help)
+    subp_p.add_argument("--disable-run-log",
+                        dest="use_run_log",
+                        action="store_false",
+                        default=True,
+                        help=deceased_help)
+    subp_p.add_argument("--report-clinical-reasons",
+                        dest="use_run_log",
+                        action="store_true",
+                        default=False,
                         help=deceased_help)
     subp_p.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
     subp_p.add_argument('-o', dest="outpath", required=False, help=param_outpath_help)
