@@ -83,7 +83,7 @@ def format_exclusion_match(query):
     # add mutation
     if query.setdefault(protein_change_key, None) is not None:
         if '$regex' in query[protein_change_key]:
-            alteration += f' {query[protein_change_key]["$regex"].pattern[1:].replace("[A-Z]","")}'
+            alteration += f' {query[protein_change_key]["$regex"].pattern[1:].replace("[A-Z]", "")}'
         else:
             alteration += f' {query[protein_change_key]}'
 
@@ -148,7 +148,6 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
         in config.json
         """
-        genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.genomic_id, None)
         query = trial_match.match_reason.query_node.extract_raw_query()
 
         new_trial_match = dict()
@@ -157,15 +156,20 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
 
         # determine whether trial match was on a _LIQUID_ or _SOLID_ curation, or an exact match
         cancer_type_match = None
-        for criteria in trial_match.match_criterion:
-            for node in criteria:
-                if "clinical" in node and "oncotree_primary_diagnosis" in node['clinical']:
-                    cancer_type_match = node['clinical']['oncotree_primary_diagnosis']
+        for node in (node
+                     for criteria in trial_match.match_criterion.criteria_list
+                     for node in criteria.criteria
+                     if 'clinical' in node and 'oncotree_primary_diagnosis' in node['clinical']):
+            cancer_type_match = node['clinical']['oncotree_primary_diagnosis']
+            break
 
         new_trial_match.update(
             {'match_level': trial_match.match_clause_data.match_clause_level,
              'internal_id': trial_match.match_clause_data.internal_id,
              'cancer_type_match': cancer_type_match,
+             'reason_type': trial_match.match_reason.reason_name,
+             'q_depth': trial_match.match_reason.query_node.query_depth,
+             'q_width': trial_match.match_reason.width if trial_match.match_reason.reason_name == 'genomic' else 1,
              'code': trial_match.match_clause_data.code,
              'trial_accrual_status': trial_match.match_clause_data.status,
              'coordinating_center': trial_match.match_clause_data.coordinating_center})
@@ -177,14 +181,16 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
             if k not in {'treatment_list', '_summary', 'status', '_id', '_elasticsearch', 'match'}
         })
 
-        if genomic_doc is None:
-            new_trial_match.update(format_trial_match_k_v(format_exclusion_match(query)))
-        else:
-            new_trial_match.update(format_trial_match_k_v(get_genomic_details(genomic_doc, query)))
+        if trial_match.match_reason.reason_name == 'genomic':
+            genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.genomic_id, None)
+            if genomic_doc is None:
+                new_trial_match.update(format_trial_match_k_v(format_exclusion_match(query)))
+            else:
+                new_trial_match.update(format_trial_match_k_v(get_genomic_details(genomic_doc, query)))
 
         sort_order = get_sort_order(self.config['trial_match_sorting'], new_trial_match)
         new_trial_match['sort_order'] = sort_order
-        new_trial_match['query_hash'] = ComparableDict({'query': trial_match.match_criterion}).hash()
+        new_trial_match['query_hash'] = trial_match.match_criterion.hash()
         new_trial_match['hash'] = ComparableDict(new_trial_match).hash()
         new_trial_match["is_disabled"] = False
         new_trial_match.update(
