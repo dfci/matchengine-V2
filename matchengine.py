@@ -1135,7 +1135,7 @@ if __name__ == "__main__":
                         default=True,
                         help=deceased_help)
     subp_p.add_argument("--report-clinical-reasons",
-                        dest="use_run_log",
+                        dest="report_clinical_reasons",
                         action="store_true",
                         default=False,
                         help=deceased_help)
