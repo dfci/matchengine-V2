@@ -28,7 +28,7 @@
       "SAMPLE_ID",
       "MRN",
       "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
-      "VITAL_STATUS",
+      "VITAL_STATUS"
     ],
     "trial": [
       "protocol_no",
