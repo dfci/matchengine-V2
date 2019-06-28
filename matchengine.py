@@ -496,7 +496,7 @@ class MatchEngine(object):
                 try:
                     if self.debug:
                         log.info(f"Worker {worker_id} got new UpdateTask {task.protocol_no}")
-                    await self.async_db_rw.trial_match_v2.bulk_write(task.ops, ordered=False)
+                    await self.async_db_rw.trial_match.bulk_write(task.ops, ordered=False)
                 except Exception as e:
                     log.error(f"ERROR: Worker: {worker_id}, error: {e}")
                     if isinstance(e, AutoReconnect):
