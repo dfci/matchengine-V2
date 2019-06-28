@@ -4,12 +4,14 @@ import asyncio
 import glob
 import json
 import logging
+import datetime as dt
 import os
 import sys
 from collections import deque, defaultdict
 from multiprocessing import cpu_count
 from types import MethodType
 from typing import Generator
+import csv
 
 import networkx as nx
 from pymongo import UpdateMany, InsertOne
@@ -935,30 +937,48 @@ class MatchEngine(object):
         """Stub function to be overriden by plugin"""
         return dict()
 
+    def create_output_csv(self):
+        fieldnames = list()
+        for protocol_no in self.matches:
+            for sample_id in self.matches[protocol_no]:
+                for match in self.matches[protocol_no][sample_id]:
+                    for key in match.keys():
+                        if key not in fieldnames:
+                            fieldnames.append(key)
+
+        with open(f'trial_matches_{dt.datetime.now().strftime("%b_%d_%Y_%H:%M")}.csv', 'a') as csvFile:
+            for protocol_no in self.matches:
+                for sample_id in self.matches[protocol_no]:
+                    writer = csv.DictWriter(csvFile, fieldnames=fieldnames)
+                    writer.writeheader()
+                    for match in self.matches[protocol_no][sample_id]:
+                        writer.writerow(match)
+        csvFile.close()
+
 
 def main(run_args):
     """
 
     """
     check_indices()
-    with MatchEngine(plugin_dir=run_args.plugin_dir, sample_ids=run_args.samples, protocol_nos=run_args.trials,
-                     match_on_closed=run_args.match_on_closed, match_on_deceased=run_args.match_on_deceased,
-                     debug=run_args.debug, num_workers=run_args.workers[0], config=args.config_path,
+    with MatchEngine(plugin_dir=run_args.plugin_dir,
+                     sample_ids=run_args.samples,
+                     protocol_nos=run_args.trials,
+                     match_on_closed=run_args.match_on_closed,
+                     match_on_deceased=run_args.match_on_deceased,
+                     debug=run_args.debug,
+                     num_workers=run_args.workers[0],
+                     config=args.config_path,
                      match_document_creator_class=args.match_document_creator_class) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
             me.update_all_matches()
 
+        if run_args.csv_output:
+            me.create_output_csv()
+
 
 if __name__ == "__main__":
-    # todo unit tests
-    # todo output CSV file functions
-    # todo update/delete/insert run log
-    # todo failsafes for insert logic (fallback?)
-    # todo increase db cursor timeout
-    # todo db connection timeout
-    # todo configuration of trial_match document logic
-
     param_trials_help = 'Path to your trial data file or a directory containing a file for each trial.' \
                         'Default expected format is YML.'
     param_mongo_uri_help = 'Your MongoDB URI. If you do not supply one, for matching, it will default to whatever' \
@@ -968,7 +988,7 @@ if __name__ == "__main__":
                            'See https://docs.mongodb.com/manual/reference/connection-string/ for more information.'
     param_clinical_help = 'Path to your clinical file. Default expected format is CSV.'
     param_genomic_help = 'Path to your genomic file. Default expected format is CSV'
-    param_outpath_help = 'Destination and name of your results file.'
+    csv_output_help = 'Export a csv file of all trial match results'
     param_trial_format_help = 'File format of input trial data. Default is YML.'
     param_patient_format_help = 'File format of input patient data (both clinical and genomic files). Default is CSV.'
 
@@ -1035,7 +1055,7 @@ if __name__ == "__main__":
                         action="store_true",
                         help=deceased_help)
     subp_p.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
-    subp_p.add_argument('-o', dest="outpath", required=False, help=param_outpath_help)
+    subp_p.add_argument('-o', dest="csv_output", action="store_true", default=False, required=False, help=csv_output_help)
     args = parser.parse_args()
     # args.func(args)
     main(args)
