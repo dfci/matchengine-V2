@@ -885,7 +885,6 @@ class MatchEngine(object):
                                                            for trial_match in trial_matches_to_mark_available]}},
                                   update={'$set': {'is_disabled': False}}))
             await self._task_q.put(RunLogUpdateTask(run_log))
-
             await self._task_q.put(UpdateTask(ops, protocol_no))
 
         await self._task_q.join()
@@ -1009,6 +1008,9 @@ class MatchEngine(object):
         return dict()
 
     def create_output_csv(self):
+        """Generate output CSV file from all generated trial_match documents"""
+
+        # get column titles
         fieldnames = list()
         for protocol_no in self.matches:
             for sample_id in self.matches[protocol_no]:
@@ -1017,11 +1019,12 @@ class MatchEngine(object):
                         if key not in fieldnames:
                             fieldnames.append(key)
 
+        # write CSV
         with open(f'trial_matches_{dt.datetime.now().strftime("%b_%d_%Y_%H:%M")}.csv', 'a') as csvFile:
+            writer = csv.DictWriter(csvFile, fieldnames=fieldnames)
+            writer.writeheader()
             for protocol_no in self.matches:
                 for sample_id in self.matches[protocol_no]:
-                    writer = csv.DictWriter(csvFile, fieldnames=fieldnames)
-                    writer.writeheader()
                     for match in self.matches[protocol_no][sample_id]:
                         writer.writerow(match)
         csvFile.close()
@@ -1029,7 +1032,7 @@ class MatchEngine(object):
 
 def main(run_args):
     """
-
+    Main function which triggers run of engine with args passed in from command line.
     """
     check_indices()
     with MatchEngine(
