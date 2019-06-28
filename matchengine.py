@@ -49,7 +49,7 @@ def check_indices():
             indices_to_create = desired_indices - existing_indices
             for index in indices_to_create:
                 log.info('Creating index %s' % index)
-                db.trial_match_raw.create_index(index)
+                db[collection].create_index(index)
 
 
 class MatchEngine(object):
