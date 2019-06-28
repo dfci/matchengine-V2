@@ -1,4 +1,5 @@
 import datetime
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import NewType, Tuple, Union, List, Dict, Any, Set
 from bson import ObjectId
@@ -10,7 +11,6 @@ Trial = NewType("Trial", dict)
 ParentPath = NewType("ParentPath", Tuple[Union[str, int]])
 MatchClause = NewType("MatchClause", List[Dict[str, Any]])
 MatchTree = NewType("MatchTree", DiGraph)
-MatchCriterion = NewType("MatchPath", List[List[Dict[str, Any]]])
 MultiCollectionQuery = NewType("MultiCollectionQuery", dict)
 NodeID = NewType("NodeID", int)
 MatchClauseLevel = NewType("MatchClauseLevel", str)
@@ -26,6 +26,20 @@ class PoisonPill(object):
 
 
 @dataclass
+class MatchCriteria:
+    criteria: Dict
+    depth: int
+
+
+@dataclass
+class MatchCriterion:
+    criteria_list: List[MatchCriteria]
+
+    def hash(self) -> str:
+        return ComparableDict({"query": [criteria.criteria for criteria in self.criteria_list]}).hash()
+
+
+@dataclass
 class QueryPart:
     query: Dict
     negate: bool
@@ -38,6 +52,7 @@ class QueryPart:
 @dataclass
 class QueryNode:
     query_level: str
+    query_depth: int
     query_parts: List[QueryPart]
     exclusion: Union[None, bool]
 
@@ -96,14 +111,18 @@ class MatchClauseData:
 @dataclass
 class GenomicMatchReason:
     query_node: QueryNode
+    width: int
     clinical_id: ClinicalID
     genomic_id: Union[GenomicID, None]
+
+    reason_name = 'genomic'
 
 
 @dataclass
 class ClinicalMatchReason:
     query_node: QueryNode
     clinical_id: ClinicalID
+    reason_name = 'clinical'
 
 
 MatchReason = NewType("MatchReason", Union[GenomicMatchReason, ClinicalMatchReason])
@@ -118,13 +137,28 @@ class TrialMatch:
     match_reason: MatchReason
 
 
-class Cache:
+class Cache(object):
     docs: Dict[ObjectId, MongoQueryResult]
     ids: dict
+    run_log: dict
 
     def __init__(self):
         self.docs = dict()
         self.ids = dict()
+        self.run_log = dict()
+
+
+class RunLogCache(object):
+    trials: Dict[str, datetime.datetime]
+    clinical: Dict[str, datetime.datetime]
+    genomic: Dict[str, datetime.datetime]
+    clinical_protocol_runs: Dict[ClinicalID, Dict[str, datetime.datetime]]
+
+    def __init__(self):
+        self.trials = dict()
+        self.clinical = dict()
+        self.genomic = dict()
+        self.clinical_protocol_runs = defaultdict(lambda: defaultdict(lambda: None))
 
 
 @dataclass
