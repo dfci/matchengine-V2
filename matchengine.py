@@ -34,16 +34,24 @@ def check_indices():
     Ensure indexes exist on the trial_match collection so queries are performant
     """
     with MongoDBConnection(read_only=False, async_init=False) as db:
-        indexes = db.trial_match.list_indexes()
-        existing_indexes = set()
-        desired_indexes = {'hash', 'mrn', 'sample_id', 'clinical_id', 'protocol_no'}
-        for index in indexes:
-            index_key = list(index['key'].to_dict().keys())[0]
-            existing_indexes.add(index_key)
-        indexes_to_create = desired_indexes - existing_indexes
-        for index in indexes_to_create:
-            log.info('Creating index %s' % index)
-            db.trial_match.create_index(index)
+        for collection, desired_indices in {
+            'trial_match_raw': {
+                'hash', 'mrn', 'sample_id', 'clinical_id', 'protocol_no'},
+            'matchengine_run_log': {
+                'clinical_id',
+                'protocol_no',
+                '_created'
+            }
+        }.items():
+            indices = db[collection].list_indexes()
+            existing_indices = set()
+            for index in indices:
+                index_key = list(index['key'].to_dict().keys())[0]
+                existing_indices.add(index_key)
+            indices_to_create = desired_indices - existing_indices
+            for index in indices_to_create:
+                log.info('Creating index %s' % index)
+                db[collection].create_index(index)
 
 
 class MatchEngine(object):
@@ -86,20 +94,24 @@ class MatchEngine(object):
         self._loop.run_until_complete(self._async_exit())
         self._loop.stop()
 
-    def __init__(self,
-                 cache: Cache = None,
-                 sample_ids: Set[str] = None,
-                 protocol_nos: Set[str] = None,
-                 match_on_deceased: bool = False,
-                 match_on_closed: bool = False,
-                 debug: bool = False,
-                 num_workers: int = cpu_count() * 5,
-                 visualize_match_paths: bool = False,
-                 fig_dir: str = None,
-                 config: Union[str, dict] = None,
-                 plugin_dir: str = None,
-                 db_init: bool = True,
-                 match_document_creator_class: str = None):
+    def __init__(
+            self,
+            cache: Cache = None,
+            sample_ids: Set[str] = None,
+            protocol_nos: Set[str] = None,
+            match_on_deceased: bool = False,
+            match_on_closed: bool = False,
+            debug: bool = False,
+            num_workers: int = cpu_count() * 5,
+            visualize_match_paths: bool = False,
+            fig_dir: str = None,
+            config: Union[str, dict] = None,
+            plugin_dir: str = None,
+            db_init: bool = True,
+            match_document_creator_class: str = None,
+            use_run_log: bool = True,
+            report_clinical_reasons: bool = True
+    ):
 
         if isinstance(config, str):
             with open(config) as config_file_handle:
@@ -122,6 +134,7 @@ class MatchEngine(object):
         self.protocol_nos = protocol_nos
         self.match_on_closed = match_on_closed
         self.match_on_deceased = match_on_deceased
+        self.report_clinical_reasons = report_clinical_reasons
         self.debug = debug
         self.num_workers = num_workers
         self.visualize_match_paths = visualize_match_paths
@@ -137,11 +150,34 @@ class MatchEngine(object):
         self.clinical_ids = set(self.clinical_mapping.keys())
         if self.sample_ids is None:
             self.sample_ids = list(self.clinical_mapping.values())
+        self.use_run_log = use_run_log
+        self.run_log_cache = RunLogCache()
+        self._param_cache = dict()
+        if self.use_run_log:
+            self.populate_run_log_cache()
 
         # instantiate a new async event loop to allow class to be used as if it is synchronous
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._async_init())
+
+    def populate_run_log_cache(self):
+        run_log_pipeline = [
+            {"$match": {"protocol_no": {"$in": self.protocol_nos},
+                        "clinical_id": {"$in": list(self.clinical_ids)}}},
+            {"$group": {"_id": {"protocol_no": "$protocol_no", "clinical_id": "$clinical_id"},
+                        "_created": {"$max": "$_created"}}}
+        ]
+        for result in self.db_ro["matchengine_run_log"].aggregate(run_log_pipeline):
+            clinical_id = result["_id"]["clinical_id"]
+            protocol_no = result["_id"]["protocol_no"]
+            run_time = result["_created"]
+            self.run_log_cache.clinical_protocol_runs[clinical_id][protocol_no] = run_time
+        for protocol_no, trial in self.trials.items():
+            self.run_log_cache.trials[protocol_no] = trial["_updated"]
+        for result in self.db_ro.clinical.find({"_id": {"$in": list(self.clinical_ids)}}, {"_updated": 1}):
+            self.run_log_cache.clinical[result["_id"]] = result["_updated"]
+        # todo: genomic
 
     def _find_plugins(self):
         """
@@ -313,7 +349,10 @@ class MatchEngine(object):
                         # If an inclusion match...
                         if not genomic_query_node.exclusion:
                             all_results[clinical_id].add(genomic_id)
-                            potential_reasons.append(GenomicMatchReason(genomic_query_node, clinical_id, genomic_id))
+                            potential_reasons.append(GenomicMatchReason(genomic_query_node,
+                                                                        len(genomic_ids),
+                                                                        clinical_id,
+                                                                        genomic_id))
 
                         # If an exclusion criteria returns a genomic doc, that means that clinical ID is not a match.
                         elif genomic_query_node.exclusion and clinical_id in all_results:
@@ -323,7 +362,7 @@ class MatchEngine(object):
                 elif id_cache[clinical_id] is None and genomic_query_node.exclusion:
                     if clinical_id not in all_results:
                         all_results[clinical_id] = set()
-                    potential_reasons.append(GenomicMatchReason(genomic_query_node, clinical_id, None))
+                    potential_reasons.append(GenomicMatchReason(genomic_query_node, 1, clinical_id, None))
 
             # If processing an inclusion query, subset existing clinical ids with clinical ids returned by the genomic
             # query. For exclusions, remove the IDs.
@@ -384,13 +423,19 @@ class MatchEngine(object):
             for result in outer_result:
                 self.cache.docs[result["_id"]] = result
 
-        return [
+        valid_genomic_reasons: List[MatchReason] = [
             genomic_reason
             for genomic_reason in genomic_match_reasons
             if genomic_reason.clinical_id in all_results and any([genomic_reason.query_node.exclusion,
                                                                   genomic_reason.genomic_id in all_results[
                                                                       genomic_reason.clinical_id]])
         ]
+        valid_clinical_reasons: List[MatchReason] = [
+            clinical_reason
+            for clinical_reason in clinical_match_reasons
+            if clinical_reason.clinical_id in all_results
+        ] if self.report_clinical_reasons else list()
+        return valid_genomic_reasons + valid_clinical_reasons
 
     async def _queue_worker(self, worker_id: int) -> None:
         """
@@ -410,6 +455,9 @@ class MatchEngine(object):
                 if self.debug:
                     log.info(
                         f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask")
+                if self.use_run_log:
+                    if task.match_clause_data.protocol_no not in self.cache.run_log:
+                        self.cache.run_log = dict()
                 try:
                     results = await self._run_query(task.query, task.clinical_ids)
                 except Exception as e:
@@ -676,9 +724,9 @@ class MatchEngine(object):
         for leaf in leaves:
             for path in nx.all_simple_paths(match_tree, 0, leaf) if leaf != 0 else [[leaf]]:
                 match_path = MatchCriterion(list())
-                for node in path:
+                for depth, node in enumerate(path):
                     if match_tree.nodes[node]['criteria_list']:
-                        match_path.append(match_tree.nodes[node]['criteria_list'])
+                        match_path.criteria_list.append(MatchCriteria(match_tree.nodes[node]['criteria_list'], depth))
                 if match_path:
                     yield match_path
 
@@ -692,10 +740,10 @@ class MatchEngine(object):
         """
         multi_collection_query = MultiCollectionQuery(list(), list())
         query_cache = set()
-        for node in match_criterion:
-            for criteria in node:
+        for node in match_criterion.criteria_list:
+            for criteria in node.criteria:
                 for genomic_or_clinical, values in criteria.items():
-                    query_node = QueryNode(genomic_or_clinical, list(), None)
+                    query_node = QueryNode(genomic_or_clinical, node.depth, list(), None)
                     for trial_key, trial_value in values.items():
                         trial_key_settings = self.match_criteria_transform.trial_key_mappings[
                             genomic_or_clinical].setdefault(
@@ -858,6 +906,24 @@ class MatchEngine(object):
         task = self._loop.create_task(self._async_get_matches_for_trial(protocol_no))
         return self._loop.run_until_complete(task)
 
+    def _get_clinical_ids_from_run_log(self, protocol_no: str) -> Set[ClinicalID]:
+        if protocol_no in self._param_cache:
+            clinical_ids = self._param_cache[protocol_no]
+        else:
+            protocol_no_last_updated = self.run_log_cache.trials.setdefault(protocol_no, None)
+            clinical_ids = set()
+            for clinical_id in self.clinical_ids:
+                last_run = self.run_log_cache.clinical_protocol_runs[clinical_id][protocol_no]
+                clinical_last_updated = self.run_log_cache.clinical[clinical_id]
+                if protocol_no_last_updated is None or last_run is None:
+                    clinical_ids.add(clinical_id)
+                elif last_run > protocol_no_last_updated:
+                    clinical_ids.add(clinical_id)
+                elif clinical_last_updated > last_run:
+                    clinical_ids.add(clinical_id)
+            self._param_cache[protocol_no] = clinical_ids
+        return clinical_ids
+
     async def _async_get_matches_for_trial(self, protocol_no: str) -> Dict[str, List[Dict]]:
         """
         Asynchronous function used by get_matches_for_trial, not meant to be called externally.
@@ -869,7 +935,8 @@ class MatchEngine(object):
 
         # for each match clause, create the match tree, and extract each possible match path from the tree
         for match_clause in match_clauses:
-            match_paths = self.get_match_paths(self.create_match_tree(match_clause))
+            match_tree = self.create_match_tree(match_clause)
+            match_paths = list(self.get_match_paths(match_tree))
 
             # for each match path, translate the path into valid mongo queries
             for match_path in match_paths:
@@ -878,11 +945,15 @@ class MatchEngine(object):
                     log.info(f"Query: {query}")
                 if query:
                     # put the query onto the task queue for execution
+                    if self.use_run_log:
+                        clinical_ids = self._get_clinical_ids_from_run_log(protocol_no)
+                    else:
+                        clinical_ids = self.clinical_ids
                     await self._task_q.put(QueryTask(trial,
                                                      match_clause,
                                                      match_path,
                                                      query,
-                                                     self.clinical_ids))
+                                                     clinical_ids))
         await self._task_q.join()
         logging.info(f"Total results: {len(self.matches[protocol_no])}")
         return self.matches[protocol_no]
@@ -912,7 +983,7 @@ class MatchEngine(object):
 
         all_trials = {
             result['protocol_no']: result
-            for result in self.db_ro.trial.find(trial_find_query, projection)
+            for result in self.db_ro.trial.find(trial_find_query, dict({"_updated": 1}, **projection))
         }
         if self.match_on_closed:
             return all_trials
@@ -961,15 +1032,19 @@ def main(run_args):
 
     """
     check_indices()
-    with MatchEngine(plugin_dir=run_args.plugin_dir,
-                     sample_ids=run_args.samples,
-                     protocol_nos=run_args.trials,
-                     match_on_closed=run_args.match_on_closed,
-                     match_on_deceased=run_args.match_on_deceased,
-                     debug=run_args.debug,
-                     num_workers=run_args.workers[0],
-                     config=args.config_path,
-                     match_document_creator_class=args.match_document_creator_class) as me:
+    with MatchEngine(
+            plugin_dir=run_args.plugin_dir,
+            sample_ids=run_args.samples,
+            protocol_nos=run_args.trials,
+            match_on_closed=run_args.match_on_closed,
+            match_on_deceased=run_args.match_on_deceased,
+            debug=run_args.debug,
+            num_workers=run_args.workers[0],
+            config=args.config_path,
+            match_document_creator_class=args.match_document_creator_class,
+            use_run_log=args.use_run_log,
+            report_clinical_reasons=args.report_clinical_reasons
+    ) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
             me.update_all_matches()
@@ -1053,6 +1128,16 @@ if __name__ == "__main__":
     subp_p.add_argument("--match-on-deceased-patients",
                         dest="match_on_deceased",
                         action="store_true",
+                        help=deceased_help)
+    subp_p.add_argument("--disable-run-log",
+                        dest="use_run_log",
+                        action="store_false",
+                        default=True,
+                        help=deceased_help)
+    subp_p.add_argument("--report-clinical-reasons",
+                        dest="report_clinical_reasons",
+                        action="store_true",
+                        default=False,
                         help=deceased_help)
     subp_p.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
     subp_p.add_argument('-o', dest="csv_output", action="store_true", default=False, required=False, help=csv_output_help)
