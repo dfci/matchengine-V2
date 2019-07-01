@@ -17,7 +17,7 @@ class ComparableDict(object):
                     q.append((path + (k,), None, item))
             elif isinstance(v, set):
                 for item in v:
-                    q.append((path + (k, ), None, item))
+                    q.append((path + (k,), None, item))
             elif isinstance(v, dict):
                 for i_k, i_v in v.items():
                     q.append((path + (k,), i_k, i_v))
@@ -27,7 +27,3 @@ class ComparableDict(object):
 
     def hash(self):
         return hashlib.sha1(str(sorted(self.tup, key=lambda x: (x[0], x[1], x[2]))).encode('utf-8')).hexdigest()
-
-    def __repr__(self):
-        return self.tup.__repr__()
-
