@@ -88,13 +88,10 @@ class TestMatchEngine(TestCase):
                 data = json.load(f)
                 trial = [data]
                 self.me.trials[file] = trial
-        test_cases = dict()
+        with open("./tests/data/get_match_paths_expected.json") as f:
+            test_cases = json.load(f)
         for trial in self.me.trials:
             filename = os.path.basename(trial)
-            if filename == 'aaaall_cases.json':
-                continue
-            test_cases[filename] = list()
-            test_case = test_cases[filename]
             me_trial = self.me.trials[trial]
             match_tree = self.me.create_match_tree(MatchClauseData(match_clause=me_trial,
                                                                    internal_id='123',
@@ -105,22 +102,16 @@ class TestMatchEngine(TestCase):
                                                                    match_clause_level=MatchClauseLevel('arm'),
                                                                    match_clause_additional_attributes={},
                                                                    protocol_no='12-345'))
-
             match_paths = list(self.me.get_match_paths(match_tree))
-            for match_path in match_paths:
-                match_path_test_case = dict()
-                match_path_test_case["hash"] = match_path.hash()
-                match_path_test_case["criteria_list"] = list()
-                for criteria in match_path.criteria_list:
-                    criteria_test_case = dict()
-                    criteria_test_case["depth"] = criteria.depth
-                    criteria_test_case["criteria"] = criteria.criteria
-                    match_path_test_case["criteria_list"].append(criteria_test_case)
-                test_case.append(match_path_test_case)
-        with open("get_match_paths_expected.json", "w") as f:
-            json.dump(test_cases, f, sort_keys=False, indent=2)
+            for test_case, match_path in zip(test_cases[filename], match_paths):
+                assert match_path.hash() == test_case["hash"]
+                for test_case_criteria_idx, test_case_criteria in enumerate(test_case["criteria_list"]):
+                    match_path_criteria = match_path.criteria_list[test_case_criteria_idx]
+                    assert test_case_criteria["depth"] == match_path_criteria.depth
+                    for inner_test_case_criteria, inner_match_path_criteria in zip(test_case_criteria["criteria"],
+                                                                                   match_path_criteria.criteria):
+                        assert ComparableDict(inner_test_case_criteria).hash() == ComparableDict(inner_match_path_criteria).hash()
 
-            print()
 
     def test_translate_match_path(self):
         self.fail()
