@@ -1,0 +1,2958 @@
+{
+  "and_and_or.json": {
+    "nodes": {
+      "0": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          },
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          },
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            },
+            "c3": {
+              "c3_key": "c3_val"
+            }
+          },
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            },
+            "c3": {
+              "c3_key": "c3_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "or_nodes": [
+          1
+        ],
+        "label": "0 - ROOT and",
+        "label_list": [
+          "g1",
+          "c1",
+          "g2",
+          "c3"
+        ]
+      },
+      "1": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "1 - or",
+        "label_list": []
+      },
+      "2": {
+        "criteria_list": [
+          {
+            "c5": {
+              "c5_key": "c5_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "2 - c5",
+        "label_list": []
+      },
+      "3": {
+        "criteria_list": [
+          {
+            "g4": {
+              "g4_key": "g4_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "3 - g4",
+        "label_list": []
+      }
+    },
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        3
+      ]
+    ],
+    "in_degree": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        1
+      ]
+    ],
+    "out_degree": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ]
+    ]
+  },
+  "or_or_or.json": {
+    "nodes": {
+      "0": {
+        "criteria_list": [],
+        "is_and": true,
+        "or_nodes": [
+          1
+        ],
+        "label": "0 - ROOT and",
+        "label_list": []
+      },
+      "1": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "1 - or",
+        "label_list": []
+      },
+      "2": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "2 - or",
+        "label_list": []
+      },
+      "3": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "3 - or",
+        "label_list": []
+      },
+      "4": {
+        "criteria_list": [
+          {
+            "c3": {
+              "c3_key": "c3_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "4 - c3",
+        "label_list": []
+      },
+      "5": {
+        "criteria_list": [
+          {
+            "g3": {
+              "g3_key": "g3_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "5 - g3",
+        "label_list": []
+      },
+      "6": {
+        "criteria_list": [
+          {
+            "c2": {
+              "g3_key": "g3_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "6 - c2",
+        "label_list": []
+      },
+      "7": {
+        "criteria_list": [
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "7 - g2",
+        "label_list": []
+      },
+      "8": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "8 - g1",
+        "label_list": []
+      },
+      "9": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "9 - c1",
+        "label_list": []
+      }
+    },
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        8
+      ],
+      [
+        1,
+        9
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        2,
+        6
+      ],
+      [
+        2,
+        7
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        3,
+        5
+      ]
+    ],
+    "in_degree": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        5,
+        1
+      ],
+      [
+        6,
+        1
+      ],
+      [
+        7,
+        1
+      ],
+      [
+        8,
+        1
+      ],
+      [
+        9,
+        1
+      ]
+    ],
+    "out_degree": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        3,
+        2
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        5,
+        0
+      ],
+      [
+        6,
+        0
+      ],
+      [
+        7,
+        0
+      ],
+      [
+        8,
+        0
+      ],
+      [
+        9,
+        0
+      ]
+    ]
+  },
+  "and_or_or.json": {
+    "nodes": {
+      "0": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          },
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "or_nodes": [
+          1
+        ],
+        "label": "0 - ROOT and",
+        "label_list": [
+          "g1",
+          "c1"
+        ]
+      },
+      "1": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "1 - or",
+        "label_list": []
+      },
+      "2": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "2 - or",
+        "label_list": []
+      },
+      "3": {
+        "criteria_list": [
+          {
+            "c5": {
+              "c5_key": "c5_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "3 - c5",
+        "label_list": []
+      },
+      "4": {
+        "criteria_list": [
+          {
+            "g4": {
+              "g4_key": "g4_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "4 - g4",
+        "label_list": []
+      },
+      "5": {
+        "criteria_list": [
+          {
+            "c3": {
+              "c3_key": "c3_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "5 - c3",
+        "label_list": []
+      },
+      "6": {
+        "criteria_list": [
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "6 - g2",
+        "label_list": []
+      }
+    },
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        5
+      ],
+      [
+        1,
+        6
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        2,
+        4
+      ]
+    ],
+    "in_degree": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        5,
+        1
+      ],
+      [
+        6,
+        1
+      ]
+    ],
+    "out_degree": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        5,
+        0
+      ],
+      [
+        6,
+        0
+      ]
+    ]
+  },
+  "or_and_or.json": {
+    "nodes": {
+      "0": {
+        "criteria_list": [],
+        "is_and": true,
+        "or_nodes": [
+          1
+        ],
+        "label": "0 - ROOT and",
+        "label_list": []
+      },
+      "1": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "1 - or",
+        "label_list": []
+      },
+      "2": {
+        "criteria_list": [
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            },
+            "c2": {
+              "c2_key": "c2_val"
+            }
+          },
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            },
+            "c2": {
+              "c2_key": "c2_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "is_or": false,
+        "or_nodes": [
+          5
+        ],
+        "label": "2 - and",
+        "label_list": [
+          "g2",
+          "c2"
+        ]
+      },
+      "3": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "3 - g1",
+        "label_list": []
+      },
+      "4": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "4 - c1",
+        "label_list": []
+      },
+      "5": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "5 - or",
+        "label_list": []
+      },
+      "6": {
+        "criteria_list": [
+          {
+            "c3": {
+              "c3_key": "c3_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "6 - c3",
+        "label_list": []
+      },
+      "7": {
+        "criteria_list": [
+          {
+            "g3": {
+              "g3_key": "g3_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "7 - g3",
+        "label_list": []
+      }
+    },
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        2,
+        5
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        5,
+        7
+      ]
+    ],
+    "in_degree": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        5,
+        1
+      ],
+      [
+        6,
+        1
+      ],
+      [
+        7,
+        1
+      ]
+    ],
+    "out_degree": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        5,
+        2
+      ],
+      [
+        6,
+        0
+      ],
+      [
+        7,
+        0
+      ]
+    ]
+  },
+  "and_and_and.json": {
+    "nodes": {
+      "0": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          },
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          },
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            },
+            "c2": {
+              "c2_key": "c2_val"
+            }
+          },
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            },
+            "c2": {
+              "c2_key": "c2_val"
+            }
+          },
+          {
+            "g3": {
+              "g3_key": "g3_val"
+            }
+          },
+          {
+            "c8": {
+              "c3_key": "c3_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "or_nodes": [],
+        "label": "0 - ROOT and",
+        "label_list": [
+          "g1",
+          "c1",
+          "g2",
+          "c2",
+          "g3",
+          "c8"
+        ]
+      }
+    },
+    "edges": [],
+    "in_degree": [
+      [
+        0,
+        0
+      ]
+    ],
+    "out_degree": [
+      [
+        0,
+        0
+      ]
+    ]
+  },
+  "or_and_and.json": {
+    "nodes": {
+      "0": {
+        "criteria_list": [],
+        "is_and": true,
+        "or_nodes": [
+          1
+        ],
+        "label": "0 - ROOT and",
+        "label_list": []
+      },
+      "1": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "1 - or",
+        "label_list": []
+      },
+      "2": {
+        "criteria_list": [
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            },
+            "c3": {
+              "c3_key": "c3_val"
+            }
+          },
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            },
+            "c3": {
+              "c3_key": "c3_val"
+            }
+          },
+          {
+            "g4": {
+              "g4_key": "g4_val"
+            }
+          },
+          {
+            "c5": {
+              "c5_key": "c5_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "is_or": false,
+        "or_nodes": [],
+        "label": "2 - and",
+        "label_list": [
+          "g2",
+          "c3",
+          "g4",
+          "c5"
+        ]
+      },
+      "3": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c2": {
+              "c2_key": "c2_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "3 - g1",
+        "label_list": []
+      },
+      "4": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c2": {
+              "c2_key": "c2_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "4 - c2",
+        "label_list": []
+      }
+    },
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        1,
+        4
+      ]
+    ],
+    "in_degree": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        4,
+        1
+      ]
+    ],
+    "out_degree": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        4,
+        0
+      ]
+    ]
+  },
+  "and_or_and.json": {
+    "nodes": {
+      "0": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          },
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "or_nodes": [
+          1
+        ],
+        "label": "0 - ROOT and",
+        "label_list": [
+          "g1",
+          "c1"
+        ]
+      },
+      "1": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "1 - or",
+        "label_list": []
+      },
+      "2": {
+        "criteria_list": [
+          {
+            "g3": {
+              "g3_key": "g3_val"
+            }
+          },
+          {
+            "c3": {
+              "c3_key": "c3_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "is_or": false,
+        "or_nodes": [],
+        "label": "2 - and",
+        "label_list": [
+          "g3",
+          "c3"
+        ]
+      },
+      "3": {
+        "criteria_list": [
+          {
+            "c2": {
+              "c2_key": "c2_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "3 - c2",
+        "label_list": []
+      },
+      "4": {
+        "criteria_list": [
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "4 - g2",
+        "label_list": []
+      }
+    },
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        1,
+        4
+      ]
+    ],
+    "in_degree": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        4,
+        1
+      ]
+    ],
+    "out_degree": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        4,
+        0
+      ]
+    ]
+  },
+  "all_cases.json": {
+    "nodes": {
+      "0": {
+        "criteria_list": [
+          {
+            "g": {
+              "g1_key": "g1_val"
+            },
+            "c": {
+              "c1_key": "c1_val"
+            }
+          },
+          {
+            "g": {
+              "g1_key": "g1_val"
+            },
+            "c": {
+              "c1_key": "c1_val"
+            }
+          },
+          {
+            "g6": {
+              "g6_key": "g6_val"
+            },
+            "c6": {
+              "c6_key": "c6_val"
+            }
+          },
+          {
+            "g6": {
+              "g6_key": "g6_val"
+            },
+            "c6": {
+              "c6_key": "c6_val"
+            }
+          },
+          {
+            "g8": {
+              "g8_key": "g8_val"
+            }
+          },
+          {
+            "c8": {
+              "c8_key": "c8_val"
+            }
+          },
+          {
+            "g": {
+              "g1_key": "g1_val"
+            },
+            "c": {
+              "c1_key": "c1_val"
+            }
+          },
+          {
+            "g": {
+              "g1_key": "g1_val"
+            },
+            "c": {
+              "c1_key": "c1_val"
+            }
+          },
+          {
+            "g6": {
+              "g6_key": "g6_val"
+            },
+            "c6": {
+              "c6_key": "c6_val"
+            }
+          },
+          {
+            "g6": {
+              "g6_key": "g6_val"
+            },
+            "c6": {
+              "c6_key": "c6_val"
+            }
+          },
+          {
+            "g8": {
+              "g8_key": "g8_val"
+            }
+          },
+          {
+            "c8": {
+              "c8_key": "c8_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "or_nodes": [
+          1
+        ],
+        "label": "0 - ROOT and",
+        "label_list": [
+          "g",
+          "c",
+          "g6",
+          "c6",
+          "g8",
+          "c8",
+          "g",
+          "c",
+          "g6",
+          "c6",
+          "g8",
+          "c8"
+        ]
+      },
+      "1": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "1 - or",
+        "label_list": []
+      },
+      "2": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "2 - or",
+        "label_list": []
+      },
+      "3": {
+        "criteria_list": [
+          {
+            "g15": {
+              "g15_key": "g15_val"
+            }
+          },
+          {
+            "c15": {
+              "c15_key": "c15_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "is_or": false,
+        "or_nodes": [],
+        "label": "3 - and",
+        "label_list": [
+          "g15",
+          "c15"
+        ]
+      },
+      "4": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "4 - or",
+        "label_list": []
+      },
+      "5": {
+        "criteria_list": [
+          {
+            "c14": {
+              "c14_key": "c14_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "5 - c14",
+        "label_list": []
+      },
+      "6": {
+        "criteria_list": [
+          {
+            "g14": {
+              "g14_key": "g14_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "6 - g14",
+        "label_list": []
+      },
+      "7": {
+        "criteria_list": [
+          {
+            "c13": {
+              "g14_key": "g14_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "7 - c13",
+        "label_list": []
+      },
+      "8": {
+        "criteria_list": [
+          {
+            "g13": {
+              "g13_key": "g13_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "8 - g13",
+        "label_list": []
+      },
+      "9": {
+        "criteria_list": [
+          {
+            "g10": {
+              "g10_key": "g10_val"
+            },
+            "c10": {
+              "c10_key": "c10_val"
+            }
+          },
+          {
+            "g10": {
+              "g10_key": "g10_val"
+            },
+            "c10": {
+              "c10_key": "c10_val"
+            }
+          },
+          {
+            "g11": {
+              "g11_key": "g11_val"
+            }
+          },
+          {
+            "c11": {
+              "c11_key": "c11_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "is_or": false,
+        "or_nodes": [
+          33
+        ],
+        "label": "9 - and",
+        "label_list": [
+          "g10",
+          "c10",
+          "g11",
+          "c11"
+        ]
+      },
+      "10": {
+        "criteria_list": [
+          {
+            "g9": {
+              "g9_key": "g9_val"
+            },
+            "c9": {
+              "c9_key": "c9_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "10 - g9",
+        "label_list": []
+      },
+      "11": {
+        "criteria_list": [
+          {
+            "g9": {
+              "g9_key": "g9_val"
+            },
+            "c9": {
+              "c9_key": "c9_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "11 - c9",
+        "label_list": []
+      },
+      "12": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "12 - or",
+        "label_list": []
+      },
+      "13": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "13 - or",
+        "label_list": []
+      },
+      "14": {
+        "criteria_list": [
+          {
+            "g15": {
+              "g15_key": "g15_val"
+            }
+          },
+          {
+            "c15": {
+              "c15_key": "c15_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "is_or": false,
+        "or_nodes": [],
+        "label": "14 - and",
+        "label_list": [
+          "g15",
+          "c15"
+        ]
+      },
+      "15": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "15 - or",
+        "label_list": []
+      },
+      "16": {
+        "criteria_list": [
+          {
+            "c14": {
+              "c14_key": "c14_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "16 - c14",
+        "label_list": []
+      },
+      "17": {
+        "criteria_list": [
+          {
+            "g14": {
+              "g14_key": "g14_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "17 - g14",
+        "label_list": []
+      },
+      "18": {
+        "criteria_list": [
+          {
+            "c13": {
+              "g14_key": "g14_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "18 - c13",
+        "label_list": []
+      },
+      "19": {
+        "criteria_list": [
+          {
+            "g13": {
+              "g13_key": "g13_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "19 - g13",
+        "label_list": []
+      },
+      "20": {
+        "criteria_list": [
+          {
+            "g10": {
+              "g10_key": "g10_val"
+            },
+            "c10": {
+              "c10_key": "c10_val"
+            }
+          },
+          {
+            "g10": {
+              "g10_key": "g10_val"
+            },
+            "c10": {
+              "c10_key": "c10_val"
+            }
+          },
+          {
+            "g11": {
+              "g11_key": "g11_val"
+            }
+          },
+          {
+            "c11": {
+              "c11_key": "c11_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "is_or": false,
+        "or_nodes": [
+          49
+        ],
+        "label": "20 - and",
+        "label_list": [
+          "g10",
+          "c10",
+          "g11",
+          "c11"
+        ]
+      },
+      "21": {
+        "criteria_list": [
+          {
+            "g9": {
+              "g9_key": "g9_val"
+            },
+            "c9": {
+              "c9_key": "c9_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "21 - g9",
+        "label_list": []
+      },
+      "22": {
+        "criteria_list": [
+          {
+            "g9": {
+              "g9_key": "g9_val"
+            },
+            "c9": {
+              "c9_key": "c9_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "22 - c9",
+        "label_list": []
+      },
+      "23": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "23 - or",
+        "label_list": []
+      },
+      "24": {
+        "criteria_list": [
+          {
+            "g3": {
+              "g3_key": "g3_val"
+            }
+          },
+          {
+            "c3": {
+              "c3_key": "c3_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "is_or": false,
+        "or_nodes": [],
+        "label": "24 - and",
+        "label_list": [
+          "g3",
+          "c3"
+        ]
+      },
+      "25": {
+        "criteria_list": [
+          {
+            "c2": {
+              "c2_key": "c2_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "25 - c2",
+        "label_list": []
+      },
+      "26": {
+        "criteria_list": [
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "26 - g2",
+        "label_list": []
+      },
+      "27": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "27 - or",
+        "label_list": []
+      },
+      "28": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "28 - or",
+        "label_list": []
+      },
+      "29": {
+        "criteria_list": [
+          {
+            "c5": {
+              "c5_key": "c5_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "29 - c5",
+        "label_list": []
+      },
+      "30": {
+        "criteria_list": [
+          {
+            "g5": {
+              "g5_key": "g5_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "30 - g5",
+        "label_list": []
+      },
+      "31": {
+        "criteria_list": [
+          {
+            "c4": {
+              "c4_key": "c4_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "31 - c4",
+        "label_list": []
+      },
+      "32": {
+        "criteria_list": [
+          {
+            "g4": {
+              "g4_key": "g4_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "32 - g4",
+        "label_list": []
+      },
+      "33": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "33 - or",
+        "label_list": []
+      },
+      "34": {
+        "criteria_list": [
+          {
+            "c12": {
+              "c12_key": "c12_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "34 - c12",
+        "label_list": []
+      },
+      "35": {
+        "criteria_list": [
+          {
+            "g12": {
+              "g12_key": "g12_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "35 - g12",
+        "label_list": []
+      },
+      "36": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "36 - or",
+        "label_list": []
+      },
+      "37": {
+        "criteria_list": [
+          {
+            "c7": {
+              "c7_key": "c7_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "37 - c7",
+        "label_list": []
+      },
+      "38": {
+        "criteria_list": [
+          {
+            "g7": {
+              "g7_key": "g7_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "38 - g7",
+        "label_list": []
+      },
+      "39": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "39 - or",
+        "label_list": []
+      },
+      "40": {
+        "criteria_list": [
+          {
+            "g3": {
+              "g3_key": "g3_val"
+            }
+          },
+          {
+            "c3": {
+              "c3_key": "c3_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "is_or": false,
+        "or_nodes": [],
+        "label": "40 - and",
+        "label_list": [
+          "g3",
+          "c3"
+        ]
+      },
+      "41": {
+        "criteria_list": [
+          {
+            "c2": {
+              "c2_key": "c2_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "41 - c2",
+        "label_list": []
+      },
+      "42": {
+        "criteria_list": [
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "42 - g2",
+        "label_list": []
+      },
+      "43": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "43 - or",
+        "label_list": []
+      },
+      "44": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "44 - or",
+        "label_list": []
+      },
+      "45": {
+        "criteria_list": [
+          {
+            "c5": {
+              "c5_key": "c5_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "45 - c5",
+        "label_list": []
+      },
+      "46": {
+        "criteria_list": [
+          {
+            "g5": {
+              "g5_key": "g5_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "46 - g5",
+        "label_list": []
+      },
+      "47": {
+        "criteria_list": [
+          {
+            "c4": {
+              "c4_key": "c4_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "47 - c4",
+        "label_list": []
+      },
+      "48": {
+        "criteria_list": [
+          {
+            "g4": {
+              "g4_key": "g4_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "48 - g4",
+        "label_list": []
+      },
+      "49": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "49 - or",
+        "label_list": []
+      },
+      "50": {
+        "criteria_list": [
+          {
+            "c12": {
+              "c12_key": "c12_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "50 - c12",
+        "label_list": []
+      },
+      "51": {
+        "criteria_list": [
+          {
+            "g12": {
+              "g12_key": "g12_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "51 - g12",
+        "label_list": []
+      },
+      "52": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "52 - or",
+        "label_list": []
+      },
+      "53": {
+        "criteria_list": [
+          {
+            "c7": {
+              "c7_key": "c7_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "53 - c7",
+        "label_list": []
+      },
+      "54": {
+        "criteria_list": [
+          {
+            "g7": {
+              "g7_key": "g7_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "54 - g7",
+        "label_list": []
+      }
+    },
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        9
+      ],
+      [
+        1,
+        10
+      ],
+      [
+        1,
+        11
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        2,
+        4
+      ],
+      [
+        2,
+        7
+      ],
+      [
+        2,
+        8
+      ],
+      [
+        3,
+        12
+      ],
+      [
+        4,
+        5
+      ],
+      [
+        4,
+        6
+      ],
+      [
+        5,
+        12
+      ],
+      [
+        6,
+        12
+      ],
+      [
+        7,
+        12
+      ],
+      [
+        8,
+        12
+      ],
+      [
+        9,
+        12
+      ],
+      [
+        9,
+        33
+      ],
+      [
+        10,
+        12
+      ],
+      [
+        11,
+        12
+      ],
+      [
+        12,
+        13
+      ],
+      [
+        12,
+        20
+      ],
+      [
+        12,
+        21
+      ],
+      [
+        12,
+        22
+      ],
+      [
+        13,
+        14
+      ],
+      [
+        13,
+        15
+      ],
+      [
+        13,
+        18
+      ],
+      [
+        13,
+        19
+      ],
+      [
+        14,
+        23
+      ],
+      [
+        15,
+        16
+      ],
+      [
+        15,
+        17
+      ],
+      [
+        16,
+        23
+      ],
+      [
+        17,
+        23
+      ],
+      [
+        18,
+        23
+      ],
+      [
+        19,
+        23
+      ],
+      [
+        20,
+        23
+      ],
+      [
+        20,
+        49
+      ],
+      [
+        21,
+        23
+      ],
+      [
+        22,
+        23
+      ],
+      [
+        23,
+        24
+      ],
+      [
+        23,
+        25
+      ],
+      [
+        23,
+        26
+      ],
+      [
+        24,
+        27
+      ],
+      [
+        25,
+        27
+      ],
+      [
+        26,
+        27
+      ],
+      [
+        27,
+        28
+      ],
+      [
+        27,
+        31
+      ],
+      [
+        27,
+        32
+      ],
+      [
+        28,
+        29
+      ],
+      [
+        28,
+        30
+      ],
+      [
+        29,
+        36
+      ],
+      [
+        30,
+        36
+      ],
+      [
+        31,
+        36
+      ],
+      [
+        32,
+        36
+      ],
+      [
+        33,
+        34
+      ],
+      [
+        33,
+        35
+      ],
+      [
+        34,
+        36
+      ],
+      [
+        35,
+        36
+      ],
+      [
+        36,
+        37
+      ],
+      [
+        36,
+        38
+      ],
+      [
+        37,
+        39
+      ],
+      [
+        38,
+        39
+      ],
+      [
+        39,
+        40
+      ],
+      [
+        39,
+        41
+      ],
+      [
+        39,
+        42
+      ],
+      [
+        40,
+        43
+      ],
+      [
+        41,
+        43
+      ],
+      [
+        42,
+        43
+      ],
+      [
+        43,
+        44
+      ],
+      [
+        43,
+        47
+      ],
+      [
+        43,
+        48
+      ],
+      [
+        44,
+        45
+      ],
+      [
+        44,
+        46
+      ],
+      [
+        45,
+        52
+      ],
+      [
+        46,
+        52
+      ],
+      [
+        47,
+        52
+      ],
+      [
+        48,
+        52
+      ],
+      [
+        49,
+        50
+      ],
+      [
+        49,
+        51
+      ],
+      [
+        50,
+        52
+      ],
+      [
+        51,
+        52
+      ],
+      [
+        52,
+        53
+      ],
+      [
+        52,
+        54
+      ]
+    ],
+    "in_degree": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        5,
+        1
+      ],
+      [
+        6,
+        1
+      ],
+      [
+        7,
+        1
+      ],
+      [
+        8,
+        1
+      ],
+      [
+        9,
+        1
+      ],
+      [
+        10,
+        1
+      ],
+      [
+        11,
+        1
+      ],
+      [
+        12,
+        8
+      ],
+      [
+        13,
+        1
+      ],
+      [
+        14,
+        1
+      ],
+      [
+        15,
+        1
+      ],
+      [
+        16,
+        1
+      ],
+      [
+        17,
+        1
+      ],
+      [
+        18,
+        1
+      ],
+      [
+        19,
+        1
+      ],
+      [
+        20,
+        1
+      ],
+      [
+        21,
+        1
+      ],
+      [
+        22,
+        1
+      ],
+      [
+        23,
+        8
+      ],
+      [
+        24,
+        1
+      ],
+      [
+        25,
+        1
+      ],
+      [
+        26,
+        1
+      ],
+      [
+        27,
+        3
+      ],
+      [
+        28,
+        1
+      ],
+      [
+        29,
+        1
+      ],
+      [
+        30,
+        1
+      ],
+      [
+        31,
+        1
+      ],
+      [
+        32,
+        1
+      ],
+      [
+        33,
+        1
+      ],
+      [
+        34,
+        1
+      ],
+      [
+        35,
+        1
+      ],
+      [
+        36,
+        6
+      ],
+      [
+        37,
+        1
+      ],
+      [
+        38,
+        1
+      ],
+      [
+        39,
+        2
+      ],
+      [
+        40,
+        1
+      ],
+      [
+        41,
+        1
+      ],
+      [
+        42,
+        1
+      ],
+      [
+        43,
+        3
+      ],
+      [
+        44,
+        1
+      ],
+      [
+        45,
+        1
+      ],
+      [
+        46,
+        1
+      ],
+      [
+        47,
+        1
+      ],
+      [
+        48,
+        1
+      ],
+      [
+        49,
+        1
+      ],
+      [
+        50,
+        1
+      ],
+      [
+        51,
+        1
+      ],
+      [
+        52,
+        6
+      ],
+      [
+        53,
+        1
+      ],
+      [
+        54,
+        1
+      ]
+    ],
+    "out_degree": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        2,
+        4
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        4,
+        2
+      ],
+      [
+        5,
+        1
+      ],
+      [
+        6,
+        1
+      ],
+      [
+        7,
+        1
+      ],
+      [
+        8,
+        1
+      ],
+      [
+        9,
+        2
+      ],
+      [
+        10,
+        1
+      ],
+      [
+        11,
+        1
+      ],
+      [
+        12,
+        4
+      ],
+      [
+        13,
+        4
+      ],
+      [
+        14,
+        1
+      ],
+      [
+        15,
+        2
+      ],
+      [
+        16,
+        1
+      ],
+      [
+        17,
+        1
+      ],
+      [
+        18,
+        1
+      ],
+      [
+        19,
+        1
+      ],
+      [
+        20,
+        2
+      ],
+      [
+        21,
+        1
+      ],
+      [
+        22,
+        1
+      ],
+      [
+        23,
+        3
+      ],
+      [
+        24,
+        1
+      ],
+      [
+        25,
+        1
+      ],
+      [
+        26,
+        1
+      ],
+      [
+        27,
+        3
+      ],
+      [
+        28,
+        2
+      ],
+      [
+        29,
+        1
+      ],
+      [
+        30,
+        1
+      ],
+      [
+        31,
+        1
+      ],
+      [
+        32,
+        1
+      ],
+      [
+        33,
+        2
+      ],
+      [
+        34,
+        1
+      ],
+      [
+        35,
+        1
+      ],
+      [
+        36,
+        2
+      ],
+      [
+        37,
+        1
+      ],
+      [
+        38,
+        1
+      ],
+      [
+        39,
+        3
+      ],
+      [
+        40,
+        1
+      ],
+      [
+        41,
+        1
+      ],
+      [
+        42,
+        1
+      ],
+      [
+        43,
+        3
+      ],
+      [
+        44,
+        2
+      ],
+      [
+        45,
+        1
+      ],
+      [
+        46,
+        1
+      ],
+      [
+        47,
+        1
+      ],
+      [
+        48,
+        1
+      ],
+      [
+        49,
+        2
+      ],
+      [
+        50,
+        1
+      ],
+      [
+        51,
+        1
+      ],
+      [
+        52,
+        2
+      ],
+      [
+        53,
+        0
+      ],
+      [
+        54,
+        0
+      ]
+    ]
+  },
+  "or_or_and.json": {
+    "nodes": {
+      "0": {
+        "criteria_list": [],
+        "is_and": true,
+        "or_nodes": [
+          1
+        ],
+        "label": "0 - ROOT and",
+        "label_list": []
+      },
+      "1": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "1 - or",
+        "label_list": []
+      },
+      "2": {
+        "criteria_list": [],
+        "is_and": false,
+        "is_or": true,
+        "label": "2 - or",
+        "label_list": []
+      },
+      "3": {
+        "criteria_list": [
+          {
+            "g3": {
+              "g3_key": "g3_val"
+            }
+          },
+          {
+            "c3": {
+              "c3_key": "c3_val"
+            }
+          }
+        ],
+        "is_and": true,
+        "is_or": false,
+        "or_nodes": [],
+        "label": "3 - and",
+        "label_list": [
+          "g3",
+          "c3"
+        ]
+      },
+      "4": {
+        "criteria_list": [
+          {
+            "c2": {
+              "g14_key": "g14_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "4 - c2",
+        "label_list": []
+      },
+      "5": {
+        "criteria_list": [
+          {
+            "g2": {
+              "g2_key": "g2_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "5 - g2",
+        "label_list": []
+      },
+      "6": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "6 - g1",
+        "label_list": []
+      },
+      "7": {
+        "criteria_list": [
+          {
+            "g1": {
+              "g1_key": "g1_val"
+            },
+            "c1": {
+              "c1_key": "c1_val"
+            }
+          }
+        ],
+        "is_or": false,
+        "is_and": true,
+        "label": "7 - c1",
+        "label_list": []
+      }
+    },
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        6
+      ],
+      [
+        1,
+        7
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        2,
+        4
+      ],
+      [
+        2,
+        5
+      ]
+    ],
+    "in_degree": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        5,
+        1
+      ],
+      [
+        6,
+        1
+      ],
+      [
+        7,
+        1
+      ]
+    ],
+    "out_degree": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        5,
+        0
+      ],
+      [
+        6,
+        0
+      ],
+      [
+        7,
+        0
+      ]
+    ]
+  }
+}

@@ -1,8 +1,12 @@
 import glob
 import json
+import os
 from unittest import TestCase
+
+import networkx as nx
+
 from match_criteria_transform import MatchCriteriaTransform
-from matchengine import MatchEngine, log
+from matchengine import MatchEngine, log, ComparableDict
 from matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel
 
 
@@ -50,6 +54,9 @@ class TestMatchEngine(TestCase):
                 trial = [data]
                 self.me.trials[file] = trial
 
+        with open('./tests/data/create_match_tree_expected.json') as f:
+            test_cases = json.load(f)
+
         for trial in self.me.trials:
             me_trial = self.me.trials[trial]
             match_tree = self.me.create_match_tree(MatchClauseData(match_clause=me_trial,
@@ -61,10 +68,18 @@ class TestMatchEngine(TestCase):
                                                                    match_clause_level=MatchClauseLevel('arm'),
                                                                    match_clause_additional_attributes={},
                                                                    protocol_no='12-345'))
-            # todo test digraph for nodes and connections
-            # todo test match tree's
-            match_tree = next(self.me.get_match_paths(match_tree))
-            pass
+            test_case = test_cases[os.path.basename(trial)]
+            assert len(test_case["nodes"]) == len(match_tree.nodes)
+            for test_case_key in test_case.keys():
+                if test_case_key == "nodes":
+                    for node_id, node_attrs in test_case[test_case_key].items():
+                        graph_node = match_tree.nodes[int(node_id)]
+                        assert len(node_attrs) == len(graph_node)
+                        assert ComparableDict(node_attrs).hash() == ComparableDict(graph_node).hash()
+                else:
+                    for test_item, graph_item in zip(test_case[test_case_key], getattr(match_tree, test_case_key)):
+                        for idx, test_item_part in enumerate(test_item):
+                            assert test_item_part == graph_item[idx]
 
     def test_translate_match_path(self):
         self.fail()
