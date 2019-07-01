@@ -16,6 +16,7 @@ class TestMatchEngine(TestCase):
         """init matchengine without running __init__ since tests will need to instantiate various values individually"""
         self.me = MatchEngine.__new__(MatchEngine)
 
+        assert isinstance(self.me.create_trial_matches({}), dict)
         self.me.plugin_dir = 'tests/plugins'
         self.me.match_document_creator_class = 'TestTrialMatchDocumentCreator'
         self.me.visualize_match_paths = False
@@ -110,8 +111,8 @@ class TestMatchEngine(TestCase):
                     assert test_case_criteria["depth"] == match_path_criteria.depth
                     for inner_test_case_criteria, inner_match_path_criteria in zip(test_case_criteria["criteria"],
                                                                                    match_path_criteria.criteria):
-                        assert ComparableDict(inner_test_case_criteria).hash() == ComparableDict(inner_match_path_criteria).hash()
-
+                        assert ComparableDict(inner_test_case_criteria).hash() == ComparableDict(
+                            inner_match_path_criteria).hash()
 
     def test_translate_match_path(self):
         self.fail()
