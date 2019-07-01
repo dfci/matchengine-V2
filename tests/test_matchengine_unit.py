@@ -9,7 +9,7 @@ from matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel
 class TestMatchEngine(TestCase):
 
     def setUp(self) -> None:
-        # init matchengine without any args since tests themselves are testing the args
+        """init matchengine without running __init__ since tests will need to instantiate various values individually"""
         self.me = MatchEngine.__new__(MatchEngine)
 
         self.me.plugin_dir = 'tests/plugins'
@@ -21,6 +21,7 @@ class TestMatchEngine(TestCase):
         pass
 
     def test__find_plugins(self):
+        """Verify functions inside external config files are reachable within the Matchengine class"""
         old_create_trial_matches = self.me.create_trial_matches
         self.me._find_plugins()
         assert hasattr(self.me, 'create_trial_matches')
