@@ -14,6 +14,7 @@ class TestMatchEngine(TestCase):
 
         self.me.plugin_dir = 'tests/plugins'
         self.me.match_document_creator_class = 'TestTrialMatchDocumentCreator'
+        self.me.visualize_match_paths = False
         with open('tests/config.json') as config_file_handle:
             self.config = json.load(config_file_handle)
 
@@ -43,7 +44,6 @@ class TestMatchEngine(TestCase):
 
     def test_create_match_tree(self):
         self.me.trials = dict()
-        self.me.visualize_match_paths = False
         for file in glob.glob('./tests/data/ctml_boolean_cases/*.json'):
             with open(file) as f:
                 data = json.load(f)
@@ -61,10 +61,10 @@ class TestMatchEngine(TestCase):
                                                                    match_clause_level=MatchClauseLevel('arm'),
                                                                    match_clause_additional_attributes={},
                                                                    protocol_no='12-345'))
+            # todo test digraph for nodes and connections
+            # todo test match tree's
+            match_tree = next(self.me.get_match_paths(match_tree))
             pass
-
-    def test_get_match_paths(self):
-        self.fail()
 
     def test_translate_match_path(self):
         self.fail()
