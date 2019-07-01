@@ -51,7 +51,7 @@ class BaseTransformers(QueryTransformerContainer):
                 self._.resources[file] = json.load(file_handle)
         resource = self._.resources[file]
         trial_value, negate = is_negate(trial_value)
-        match_value = resource.setdefault(trial_value, trial_value)  # TODO: fix
+        match_value = resource.setdefault(trial_value, trial_value)
         if isinstance(match_value, list):
             return {sample_key: {"$in": sorted(match_value)}}, negate
         else:
