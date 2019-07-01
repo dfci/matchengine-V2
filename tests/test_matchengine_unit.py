@@ -81,5 +81,46 @@ class TestMatchEngine(TestCase):
                         for idx, test_item_part in enumerate(test_item):
                             assert test_item_part == graph_item[idx]
 
+    def test_get_match_paths(self):
+        self.me.trials = dict()
+        for file in glob.glob('./tests/data/ctml_boolean_cases/*.json'):
+            with open(file) as f:
+                data = json.load(f)
+                trial = [data]
+                self.me.trials[file] = trial
+        test_cases = dict()
+        for trial in self.me.trials:
+            filename = os.path.basename(trial)
+            if filename == 'aaaall_cases.json':
+                continue
+            test_cases[filename] = list()
+            test_case = test_cases[filename]
+            me_trial = self.me.trials[trial]
+            match_tree = self.me.create_match_tree(MatchClauseData(match_clause=me_trial,
+                                                                   internal_id='123',
+                                                                   code='456',
+                                                                   coordinating_center='The Death Star',
+                                                                   status='Open to Accrual',
+                                                                   parent_path=ParentPath(()),
+                                                                   match_clause_level=MatchClauseLevel('arm'),
+                                                                   match_clause_additional_attributes={},
+                                                                   protocol_no='12-345'))
+
+            match_paths = list(self.me.get_match_paths(match_tree))
+            for match_path in match_paths:
+                match_path_test_case = dict()
+                match_path_test_case["hash"] = match_path.hash()
+                match_path_test_case["criteria_list"] = list()
+                for criteria in match_path.criteria_list:
+                    criteria_test_case = dict()
+                    criteria_test_case["depth"] = criteria.depth
+                    criteria_test_case["criteria"] = criteria.criteria
+                    match_path_test_case["criteria_list"].append(criteria_test_case)
+                test_case.append(match_path_test_case)
+        with open("get_match_paths_expected.json", "w") as f:
+            json.dump(test_cases, f, sort_keys=False, indent=2)
+
+            print()
+
     def test_translate_match_path(self):
         self.fail()
