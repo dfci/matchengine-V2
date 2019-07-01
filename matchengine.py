@@ -643,11 +643,11 @@ class MatchEngine(object):
                     for item in value:
                         for inner_label, inner_value in item.items():
                             if inner_label.startswith("or"):
-                                process_q.appendleft((parent_id if parent_is_and else node_id, item))
+                                process_q.appendleft((parent_id if parent_is_and else node_id, {inner_label: inner_value}))
                             elif inner_label.startswith("and"):
-                                process_q.append((parent_id if parent_is_and else node_id, item))
+                                process_q.append((parent_id if parent_is_and else node_id, {inner_label: inner_value}))
                             else:
-                                criteria_list.append(item)
+                                criteria_list.append({inner_label: inner_value})
                                 label_list.append(inner_label)
                     if parent_is_and:
                         graph.nodes[parent_id]['criteria_list'].extend(criteria_list)
