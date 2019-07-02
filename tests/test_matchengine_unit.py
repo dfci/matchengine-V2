@@ -7,7 +7,7 @@ import networkx as nx
 
 from match_criteria_transform import MatchCriteriaTransform
 from matchengine import MatchEngine, log, ComparableDict
-from matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel
+from matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel, MatchClause, MatchCriteria, MatchCriterion
 
 
 class TestMatchEngine(TestCase):
@@ -115,4 +115,20 @@ class TestMatchEngine(TestCase):
                             inner_match_path_criteria).hash()
 
     def test_translate_match_path(self):
-        self.fail()
+        self.me.trials = dict()
+        self.me._find_plugins()
+        match_clause_data = MatchClauseData(match_clause=MatchClause([{}]),
+                                            internal_id='123',
+                                            code='456',
+                                            coordinating_center='The Death Star',
+                                            status='Open to Accrual',
+                                            parent_path=ParentPath(()),
+                                            match_clause_level=MatchClauseLevel('arm'),
+                                            match_clause_additional_attributes={},
+                                            protocol_no='12-345')
+        match_path = self.me.translate_match_path(match_clause_data=match_clause_data,
+                                                  match_criterion=MatchCriterion([MatchCriteria({},0)]))
+        assert len(match_path.clinical) == 0
+        assert len(match_path.genomic) == 0
+
+
