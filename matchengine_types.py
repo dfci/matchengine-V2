@@ -179,3 +179,15 @@ class UpdateTask:
 @dataclass
 class RunLogUpdateTask:
     run_log: RunLog
+
+
+@dataclass
+class Secrets:
+    HOST: str
+    PORT: int
+    DB: str
+    AUTH_DB: str
+    RO_USERNAME: str
+    RO_PASSWORD: str
+    RW_USERNAME: str
+    RW_PASSWORD: str
