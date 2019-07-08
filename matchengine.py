@@ -854,7 +854,6 @@ class MatchEngine(object):
 
         for run_log in deleted_by_id.values():
             await self._task_q.put(RunLogUpdateTask(run_log))
-        await self._task_q.put(UpdateTask(initial_delete_ops, protocol_no))
         for sample_id in trial_matches_by_sample_id.keys():
             run_log = RunLog(protocol_no, self.sample_mapping[sample_id])
             new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
