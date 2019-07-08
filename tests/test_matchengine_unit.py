@@ -130,5 +130,3 @@ class TestMatchEngine(TestCase):
                                                   match_criterion=MatchCriterion([MatchCriteria({},0)]))
         assert len(match_path.clinical) == 0
         assert len(match_path.genomic) == 0
-
-
