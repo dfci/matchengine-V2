@@ -1,6 +1,6 @@
 from typing import Dict
 
-from TrialMatchDocumentCreator import TrialMatchDocumentCreator
+from plugin_stub import TrialMatchDocumentCreator
 from matchengine_types import TrialMatch
 
 

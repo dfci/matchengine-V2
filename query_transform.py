@@ -1,13 +1,10 @@
 from __future__ import annotations
 import json
 from types import MethodType
-from typing import Type, TYPE_CHECKING
+from typing import Type
 
 from match_criteria_transform import MatchCriteriaTransform
-
-
-class QueryTransformerContainer(object):
-    _: MatchCriteriaTransform
+from plugin_stub import QueryTransformerContainer
 
 
 def is_negate(trial_value):

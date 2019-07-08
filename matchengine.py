@@ -23,7 +23,7 @@ from match_criteria_transform import MatchCriteriaTransform, query_node_transfor
 from mongo_connection import MongoDBConnection
 from matchengine_types import *
 from query_transform import QueryTransformerContainer
-from TrialMatchDocumentCreator import TrialMatchDocumentCreator
+from plugin_stub import TrialMatchDocumentCreator, DBSecrets
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
@@ -109,6 +109,7 @@ class MatchEngine(object):
             plugin_dir: str = None,
             db_init: bool = True,
             match_document_creator_class: str = None,
+            db_secrets_class: str = None,
             use_run_log: bool = True,
             report_clinical_reasons: bool = True
     ):
@@ -121,6 +122,7 @@ class MatchEngine(object):
         self.match_criteria_transform = MatchCriteriaTransform(self.config)
         self.plugin_dir = plugin_dir
         self.match_document_creator_class = match_document_creator_class
+        self.db_secrets_class = db_secrets_class
         self._find_plugins()
         self.db_init = db_init
         self._db_ro = MongoDBConnection(read_only=True, async_init=False) if self.db_init else None
@@ -128,6 +130,7 @@ class MatchEngine(object):
         self._db_rw = MongoDBConnection(read_only=False, async_init=False) if self.db_init else None
         self.db_rw = self._db_rw.__enter__() if self.db_init else None
 
+        self.check_indices()
         # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
         self.sample_ids = sample_ids
@@ -160,6 +163,29 @@ class MatchEngine(object):
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._async_init())
+
+    def check_indices(self):
+        """
+        Ensure indexes exist on the trial_match collection so queries are performant
+        """
+        for collection, desired_indices in {
+            'trial_match': {
+                'hash', 'mrn', 'sample_id', 'clinical_id', 'protocol_no'},
+            'matchengine_run_log': {
+                'clinical_id',
+                'protocol_no',
+                '_created'
+            }
+        }.items():
+            indices = self.db_ro[collection].list_indexes()
+            existing_indices = set()
+            for index in indices:
+                index_key = list(index['key'].to_dict().keys())[0]
+                existing_indices.add(index_key)
+            indices_to_create = desired_indices - existing_indices
+            for index in indices_to_create:
+                log.info('Creating index %s' % index)
+                self.db_rw[collection].create_index(index)
 
     def populate_run_log_cache(self):
         run_log_pipeline = [
@@ -210,7 +236,10 @@ class MatchEngine(object):
                         setattr(self,
                                 'create_trial_matches', MethodType(getattr(item, 'create_trial_matches'),
                                                                    self))
-                        pass
+                elif issubclass(item, DBSecrets):
+                    if item_name == self.db_secrets_class:
+                        secrets = item().get_secrets()
+                        setattr(MongoDBConnection, 'secrets', secrets)
 
     async def _async_init(self):
         """
@@ -643,7 +672,8 @@ class MatchEngine(object):
                     for item in value:
                         for inner_label, inner_value in item.items():
                             if inner_label.startswith("or"):
-                                process_q.appendleft((parent_id if parent_is_and else node_id, {inner_label: inner_value}))
+                                process_q.appendleft(
+                                    (parent_id if parent_is_and else node_id, {inner_label: inner_value}))
                             elif inner_label.startswith("and"):
                                 process_q.append((parent_id if parent_is_and else node_id, {inner_label: inner_value}))
                             else:
@@ -1034,7 +1064,6 @@ def main(run_args):
     """
     Main function which triggers run of engine with args passed in from command line.
     """
-    check_indices()
     with MatchEngine(
             plugin_dir=run_args.plugin_dir,
             sample_ids=run_args.samples,
@@ -1045,6 +1074,7 @@ def main(run_args):
             num_workers=run_args.workers[0],
             config=args.config_path,
             match_document_creator_class=args.match_document_creator_class,
+            db_secrets_class=args.db_secrets_class,
             use_run_log=args.use_run_log,
             report_clinical_reasons=args.report_clinical_reasons
     ) as me:
@@ -1128,6 +1158,10 @@ if __name__ == "__main__":
                         dest="match_document_creator_class",
                         default="DFCITrialMatchDocumentCreator",
                         help="Name of class for creating match documents. Should be located in the plugin directory")
+    subp_p.add_argument("--db-secrets-class",
+                        dest="db_secrets_class",
+                        default="DFCIDBSecrets",
+                        help="Name of class for obtaining the DB Secrets. Should be located in the plugin directory")
     subp_p.add_argument("--match-on-deceased-patients",
                         dest="match_on_deceased",
                         action="store_true",
@@ -1143,7 +1177,8 @@ if __name__ == "__main__":
                         default=False,
                         help=deceased_help)
     subp_p.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
-    subp_p.add_argument('-o', dest="csv_output", action="store_true", default=False, required=False, help=csv_output_help)
+    subp_p.add_argument('-o', dest="csv_output", action="store_true", default=False, required=False,
+                        help=csv_output_help)
     args = parser.parse_args()
     # args.func(args)
     main(args)
