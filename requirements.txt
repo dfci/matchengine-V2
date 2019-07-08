@@ -1,4 +1,4 @@
-dateutil
+python-dateutil==2.8.0
 bson
 matplotlib
 PyYAML==5.1
