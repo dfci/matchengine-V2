@@ -7,7 +7,7 @@ import logging
 import datetime as dt
 import os
 import sys
-from collections import deque, defaultdict
+from collections import deque
 from multiprocessing import cpu_count
 from types import MethodType
 from typing import Generator

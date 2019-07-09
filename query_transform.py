@@ -14,7 +14,7 @@ def is_negate(trial_value):
     :param trial_value:
     :return:
     """
-    negate = True if isinstance(trial_value, str) and trial_value[0] == '!' else False
+    negate = True if isinstance(trial_value, str) and trial_value and trial_value[0] == '!' else False
     trial_value = trial_value[1::] if negate else trial_value
     return trial_value, negate
 

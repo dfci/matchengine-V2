@@ -24,7 +24,6 @@ class TestMatchEngine(TestCase):
             self.config = json.load(config_file_handle)
 
         self.me.match_criteria_transform = MatchCriteriaTransform(self.config)
-        pass
 
     def test__find_plugins(self):
         """Verify functions inside external config files are reachable within the Matchengine class"""
@@ -35,9 +34,50 @@ class TestMatchEngine(TestCase):
         blank_trial_match = self.me.create_trial_matches({})
         assert isinstance(blank_trial_match, dict) and not blank_trial_match
 
-    def test_Base_Transformers(self):
-        self.me.match_criteria_transform.query_transformers.nomap
-        pass
+    def test_query_transform(self):
+        self.me._find_plugins()
+
+        assert hasattr(self.me.match_criteria_transform.transform, 'is_negate')
+        assert getattr(self.me.match_criteria_transform.transform, 'is_negate')('this') == ('this', False)
+        assert getattr(self.me.match_criteria_transform.transform, 'is_negate')('!this') == ('this', True)
+        assert getattr(self.me.match_criteria_transform.transform, 'is_negate')('!') == (str(), True)
+        assert getattr(self.me.match_criteria_transform.transform, 'is_negate')('') == (str(), False)
+
+        transform_args = {
+            'trial_path': 'test',
+            'trial_key': 'test',
+            'trial_value': 'test',
+            'sample_key': 'test',
+            'file': 'tests/data/external_file_mapping_test.json'
+        }
+
+        assert hasattr(self.me.match_criteria_transform.query_transformers, 'nomap')
+        nomap_ret, nomap_no_negate = getattr(self.me.match_criteria_transform.query_transformers,
+                                             'nomap')(**transform_args)
+        assert len(nomap_ret) == 1 and nomap_ret['test'] == 'test' and not nomap_no_negate
+
+        assert hasattr(self.me.match_criteria_transform.query_transformers, 'external_file_mapping')
+        ext_f_map_ret, ext_f_map_no_negate = getattr(self.me.match_criteria_transform.query_transformers,
+                                                     'external_file_mapping')(**transform_args)
+        assert len(ext_f_map_ret) == 1 and not ext_f_map_no_negate
+        assert 'test' in ext_f_map_ret and '$in' in ext_f_map_ret['test']
+        assert all(map(lambda x: x[0] == x[1],
+                       zip(ext_f_map_ret['test']['$in'],
+                           ['option_1', 'option_2', 'option_3'])))
+
+        ext_f_map_ret_single, ext_f_map_no_negate_single = getattr(
+            self.me.match_criteria_transform.query_transformers,
+            'external_file_mapping')(**dict(transform_args,
+                                            **{'trial_value': '!test2'}))
+        assert len(ext_f_map_ret) == 1 and ext_f_map_no_negate_single
+        assert 'test' in ext_f_map_ret_single and isinstance(ext_f_map_ret_single['test'], str)
+        assert ext_f_map_ret_single['test'] == 'option_4'
+
+        assert hasattr(self.me.match_criteria_transform.query_transformers, 'to_upper')
+        to_upper_ret, to_upper_no_negate = getattr(self.me.match_criteria_transform.query_transformers,
+                                                   'to_upper')(**transform_args)
+        assert len(to_upper_ret) == 1 and not to_upper_no_negate
+        assert 'test' in ext_f_map_ret and to_upper_ret['test'] == 'TEST'
 
     def test_extract_match_clauses_from_trial(self):
         self.me.trials = dict()
@@ -133,6 +173,6 @@ class TestMatchEngine(TestCase):
                                             match_clause_additional_attributes={},
                                             protocol_no='12-345')
         match_path = self.me.translate_match_path(match_clause_data=match_clause_data,
-                                                  match_criterion=MatchCriterion([MatchCriteria({},0)]))
+                                                  match_criterion=MatchCriterion([MatchCriteria({}, 0)]))
         assert len(match_path.clinical) == 0
         assert len(match_path.genomic) == 0
