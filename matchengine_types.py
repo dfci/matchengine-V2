@@ -101,6 +101,7 @@ class MatchClauseData:
     internal_id: str
     code: str
     coordinating_center: str
+    is_suspended: bool
     status: str
     parent_path: ParentPath
     match_clause_level: MatchClauseLevel
