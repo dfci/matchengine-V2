@@ -114,7 +114,8 @@ class TestMatchEngine(TestCase):
                                                                    parent_path=ParentPath(()),
                                                                    match_clause_level=MatchClauseLevel('arm'),
                                                                    match_clause_additional_attributes={},
-                                                                   protocol_no='12-345'))
+                                                                   protocol_no='12-345',
+                                                                   is_suspended=True))
             test_case = test_cases[os.path.basename(trial)]
             assert len(test_case["nodes"]) == len(match_tree.nodes)
             for test_case_key in test_case.keys():
@@ -148,6 +149,7 @@ class TestMatchEngine(TestCase):
                                                                    parent_path=ParentPath(()),
                                                                    match_clause_level=MatchClauseLevel('arm'),
                                                                    match_clause_additional_attributes={},
+                                                                   is_suspended=True,
                                                                    protocol_no='12-345'))
             match_paths = list(self.me.get_match_paths(match_tree))
             for test_case, match_path in zip(test_cases[filename], match_paths):
@@ -171,7 +173,8 @@ class TestMatchEngine(TestCase):
                                             parent_path=ParentPath(()),
                                             match_clause_level=MatchClauseLevel('arm'),
                                             match_clause_additional_attributes={},
-                                            protocol_no='12-345')
+                                            protocol_no='12-345',
+                                            is_suspended=True)
         match_path = self.me.translate_match_path(match_clause_data=match_clause_data,
                                                   match_criterion=MatchCriterion([MatchCriteria({}, 0)]))
         assert len(match_path.clinical) == 0

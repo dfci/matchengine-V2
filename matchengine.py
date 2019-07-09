@@ -557,20 +557,25 @@ class MatchEngine(object):
             if isinstance(parent_value, dict):
                 for inner_key, inner_value in parent_value.items():
                     if inner_key == 'match':
-                        if not self.match_on_closed:
-                            match_level = path[-1]
-                            # suspension_key = self.match_criteria_transform.suspension_mapping.setdefault(match_level,
-                            #                                                                              None)
-                            if match_level == 'arm':
-                                if parent_value.setdefault('arm_suspended', 'n').lower().strip() == 'y':
+                        is_suspended = False
+                        match_level = path[-1]
+                        # suspension_key = self.match_criteria_transform.suspension_mapping.setdefault(match_level,
+                        #                                                                              None)
+                        if match_level == 'arm':
+                            if parent_value.setdefault('arm_suspended', 'n').lower().strip() == 'y':
+                                if not self.match_on_closed:
                                     continue
-                            elif match_level == 'dose_level':
-                                if parent_value.setdefault('level_suspended', 'n').lower().strip() == 'y':
+                                is_suspended = True
+                        elif match_level == 'dose_level':
+                            if parent_value.setdefault('level_suspended', 'n').lower().strip() == 'y':
+                                if not self.match_on_closed:
                                     continue
-                            elif match_level == 'step':
-                                if all([arm.setdefault('arm_suspended', 'n').lower().strip() == 'y'
-                                        for arm in parent_value.setdefault('arm', list())]):
+                                is_suspended = True
+                            if all([arm.setdefault('arm_suspended', 'n').lower().strip() == 'y'
+                                    for arm in parent_value.setdefault('arm', list())]):
+                                if not self.match_on_closed:
                                     continue
+                                is_suspended = True
 
                         parent_path = ParentPath(path + (parent_key, inner_key))
                         level = MatchClauseLevel(
@@ -584,6 +589,7 @@ class MatchEngine(object):
                                               internal_id,
                                               code,
                                               coordinating_center,
+                                              is_suspended,
                                               status_for_match_clause,
                                               parent_path,
                                               level,
