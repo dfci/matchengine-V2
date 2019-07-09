@@ -29,31 +29,6 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
 
 
-def check_indices():
-    """
-    Ensure indexes exist on the trial_match collection so queries are performant
-    """
-    with MongoDBConnection(read_only=False, async_init=False) as db:
-        for collection, desired_indices in {
-            'trial_match_raw': {
-                'hash', 'mrn', 'sample_id', 'clinical_id', 'protocol_no'},
-            'matchengine_run_log': {
-                'clinical_id',
-                'protocol_no',
-                '_created'
-            }
-        }.items():
-            indices = db[collection].list_indexes()
-            existing_indices = set()
-            for index in indices:
-                index_key = list(index['key'].to_dict().keys())[0]
-                existing_indices.add(index_key)
-            indices_to_create = desired_indices - existing_indices
-            for index in indices_to_create:
-                log.info('Creating index %s' % index)
-                db[collection].create_index(index)
-
-
 class MatchEngine(object):
     cache: Cache
     config: Dict

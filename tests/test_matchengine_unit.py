@@ -32,6 +32,12 @@ class TestMatchEngine(TestCase):
         self.me._find_plugins()
         assert hasattr(self.me, 'create_trial_matches')
         assert id(self.me.create_trial_matches) != old_create_trial_matches
+        blank_trial_match = self.me.create_trial_matches({})
+        assert isinstance(blank_trial_match, dict) and not blank_trial_match
+
+    def test_Base_Transformers(self):
+        self.me.match_criteria_transform.query_transformers.nomap
+        pass
 
     def test_extract_match_clauses_from_trial(self):
         self.me.trials = dict()
