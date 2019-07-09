@@ -163,6 +163,9 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
             cancer_type_match = node['clinical']['oncotree_primary_diagnosis']
             break
 
+        level_suspended = trial_match.match_clause_data.match_clause_additional_attributes[
+                              'level_suspended'].lower() == 'y'
+
         new_trial_match.update(
             {'match_level': trial_match.match_clause_data.match_clause_level,
              'internal_id': trial_match.match_clause_data.internal_id,
@@ -171,7 +174,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
              'q_depth': trial_match.match_reason.query_node.query_depth,
              'q_width': trial_match.match_reason.width if trial_match.match_reason.reason_name == 'genomic' else 1,
              'code': trial_match.match_clause_data.code,
-             'trial_accrual_status': trial_match.match_clause_data.status,
+             'trial_accrual_status': 'closed' if level_suspended else 'open',
              'coordinating_center': trial_match.match_clause_data.coordinating_center})
 
         # remove extra fields from trial_match output
