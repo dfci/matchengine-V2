@@ -69,16 +69,16 @@ def get_genomic_details(genomic_doc, query):
 def format_exclusion_match(query):
     """Format the genomic alteration for genomic documents that matched a negative clause of a match tree"""
 
-    gene_key = 'TRUE_HUGO_SYMBOL'
+    true_hugo = 'TRUE_HUGO_SYMBOL'
     protein_change_key = 'TRUE_PROTEIN_CHANGE'
-    cnv_key = 'CNV_CALL'
-    variant_classification_key = 'TRUE_VARIANT_CLASSIFICATION'
-    sv_key = 'VARIANT_CATEGORY'
+    cnv_call = 'CNV_CALL'
+    variant_classification = 'TRUE_VARIANT_CLASSIFICATION'
+    sv_comment = 'STRUCTURAL_VARIANT_COMMENT'
     alteration = '!'
     is_variant = 'variant' if query.setdefault(protein_change_key, None) is not None else 'gene'
 
-    if gene_key in query and query[gene_key] is not None:
-        alteration = f'!{query[gene_key]}'
+    if true_hugo in query and query[true_hugo] is not None:
+        alteration = f'!{query[true_hugo]}'
 
     # add mutation
     if query.setdefault(protein_change_key, None) is not None:
@@ -88,16 +88,16 @@ def format_exclusion_match(query):
             alteration += f' {query[protein_change_key]}'
 
     # add cnv call
-    elif query.setdefault(cnv_key, None) is not None:
-        alteration += f' {query[cnv_key]}'
+    elif query.setdefault(cnv_call, None) is not None:
+        alteration += f' {query[cnv_call]}'
 
     # add variant classification
-    elif query.setdefault(variant_classification_key, None) is not None:
-        alteration += f' {query[variant_classification_key]}'
+    elif query.setdefault(variant_classification, None) is not None:
+        alteration += f' {query[variant_classification]}'
 
     # add structural variation
-    elif query.setdefault(sv_key, str()) == 'SV':
-        alteration += ' Structural Variation'
+    elif query.setdefault(sv_comment, None) is not None:
+        alteration += 'Structural Variation'
 
     return {
         'match_type': is_variant,
