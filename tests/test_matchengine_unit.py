@@ -3,8 +3,6 @@ import json
 import os
 from unittest import TestCase
 
-import networkx as nx
-
 from match_criteria_transform import MatchCriteriaTransform
 from matchengine import MatchEngine, log, ComparableDict
 from matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel, MatchClause, MatchCriteria, MatchCriterion
