@@ -3,7 +3,7 @@ node {
         checkout scm
 
         //parent wrapper image
-        docker.image('mongo:3.6.10').withRun() { c ->
+        docker.image('mongo:3.6.10').withRun("-e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=password") { c ->
 
             stage("spin up db") {
                 //get access to mongoshell methods
@@ -26,13 +26,12 @@ node {
 {
                       "MONGO_HOST": "${c.id.substring(0, 12)}",
                       "MONGO_PORT": 27017,
-                      "MONGO_USERNAME": "",
-                      "MONGO_PASSWORD": "",
-                      "MONGO_RO_USERNAME": "",
-                      "MONGO_RO_PASSWORD": "",
+                      "MONGO_USERNAME": "root",
+                      "MONGO_PASSWORD": "password",
+                      "MONGO_RO_USERNAME": "root",
+                      "MONGO_RO_PASSWORD": "password",
                       "MONGO_DBNAME": "matchminer",
-                      "MONGO_AUTH_SOURCE": "",
-                      "MONGO_URI": "mongodb://${c.id.substring(0, 12)}:27017/matchminer"
+                      "MONGO_AUTH_SOURCE": ""
 }
 
                    """
