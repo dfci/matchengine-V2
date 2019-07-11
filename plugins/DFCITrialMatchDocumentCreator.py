@@ -97,7 +97,9 @@ def format_exclusion_match(query):
 
     # add structural variation
     elif query.setdefault(sv_comment, None) is not None:
-        alteration += 'Structural Variation'
+        pattern = query[sv_comment].pattern.split("|")[0]
+        gene = pattern.replace("(.*\\W", "").replace("\\W.*)", "")
+        alteration += f'{gene} Structural Variation'
 
     return {
         'match_type': is_variant,
