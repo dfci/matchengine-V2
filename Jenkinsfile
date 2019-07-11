@@ -12,7 +12,7 @@ node {
                     sh "env"
 
                     //wait until mongodb is initialized
-                    sh "bash -c 'COUNTER=0 && until mongo mongodb://root:password@${c.id}:27017/matchminer?authSource=admin --eval \"print(\\\"waited for connection\\\")\"; do sleep 1; let \"COUNTER++\"; echo \$COUNTER; [ \$COUNTER -eq 15 ] && exit 1 ; done'"
+                    sh "bash -c 'COUNTER=0 && until mongo mongodb://root:password@${c.id}:27017/matchminer?authSource=admin --eval \"print(\\\"waited for connection\\\")\"; do sleep 1; let \"COUNTER++\"; echo \$COUNTER; if [ \$COUNTER -eq 15 ]; then exit 1 ; fi; done'"
 
                     sh "echo loading test data..."
 
