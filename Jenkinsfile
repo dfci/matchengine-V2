@@ -35,7 +35,7 @@ node {
                       "MONGO_RO_USERNAME": "root",
                       "MONGO_RO_PASSWORD": "password",
                       "MONGO_DBNAME": "matchminer",
-                      "MONGO_AUTH_SOURCE": ""
+                      "MONGO_AUTH_SOURCE": "admin"
 }
 
                    """
