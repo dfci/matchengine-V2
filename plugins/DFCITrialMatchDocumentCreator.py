@@ -171,7 +171,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
              'q_depth': trial_match.match_reason.query_node.query_depth,
              'q_width': trial_match.match_reason.width if trial_match.match_reason.reason_name == 'genomic' else 1,
              'code': trial_match.match_clause_data.code,
-             'trial_accrual_status': 'close' if trial_match.match_clause_data.is_suspended else 'open',
+             'trial_accrual_status': 'closed' if trial_match.match_clause_data.is_suspended else 'open',
              'coordinating_center': trial_match.match_clause_data.coordinating_center})
 
         # remove extra fields from trial_match output
