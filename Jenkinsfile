@@ -3,11 +3,11 @@ node {
         checkout scm
 
         //parent wrapper image
-        docker.image('mongo:3.6.10').withRun() { c ->
+        docker.image('mongo:3.6.10').withRun("-e \"MONGO_INITDB_ROOT_USERNAME=root\" -e \"MONGO_INITDB_ROOT_PASSWORD=password\"") { c ->
 
             stage("spin up db") {
                 //get access to mongoshell methods
-                docker.image('mongo:3.6.10').inside("-e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=password --link ${c.id}") {
+                docker.image('mongo:3.6.10').inside("--link ${c.id}") {
 
                     sh "env"
                     //wait until mongodb is initialized
