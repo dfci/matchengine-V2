@@ -323,7 +323,7 @@ class MatchEngine(object):
 
             if need_new:
                 new_query = query
-                new_query['$and'] = new_query.setdefault('$and', list())
+                new_query['$and'] = new_query.get('$and', list())
                 new_query['$and'].insert(0, {join_field: {'$in': list(need_new)}})
 
                 projection = {"_id": 1, join_field: 1}
@@ -537,10 +537,10 @@ class MatchEngine(object):
         """
 
         trial = self.trials[protocol_no]
-        trial_status = trial.setdefault('_summary', dict()).setdefault('status', [dict()])
-        site_status = trial_status[0].setdefault('value', 'open to accrual').lower()
+        trial_status = trial.get('_summary', dict()).get('status', [dict()])
+        site_status = trial_status[0].get('value', 'open to accrual').lower()
         status_for_match_clause = 'open' if site_status.lower() == 'open to accrual' else 'closed'
-        coordinating_center = trial.setdefault('_summary', dict()).setdefault('coordinating_center', 'unknown')
+        coordinating_center = trial.get('_summary', dict()).get('coordinating_center', 'unknown')
         process_q = deque()
         for key, val in trial.items():
 
@@ -559,20 +559,20 @@ class MatchEngine(object):
                     if inner_key == 'match':
                         is_suspended = False
                         match_level = path[-1]
-                        # suspension_key = self.match_criteria_transform.suspension_mapping.setdefault(match_level,
+                        # suspension_key = self.match_criteria_transform.suspension_mapping.get(match_level,
                         #                                                                              None)
                         if match_level == 'arm':
-                            if parent_value.setdefault('arm_suspended', 'n').lower().strip() == 'y':
+                            if parent_value.get('arm_suspended', 'n').lower().strip() == 'y':
                                 if not self.match_on_closed:
                                     continue
                                 is_suspended = True
                         elif match_level == 'dose_level':
-                            if parent_value.setdefault('level_suspended', 'n').lower().strip() == 'y':
+                            if parent_value.get('level_suspended', 'n').lower().strip() == 'y':
                                 if not self.match_on_closed:
                                     continue
                                 is_suspended = True
-                            if all([arm.setdefault('arm_suspended', 'n').lower().strip() == 'y'
-                                    for arm in parent_value.setdefault('arm', list())]):
+                            if all([arm.get('arm_suspended', 'n').lower().strip() == 'y'
+                                    for arm in parent_value.get('arm', list())]):
                                 if not self.match_on_closed:
                                     continue
                                 is_suspended = True
@@ -643,7 +643,7 @@ class MatchEngine(object):
 
         while process_q:
             parent_id, values = process_q.pop()
-            parent_is_and = True if graph.nodes[parent_id].setdefault('is_and', False) else False
+            parent_is_and = True if graph.nodes[parent_id].get('is_and', False) else False
 
             # label is 'and', 'or', 'genomic' or 'clinical'
             for label, value in values.items():
@@ -757,14 +757,14 @@ class MatchEngine(object):
                     query_node = QueryNode(genomic_or_clinical, node.depth, list(), None)
                     for trial_key, trial_value in values.items():
                         trial_key_settings = self.match_criteria_transform.trial_key_mappings[
-                            genomic_or_clinical].setdefault(
+                            genomic_or_clinical].get(
                             trial_key.upper(),
                             dict())
 
-                        if trial_key_settings.setdefault('ignore', False):
+                        if trial_key_settings.get('ignore', False):
                             continue
 
-                        sample_value_function_name = trial_key_settings.setdefault('sample_value', 'nomap')
+                        sample_value_function_name = trial_key_settings.get('sample_value', 'nomap')
                         sample_function = getattr(self.match_criteria_transform.query_transformers,
                                                   sample_value_function_name)
                         sample_function_args = dict(sample_key=trial_key.upper(),
@@ -805,7 +805,7 @@ class MatchEngine(object):
         Update trial matches by diff'ing the newly created trial matches against existing matches in the db.
         'Delete' matches by adding {is_disabled: true} and insert all new matches.
         """
-        trial_matches_by_sample_id = self.matches.setdefault(protocol_no, dict())
+        trial_matches_by_sample_id = self.matches.get(protocol_no, dict())
         log.info(f"Updating trial matches for {protocol_no}")
         remaining_to_disable = [
             result
@@ -919,7 +919,7 @@ class MatchEngine(object):
         if protocol_no in self._param_cache:
             clinical_ids = self._param_cache[protocol_no]
         else:
-            protocol_no_last_updated = self.run_log_cache.trials.setdefault(protocol_no, None)
+            protocol_no_last_updated = self.run_log_cache.trials.get(protocol_no, None)
             clinical_ids = set()
             for clinical_id in self.clinical_ids:
                 last_run = self.run_log_cache.clinical_protocol_runs[clinical_id][protocol_no]
