@@ -192,3 +192,5 @@ class Secrets:
     RO_PASSWORD: str
     RW_USERNAME: str
     RW_PASSWORD: str
+    REPLICASET: str
+    MAX_POOL_SIZE: str
