@@ -142,6 +142,23 @@ def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
     return sort_array
 
 
+def get_cancer_type_match(trial_match):
+    """Trial curations with _SOLID_ and _LIQUID_ should report those as reasons for match. All others should report
+    'specific' """
+    cancer_type_match = 'specific'
+    for criteria in trial_match.match_criterion.criteria_list:
+        for node in criteria.criteria:
+            if 'clinical' in node and 'oncotree_primary_diagnosis' in node['clinical']:
+                diagnosis = node['clinical']['oncotree_primary_diagnosis']
+                if diagnosis == '_LIQUID_':
+                    cancer_type_match = 'all_liquid'
+                    break
+                elif diagnosis == '_SOLID_':
+                    cancer_type_match = 'all_solid'
+                    break
+    return cancer_type_match
+
+
 class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
     def create_trial_matches(self, trial_match: TrialMatch) -> Dict:
         """
@@ -154,19 +171,10 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         new_trial_match.update(format_trial_match_k_v(self.cache.docs[trial_match.match_reason.clinical_id]))
         new_trial_match['clinical_id'] = self.cache.docs[trial_match.match_reason.clinical_id]['_id']
 
-        # determine whether trial match was on a _LIQUID_ or _SOLID_ curation, or an exact match
-        cancer_type_match = None
-        for node in (node
-                     for criteria in trial_match.match_criterion.criteria_list
-                     for node in criteria.criteria
-                     if 'clinical' in node and 'oncotree_primary_diagnosis' in node['clinical']):
-            cancer_type_match = node['clinical']['oncotree_primary_diagnosis']
-            break
-
         new_trial_match.update(
             {'match_level': trial_match.match_clause_data.match_clause_level,
              'internal_id': trial_match.match_clause_data.internal_id,
-             'cancer_type_match': cancer_type_match,
+             'cancer_type_match': get_cancer_type_match(trial_match),
              'reason_type': trial_match.match_reason.reason_name,
              'q_depth': trial_match.match_reason.query_node.query_depth,
              'q_width': trial_match.match_reason.width if trial_match.match_reason.reason_name == 'genomic' else 1,
