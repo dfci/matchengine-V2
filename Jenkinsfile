@@ -28,7 +28,10 @@ node {
                       "MONGO_PORT": 27017,
                       "MONGO_USERNAME": "",
                       "MONGO_PASSWORD": "",
+                      "MONGO_RO_USERNAME": "",
+                      "MONGO_RO_PASSWORD": "",
                       "MONGO_DBNAME": "matchminer",
+                      "MONGO_AUTH_SOURCE": "",
                       "MONGO_URI": "mongodb://${c.id.substring(0, 12)}:27017/matchminer"
 }
 
