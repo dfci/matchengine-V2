@@ -17,7 +17,7 @@ node {
                     sh "echo loading test data..."
 
                     stage("load test data") {
-                        sh "mongorestore --uri mongodb://root:password@${c.id}:27017/matchminer?authSource=admin --gzip --dir=tests/data/integration_data"
+                        sh "mongorestore --uri mongodb://root:password@${c.id}:27017/matchminer?authSource=admin -d matchminer --gzip --dir=tests/data/integration_data"
                     }
                 }
             }
