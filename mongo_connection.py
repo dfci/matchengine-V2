@@ -33,17 +33,19 @@ class DefaultDBSecrets(DBSecrets):
                        RO_USERNAME=self._secrets["MONGO_RO_USERNAME"],
                        RO_PASSWORD=self._secrets["MONGO_RO_PASSWORD"],
                        RW_USERNAME=self._secrets["MONGO_USERNAME"],
-                       RW_PASSWORD=self._secrets["MONGO_PASSWORD"])
+                       RW_PASSWORD=self._secrets["MONGO_PASSWORD"],
+                       REPLICASET=self._secrets.get("MONGO_REPLICASET", False),
+                       MAX_POOL_SIZE=self._secrets.get("MONGO_MAX_POOL_SIZE", False))
 
 
 class MongoDBConnection(object):
-    uri = "mongodb://{username}:{password}@{hostname}:{port}/{db}?authSource=admin&replicaSet=rs0&maxPoolSize=1000"
+    uri = ""
     read_only: bool
     secrets: Secrets
     db: Union[pymongo.database.Database, motor.motor_asyncio.AsyncIOMotorDatabase]
     client = Union[pymongo.MongoClient, motor.motor_asyncio.AsyncIOMotorClient]
 
-    def __init__(self, read_only=True, uri=None, db=None, async_init=True):
+    def __init__(self, read_only=True, db=None, async_init=True):
         """
         Default params to use values from an external SECRETS.JSON configuration file,
 
@@ -54,8 +56,6 @@ class MongoDBConnection(object):
         """
         self.read_only = read_only
         self.async_init = async_init
-        if uri is not None:
-            self.uri = uri
 
         if not hasattr(self, 'secrets'):
             self.secrets = DefaultDBSecrets().get_secrets()
@@ -64,20 +64,20 @@ class MongoDBConnection(object):
     def __enter__(self):
         username = self.secrets.RO_USERNAME if self.read_only else self.secrets.RW_USERNAME
         password = self.secrets.RO_PASSWORD if self.read_only else self.secrets.RW_PASSWORD
+        uri_params = list()
+        if self.secrets.AUTH_DB:
+            uri_params.append(f"authSource={self.secrets.AUTH_DB}")
+        if self.secrets.REPLICASET:
+            uri_params.append(f"replicaSet={self.secrets.REPLICASET}")
+        if self.secrets.MAX_POOL_SIZE:
+            uri_params.append(f"maxPoolSize={self.secrets.MAX_POOL_SIZE}")
+
+        uri = (f"mongodb://{username}:{password}@{self.secrets.HOST}:{self.secrets.PORT}/{self.db}"
+               f"{'?' if uri_params else str()}{'&'.join(uri_params)}")
         if self.async_init:
-            self.client = motor.motor_asyncio.AsyncIOMotorClient(
-                self.uri.format(username=username,
-                                password=password,
-                                hostname=self.secrets.HOST,
-                                port=self.secrets.PORT,
-                                db=self.secrets.DB))
+            self.client = motor.motor_asyncio.AsyncIOMotorClient(uri)
         else:
-            self.client = pymongo.MongoClient(
-                self.uri.format(username=username,
-                                password=password,
-                                hostname=self.secrets.HOST,
-                                port=self.secrets.PORT,
-                                db=self.db))
+            self.client = pymongo.MongoClient(uri)
         return self.client[self.db]
 
     def __exit__(self, exception_type, exception_value, exception_traceback):
