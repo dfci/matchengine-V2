@@ -12,9 +12,9 @@ node {
                     //wait until mongodb is initialized
                     sh "bash -c 'COUNTER=0 && until mongo --host ${c.id} --eval \"print(\\\"waited for connection\\\")\"; do sleep 1; let \"COUNTER++\"; echo \$COUNTER; [ \$COUNTER -eq 15 ] && exit 1 ; done'"
 
-                    //stage("load test data") {
-                    //    sh "mongorestore -d matchminer --host ${c.id} --dir=tests/data"
-                    //}
+                    stage("load test data") {
+                        sh "mongorestore -d matchminer --host ${c.id} --dir=tests/data/integration_data"
+                    }
                 }
             }
 
