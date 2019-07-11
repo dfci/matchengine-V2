@@ -104,6 +104,7 @@ class MatchEngine(object):
         self.db_ro = self._db_ro.__enter__() if self.db_init else None
         self._db_rw = MongoDBConnection(read_only=False, async_init=False) if self.db_init else None
         self.db_rw = self._db_rw.__enter__() if self.db_init else None
+        log.info(f"Connected to database {self.db_ro.name}")
 
         self.check_indices()
         # A cache-like object used to accumulate query results
@@ -163,6 +164,7 @@ class MatchEngine(object):
                 self.db_rw[collection].create_index(index)
 
     def populate_run_log_cache(self):
+        log.info("Populating run log cache")
         run_log_pipeline = [
             {"$match": {"protocol_no": {"$in": self.protocol_nos},
                         "clinical_id": {"$in": list(self.clinical_ids)}}},
