@@ -10,7 +10,7 @@ node {
                 docker.image('mongo:3.6.10').inside("--link ${c.id}") {
 
                     //wait until mongodb is initialized
-                    sh "bash -c 'COUNTER=0 && until mongo --host ${c.id} --eval \"print(\\\"waited for connection\\\")\"; do sleep 1; let \"COUNTER++\"; echo \$COUNTER; [ \$COUNTER -eq 15 ] && exit 1 ; done'"
+                    sh "bash -c 'COUNTER=0 && until mongo --username root --password password --host ${c.id} --eval \"print(\\\"waited for connection\\\")\"; do sleep 1; let \"COUNTER++\"; echo \$COUNTER; [ \$COUNTER -eq 15 ] && exit 1 ; done'"
 
                     stage("load test data") {
                         sh "mongorestore --gzip -d matchminer --username root --password password --host ${c.id} --dir=tests/data/integration_data"
