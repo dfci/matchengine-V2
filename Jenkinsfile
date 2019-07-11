@@ -14,6 +14,8 @@ node {
                     //wait until mongodb is initialized
                     sh "bash -c 'COUNTER=0 && until mongo mongodb://root:password@${c.id}:27017/matchminer?authSource=admin --eval \"print(\\\"waited for connection\\\")\"; do sleep 1; let \"COUNTER++\"; echo \$COUNTER; [ \$COUNTER -eq 15 ] && exit 1 ; done'"
 
+                    sh "echo loading test data..."
+
                     stage("load test data") {
                         sh "mongorestore --gzip --uri mongodb://root:password@${c.id}:27017/matchminer?authSource=admin --dir=tests/data/integration_data"
                     }
