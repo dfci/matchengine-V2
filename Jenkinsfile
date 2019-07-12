@@ -49,6 +49,7 @@ node {
                        """
 
                     //report on nosetests results
+                    sh "ls *.xml"
                     junit "*.xml"
                 }
             }
