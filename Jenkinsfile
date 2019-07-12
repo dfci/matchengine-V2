@@ -12,12 +12,12 @@ node {
                     sh "env"
 
                     //wait until mongodb is initialized
-                    sh "bash -c 'COUNTER=0 && until mongo mongodb://root:password@${c.id}:27017/matchminer?authSource=admin --eval \"print(\\\"waited for connection\\\")\"; do sleep 1; let \"COUNTER++\"; echo \$COUNTER; if [ \$COUNTER -eq 15 ]; then exit 1 ; fi; done'"
+                    sh "bash -c 'COUNTER=0 && until mongo mongodb://root:password@${c.id}:27017/integration?authSource=admin --eval \"print(\\\"waited for connection\\\")\"; do sleep 1; let \"COUNTER++\"; echo \$COUNTER; if [ \$COUNTER -eq 15 ]; then exit 1 ; fi; done'"
 
                     sh "echo loading test data..."
 
                     stage("load test data") {
-                        sh "mongorestore --uri mongodb://root:password@${c.id}:27017/matchminer?authSource=admin -d matchminer --gzip --dir=tests/data/integration_data"
+                        sh "mongorestore --uri mongodb://root:password@${c.id}:27017/integration?authSource=admin -d integration --gzip --dir=tests/data/integration_data"
                     }
                 }
             }
@@ -34,7 +34,7 @@ node {
                       "MONGO_PASSWORD": "password",
                       "MONGO_RO_USERNAME": "root",
                       "MONGO_RO_PASSWORD": "password",
-                      "MONGO_DBNAME": "matchminer",
+                      "MONGO_DBNAME": "integration",
                       "MONGO_AUTH_SOURCE": "admin"
 }
 
