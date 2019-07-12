@@ -189,6 +189,7 @@ class MatchEngine(object):
 
         For more information on how the plugins function, see the README.
         """
+        log.info(f"Checking for plugins in {self.plugin_dir}")
         potential_files = glob.glob(os.path.join(self.plugin_dir, "*.py"))
         to_load = [(None, 'query_transform')]
         for potential_file_path in potential_files:
@@ -202,18 +203,23 @@ class MatchEngine(object):
             if dir_path is not None:
                 sys.path.pop()
             for item_name in getattr(module, '__shared__', list()):
+                log.info(f"Found shared plugin resource {item_name} in module {module_name}, path {dir_path}")
                 setattr(self.match_criteria_transform.transform, item_name, getattr(module, item_name))
             for item_name in module.__export__:
                 item = getattr(module, item_name)
+                log.info(f"Found exported plugin item {item_name} in module {module_name}, path {dir_path}")
                 if issubclass(item, QueryTransformerContainer):
+                    log.info(f"Loading QueryTransformerContainer {item_name} type: {item}")
                     query_transform.attach_transformers_to_match_criteria_transform(self.match_criteria_transform,
                                                                                     item)
                 elif issubclass(item, TrialMatchDocumentCreator):
+                    log.info(f"Loading TrialMatchDocumentCreator {item_name} type: {item}")
                     if item_name == self.match_document_creator_class:
                         setattr(self,
                                 'create_trial_matches', MethodType(getattr(item, 'create_trial_matches'),
                                                                    self))
                 elif issubclass(item, DBSecrets):
+                    log.info(f"Loading DBSecrets {item_name} type: {item}")
                     if item_name == self.db_secrets_class:
                         secrets = item().get_secrets()
                         setattr(MongoDBConnection, 'secrets', secrets)
@@ -561,20 +567,19 @@ class MatchEngine(object):
                     if inner_key == 'match':
                         is_suspended = False
                         match_level = path[-1]
-                        # suspension_key = self.match_criteria_transform.suspension_mapping.get(match_level,
-                        #                                                                              None)
-                        if match_level == 'arm':
+                        if match_level == 'step':
+                            if all([arm.get('arm_suspended', 'n').lower().strip() == 'y'
+                                    for arm in parent_value.get('arm', list())]):
+                                if not self.match_on_closed:
+                                    continue
+                                is_suspended = True
+                        elif match_level == 'arm':
                             if parent_value.get('arm_suspended', 'n').lower().strip() == 'y':
                                 if not self.match_on_closed:
                                     continue
                                 is_suspended = True
                         elif match_level == 'dose_level':
                             if parent_value.get('level_suspended', 'n').lower().strip() == 'y':
-                                if not self.match_on_closed:
-                                    continue
-                                is_suspended = True
-                            if all([arm.get('arm_suspended', 'n').lower().strip() == 'y'
-                                    for arm in parent_value.get('arm', list())]):
                                 if not self.match_on_closed:
                                     continue
                                 is_suspended = True
@@ -1151,7 +1156,6 @@ if __name__ == "__main__":
     subp_p.add_argument("--disable-run-log",
                         dest="use_run_log",
                         action="store_false",
-                        default=True,
                         help=deceased_help)
     subp_p.add_argument("--report-clinical-reasons",
                         dest="report_clinical_reasons",

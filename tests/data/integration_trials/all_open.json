@@ -1,0 +1,94 @@
+{
+  "protocol_no": "10-002",
+  "status": "open to accrual",
+  "treatment_list": {
+    "step": [
+      {
+        "step_internal_id": 111,
+        "step_code": "1",
+        "step_type": "Registration",
+        "match": [
+          {
+            "and": [
+              {
+                "genomic": {
+                  "variant_classification": "In_Frame_Del",
+                  "hugo_symbol": "EGFR",
+                  "variant_category": "Mutation"
+                }
+              },
+              {
+                "clinical": {
+                  "age_numerical": ">=18",
+                  "oncotree_primary_diagnosis": "Lung"
+                }
+              }
+            ]
+          }
+        ],
+        "arm": [
+          {
+            "arm_code": "ARM 1",
+            "arm_description": "ARM DESCRIPTION",
+            "arm_suspended": "N",
+            "arm_internal_id": 211,
+            "match": [
+              {
+                "and": [
+                  {
+                    "genomic": {
+                      "variant_classification": "In_Frame_Del",
+                      "hugo_symbol": "EGFR",
+                      "variant_category": "Mutation"
+                    }
+                  },
+                  {
+                    "clinical": {
+                      "age_numerical": ">=18",
+                      "oncotree_primary_diagnosis": "Non-Small Cell Lung Cancer"
+                    }
+                  }
+                ]
+              }
+            ],
+            "dose_level": [
+              {
+                "level_description": "LEVEL DESCRIPTION",
+                "level_suspended": "N",
+                "level_code": "LEVEL 1",
+                "level_internal_id": 311,
+                "match": [
+                  {
+                    "and": [
+                      {
+                        "genomic": {
+                          "variant_classification": "In_Frame_Del",
+                          "hugo_symbol": "EGFR",
+                          "variant_category": "Mutation"
+                        }
+                      },
+                      {
+                        "clinical": {
+                          "age_numerical": ">=18",
+                          "oncotree_primary_diagnosis": "Pleuropulmonary Blastoma"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "arm_code": "ARM 2",
+            "arm_description": "ALWAYS CLOSED",
+            "arm_suspended": "Y",
+            "arm_internal_id": 221,
+            "match": [],
+            "dose_level": []
+          }
+        ]
+      }
+    ]
+  }
+}
