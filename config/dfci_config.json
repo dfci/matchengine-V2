@@ -117,25 +117,29 @@
   },
   "trial_match_sorting": [
     {
+      "trial_accrual_status": {
+        "closed": -1,
+        "open": 0
+      },
       "mmr_status": {
-        "Deficient(MMR - D / MSI - H)": 0,
-        "Proficient(MMR - P / MSS)": 1
+        "Deficient(MMR - D / MSI - H)": 1,
+        "Proficient(MMR - P / MSS)": 2
       },
       "tier": {
-        "1": 2,
-        "2": 3,
-        "3": 6,
-        "4": 7
+        "1": 3,
+        "2": 4,
+        "3": 7,
+        "4": 8
       },
       "cnv_call": {
-        "Homozygous deletion": 4,
-        "High level amplification": 5,
-        "Gain": 8,
-        "Heterozygous deletion": 9
+        "Homozygous deletion": 5,
+        "High level amplification": 7,
+        "Gain": 9,
+        "Heterozygous deletion": 10
       },
       "wildtype": {
-        "False": 10,
-        "True": 11
+        "False": 11,
+        "True": 12
       }
     },
     {
