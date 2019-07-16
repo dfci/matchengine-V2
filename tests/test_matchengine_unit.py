@@ -177,3 +177,43 @@ class TestMatchEngine(TestCase):
                                                   match_criterion=MatchCriterion([MatchCriteria({}, 0)]))
         assert len(match_path.clinical) == 0
         assert len(match_path.genomic) == 0
+
+    def test_comparable_dict(self):
+        assert ComparableDict({}).hash() == ComparableDict({}).hash()
+        assert ComparableDict({"1": "1",
+                               "2": "2"}).hash() == ComparableDict({"2": "2",
+                                                                    "1": "1"}).hash()
+        assert ComparableDict({"1": [{}, {2: 3}],
+                               "2": "2"}).hash() == ComparableDict({"2": "2",
+                                                                    "1": [{2: 3}, {}]}).hash()
+        assert ComparableDict({"1": [{'set': {1, 2, 3}}, {2: 3}],
+                               "2": "2"}).hash() == ComparableDict({"2": "2",
+                                                                    "1": [{2: 3}, {'set': {3, 1, 2}}]}).hash()
+        assert ComparableDict(
+            {
+                1: {
+                    2: [
+                        {
+                            3: 4,
+                            5: {6, 7}
+                        }
+                    ]
+                },
+                "4": [
+                    9,
+                    8
+                ]
+            }
+        ) != ComparableDict(
+            {
+                1: {
+                    2: [
+                        {
+                            3: 4,
+                            9: {6, 7}
+                        }
+                    ]
+                },
+                "4": [9, 8]
+            }
+        )

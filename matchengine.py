@@ -981,7 +981,7 @@ class MatchEngine(object):
         # if no sample ids are passed in as args, get all clinical documents
         query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
         if self.sample_ids is not None:
-            query.update({"SAMPLE_ID": {"$in": self.sample_ids}})
+            query.update({"SAMPLE_ID": {"$in": list(self.sample_ids)}})
         return {result['_id']: result['SAMPLE_ID']
                 for result in self.db_ro.clinical.find(query, {'_id': 1, 'SAMPLE_ID': 1})}
 
