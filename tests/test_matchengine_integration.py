@@ -1,6 +1,6 @@
 from unittest import TestCase
 import gc
-import glob
+import csv
 import os
 import json
 
@@ -183,6 +183,32 @@ class IntegrationTestMatchengine(TestCase):
         assert len(self.me.matches['10-002']) == 1
         assert len(self.me.matches['10-003']) == 1
         assert len(self.me.matches['10-004']) == 1
+
+    def test_output_csv(self):
+        self._reset(do_reset_trial_matches=True,
+                    do_reset_trials=True,
+                    trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
+        self.me.get_matches_for_all_trials()
+        filename = f'trial_matches_{datetime.datetime.now().strftime("%b_%d_%Y_%H:%M")}.csv'
+        try:
+            self.me.create_output_csv()
+            assert os.path.exists(filename)
+            assert os.path.isfile(filename)
+            with open(filename) as csv_file_handle:
+                csv_reader = csv.DictReader(csv_file_handle)
+                fieldnames = set(csv_reader.fieldnames)
+                rows = list(csv_reader)
+            assert len(fieldnames.intersection(self.me._get_all_match_fieldnames())) == len(fieldnames)
+            assert sum([1
+                     for protocol_matches in self.me.matches.values()
+                     for sample_matches in protocol_matches.values()
+                     for _ in sample_matches]) == 80
+            assert len(rows) == 80
+            os.unlink(filename)
+        except Exception as e:
+            if os.path.exists(filename):
+                os.unlink(filename)
+            raise e
 
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)
