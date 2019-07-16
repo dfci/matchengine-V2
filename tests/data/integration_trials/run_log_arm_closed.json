@@ -1,0 +1,33 @@
+{
+  "protocol_no": "10-007",
+  "status": "open to accrual",
+  "treatment_list": {
+    "step": [
+      {
+        "step_internal_id": 117,
+        "step_code": "1",
+        "step_type": "Registration",
+        "arm": [
+          {
+            "arm_suspended": "N",
+            "arm_internal_id": 217,
+            "arm_description": "blergh",
+            "match": [
+              {
+                "and": [
+                  {
+                    "genomic": {
+                      "hugo_symbol": "BRAF",
+                      "variant_category": "Mutation",
+                      "wildcard_protein_change": "p.V600"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
