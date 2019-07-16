@@ -159,7 +159,6 @@ class IntegrationTestMatchengine(TestCase):
         self.me.get_matches_for_all_trials()
         assert len(self.me.matches['10-005']) == 64
         assert len(self.me.matches['10-006']) == 0
-        pass
 
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)
