@@ -41,6 +41,7 @@ class IntegrationTestMatchengine(TestCase):
                 plugin_dir='tests/plugins',
                 use_run_log=False
             )
+            assert self.me.db_rw.name == 'integration'
             self.first_run_done = True
 
         if kwargs.get('do_reset_trial_matches', False):
@@ -67,7 +68,9 @@ class IntegrationTestMatchengine(TestCase):
             plugin_dir=kwargs.get('plugin_dir', 'plugins/'),
             match_document_creator_class=kwargs.get('match_document_creator_class', "DFCITrialMatchDocumentCreator"),
             fig_dir=kwargs.get('fig_dir', '/tmp/'),
-            use_run_log=kwargs.get('use_run_log', False)
+            use_run_log=kwargs.get('use_run_log', False),
+            protocol_nos=kwargs.get('protocol_nos', None),
+            sample_ids=kwargs.get('sample_ids', None)
         )
 
         assert self.me.db_rw.name == 'integration'
@@ -107,7 +110,6 @@ class IntegrationTestMatchengine(TestCase):
                                  f"while performing overrides for {override_class} "
                                  f"please implement logic for handling overriding references from this type.")
                             )
-
 
     def setUp(self) -> None:
         self._reset(do_reset_trials=True)
@@ -159,6 +161,28 @@ class IntegrationTestMatchengine(TestCase):
         self.me.get_matches_for_all_trials()
         assert len(self.me.matches['10-005']) == 64
         assert len(self.me.matches['10-006']) == 0
+
+    def test_match_on_individual_protocol_no(self):
+        self._reset(do_reset_trial_matches=True,
+                    do_reset_trials=True,
+                    trials_to_load=['wildcard_protein_not_found'],
+                    protocol_nos={'10-006'})
+        self.me.get_matches_for_all_trials()
+        assert len(self.me.matches.keys()) == 1
+        assert len(self.me.matches['10-006']) == 0
+
+    def test_match_on_individual_sample(self):
+        self._reset(
+            do_reset_trial_matches=True,
+            do_reset_trials=True,
+            trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'],
+            sample_ids={'5d2799cb6756630d8dd0621d'}
+        )
+        self.me.get_matches_for_all_trials()
+        assert len(self.me.matches['10-001']) == 1
+        assert len(self.me.matches['10-002']) == 1
+        assert len(self.me.matches['10-003']) == 1
+        assert len(self.me.matches['10-004']) == 1
 
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)
