@@ -189,31 +189,24 @@ class TestMatchEngine(TestCase):
         assert ComparableDict({"1": [{'set': {1, 2, 3}}, {2: 3}],
                                "2": "2"}).hash() == ComparableDict({"2": "2",
                                                                     "1": [{2: 3}, {'set': {3, 1, 2}}]}).hash()
-        assert ComparableDict(
-            {
-                1: {
-                    2: [
-                        {
-                            3: 4,
-                            5: {6, 7}
-                        }
-                    ]
-                },
-                "4": [
-                    9,
-                    8
+        assert ComparableDict({
+            1: {
+                2: [
+                    {
+                        3: 4,
+                        5: {6, 7}
+                    }
                 ]
-            }
-        ) != ComparableDict(
-            {
-                1: {
-                    2: [
-                        {
-                            3: 4,
-                            9: {6, 7}
-                        }
-                    ]
-                },
-                "4": [9, 8]
-            }
-        )
+            },
+            "4": [9, 8]
+        }) != ComparableDict({
+            1: {
+                2: [
+                    {
+                        3: 4,
+                        9: {6, 7}
+                    }
+                ]
+            },
+            "4": [9, 8]
+        })
