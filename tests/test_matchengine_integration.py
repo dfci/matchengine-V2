@@ -29,10 +29,35 @@ class UnknownReferenceTypeForOverrideException(Exception):
 class IntegrationTestMatchengine(TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.first_run_done = False
 
     def _reset(self, **kwargs):
-        if hasattr(self, 'me'):
-            self.me.__exit__(None, None, None)
+        if not self.first_run_done:
+            self.me = MatchEngine(
+                config={'trial_key_mappings': {},
+                        'match_criteria': {'clinical': [],
+                                           'genomic': [],
+                                           'trial': ["protocol_no", "status"]}},
+                plugin_dir='tests/plugins',
+                use_run_log=False
+            )
+            self.first_run_done = True
+
+        if kwargs.get('do_reset_trial_matches', False):
+            self.me.db_rw.trial_match.drop()
+            self.me.check_indices()
+
+        if kwargs.get('do_reset_trials', False):
+            self.me.db_rw.trial.drop()
+            trials_to_load = map(lambda x: os.path.join('tests', 'data', 'integration_trials', x + '.json'),
+                                 kwargs.get('trials_to_load', list()))
+            for trial_path in trials_to_load:
+                with open(trial_path) as trial_file_handle:
+                    trial = json.load(trial_file_handle)
+                self.me.db_rw.trial.insert(trial)
+
+        self.me.__exit__(None, None, None)
+
         self.me = MatchEngine(
             match_on_deceased=kwargs.get('match_on_deceased', True),
             match_on_closed=kwargs.get('match_on_closed', True),
@@ -83,21 +108,13 @@ class IntegrationTestMatchengine(TestCase):
                                  f"please implement logic for handling overriding references from this type.")
                             )
 
-        if kwargs.get('do_reset_trials', False):
-            self.me.db_rw.trial.drop()
-
-            trials_to_load = glob.glob(os.path.join("tests", "data", "integration_trials", "*.json"))
-            for trial_path in trials_to_load:
-                with open(trial_path) as trial_file_handle:
-                    trial = json.load(trial_file_handle)
-                self.me.db_rw.trial.insert(trial)
-            self.first_run_done = True
 
     def setUp(self) -> None:
         self._reset(do_reset_trials=True)
 
     def test__match_on_deceased_match_on_closed(self):
-        self._reset()
+        self._reset(do_reset_trials=True,
+                    trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         self.me.get_matches_for_all_trials()
         assert len(set(self.me.matches.keys()).intersection({'10-001', '10-002', '10-003', '10-004'})) == 4
         assert len(self.me.matches['10-001']) == 5
@@ -106,7 +123,9 @@ class IntegrationTestMatchengine(TestCase):
         assert len(self.me.matches['10-004']) == 5
 
     def test__match_on_deceased(self):
-        self._reset(match_on_deceased=True, match_on_closed=False)
+        self._reset(match_on_deceased=True, match_on_closed=False,
+                    do_reset_trials=True,
+                    trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         self.me.get_matches_for_all_trials()
         assert len(set(self.me.matches.keys()).intersection({'10-002', '10-003', '10-004'})) == 3
         assert len(self.me.matches['10-002']) == 5
@@ -114,7 +133,9 @@ class IntegrationTestMatchengine(TestCase):
         assert len(self.me.matches['10-004']) == 0
 
     def test__match_on_closed(self):
-        self._reset(match_on_deceased=False, match_on_closed=True)
+        self._reset(match_on_deceased=False, match_on_closed=True,
+                    do_reset_trials=True,
+                    trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         self.me.get_matches_for_all_trials()
         assert len(set(self.me.matches.keys()).intersection({'10-001', '10-002', '10-003', '10-004'})) == 4
         assert len(self.me.matches['10-001']) == 4
@@ -123,11 +144,22 @@ class IntegrationTestMatchengine(TestCase):
         assert len(self.me.matches['10-004']) == 4
 
     def test_update_trial_matches(self):
-        self._reset()
+        self._reset(do_reset_trial_matches=True,
+                    do_reset_trials=True,
+                    trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         self.me.get_matches_for_all_trials()
         for protocol_no in self.me.trials.keys():
             self.me.update_matches_for_protocol_number(protocol_no)
         assert self.me.db_ro.trial_match.count() == 80
+
+    def test_wildcard_protein_change(self):
+        self._reset(do_reset_trial_matches=True,
+                    do_reset_trials=True,
+                    trials_to_load=['wildcard_protein_found', 'wildcard_protein_not_found'])
+        self.me.get_matches_for_all_trials()
+        assert len(self.me.matches['10-005']) == 64
+        assert len(self.me.matches['10-006']) == 0
+        pass
 
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)
