@@ -1,29 +1,12 @@
 from unittest import TestCase
-import gc
 import csv
 import os
 import json
 
-from matchengine import MatchEngine, main
+from matchengine import MatchEngine
+from timetravel_and_override import set_static_date_time
 
 import datetime
-
-
-class StaticDatetime(datetime.datetime):
-    @classmethod
-    def now(cls, **kwargs):
-        return datetime.datetime(2000, 7, 12, 9, 47, 40, 303620)
-
-
-class StaticDate(datetime.date):
-    @classmethod
-    def today(cls):
-        return datetime.date(2000, 7, 12)
-
-
-# Exception raised when a GC reference for a base class being overridden is of a type where override logic is not known
-class UnknownReferenceTypeForOverrideException(Exception):
-    pass
 
 
 class IntegrationTestMatchengine(TestCase):
@@ -81,33 +64,10 @@ class IntegrationTestMatchengine(TestCase):
 
         # To perform the override, we first iterate over each of the override classes (at the time of writing,
         # this is just StaticDatetime and StaticDate
-        for override_class in [StaticDate, StaticDatetime]:
-            # Then we iterate over each base class for the override class - at the time of writing this is just
-            # datetime.datetime for StaticDatetime and StaticDate for datetime.date
-            for base_class in override_class.__bases__:
-                # For each base class, we get all objects referring to it, via the garbage collector
-                for referrer in gc.get_referrers(base_class):
-                    # Check to see if the referrer is mutable (otherwise performing an override won't do anything -
-                    # any immutable object with a reference will not be overridden.
-                    # TODO: and recursive override logic to handle referrers nested in immutable objects
-                    if getattr(referrer, '__hash__', None) is None:
-                        # If the referrer is a dict, then the reference is present as a value in the dict
-                        if isinstance(referrer, dict):
-                            # iterate over each key in the referrer
-                            for k in list(referrer.keys()):
-                                # check to see if the value associated with that key is the base class
-                                if referrer[k] is base_class:
-                                    # if it is, then re-associate the key with the the override class
-                                    referrer[k] = override_class
-                        # All other mutable types not caught above have not had the overrides implemented,
-                        # so raise an Exception to alert of this fact
-                        else:
-                            raise UnknownReferenceTypeForOverrideException(
-                                (f"ERROR: Found a hashable object of type {type(referrer)} "
-                                 f"referring to {base_class} "
-                                 f"while performing overrides for {override_class} "
-                                 f"please implement logic for handling overriding references from this type.")
-                            )
+        if kwargs.get('date_args', False):
+            set_static_date_time(**kwargs['date_args'])
+        else:
+            set_static_date_time()
 
     def setUp(self) -> None:
         self._reset(do_reset_trials=True)
@@ -198,9 +158,9 @@ class IntegrationTestMatchengine(TestCase):
                 rows = list(csv_reader)
             assert len(fieldnames.intersection(self.me._get_all_match_fieldnames())) == len(fieldnames)
             assert sum([1
-                     for protocol_matches in self.me.matches.values()
-                     for sample_matches in protocol_matches.values()
-                     for _ in sample_matches]) == 80
+                        for protocol_matches in self.me.matches.values()
+                        for sample_matches in protocol_matches.values()
+                        for _ in sample_matches]) == 80
             assert len(rows) == 80
             os.unlink(filename)
         except Exception as e:
