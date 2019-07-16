@@ -38,8 +38,7 @@ class IntegrationTestMatchengine(TestCase):
                         'match_criteria': {'clinical': [],
                                            'genomic': [],
                                            'trial': ["protocol_no", "status"]}},
-                plugin_dir='tests/plugins',
-                use_run_log=False
+                plugin_dir='tests/plugins'
             )
             assert self.me.db_rw.name == 'integration'
             self.first_run_done = True
@@ -68,7 +67,6 @@ class IntegrationTestMatchengine(TestCase):
             plugin_dir=kwargs.get('plugin_dir', 'plugins/'),
             match_document_creator_class=kwargs.get('match_document_creator_class', "DFCITrialMatchDocumentCreator"),
             fig_dir=kwargs.get('fig_dir', '/tmp/'),
-            use_run_log=kwargs.get('use_run_log', False),
             protocol_nos=kwargs.get('protocol_nos', None),
             sample_ids=kwargs.get('sample_ids', None)
         )

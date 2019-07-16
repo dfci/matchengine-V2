@@ -78,23 +78,6 @@ class MultiCollectionQuery:
     clinical: List[QueryNode]
 
 
-class RunLog:
-    protocol_no: str
-    clinical_id: ObjectId
-    marked_available: list
-    inserted: list
-    marked_disabled: list
-    _created: datetime.datetime
-
-    def __init__(self, protocol_no: str, clinical_id: ObjectId):
-        self.protocol_no = protocol_no
-        self.clinical_id = clinical_id
-        self.marked_available = list()
-        self.inserted = list()
-        self.marked_disabled = list()
-        self._created = datetime.datetime.now()
-
-
 @dataclass
 class MatchClauseData:
     match_clause: MatchClause
@@ -146,20 +129,6 @@ class Cache(object):
     def __init__(self):
         self.docs = dict()
         self.ids = dict()
-        self.run_log = dict()
-
-
-class RunLogCache(object):
-    trials: Dict[str, datetime.datetime]
-    clinical: Dict[str, datetime.datetime]
-    genomic: Dict[str, datetime.datetime]
-    clinical_protocol_runs: Dict[ClinicalID, Dict[str, datetime.datetime]]
-
-    def __init__(self):
-        self.trials = dict()
-        self.clinical = dict()
-        self.genomic = dict()
-        self.clinical_protocol_runs = defaultdict(lambda: defaultdict(lambda: None))
 
 
 @dataclass
@@ -175,11 +144,6 @@ class QueryTask:
 class UpdateTask:
     ops: List
     protocol_no: str
-
-
-@dataclass
-class RunLogUpdateTask:
-    run_log: RunLog
 
 
 @dataclass
