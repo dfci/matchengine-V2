@@ -45,7 +45,6 @@ class MatchEngine(object):
     _loop: asyncio.AbstractEventLoop
     _queue_task_count: int
     _workers: Dict[int, asyncio.Task]
-    run_log: RunLog
 
     def __enter__(self):
         return self
@@ -85,7 +84,6 @@ class MatchEngine(object):
             db_init: bool = True,
             match_document_creator_class: str = None,
             db_secrets_class: str = None,
-            use_run_log: bool = True,
             report_clinical_reasons: bool = True
     ):
 
@@ -129,11 +127,7 @@ class MatchEngine(object):
         self.clinical_ids = set(self.clinical_mapping.keys())
         if self.sample_ids is None:
             self.sample_ids = list(self.clinical_mapping.values())
-        self.use_run_log = use_run_log
-        self.run_log_cache = RunLogCache()
         self._param_cache = dict()
-        if self.use_run_log:
-            self.populate_run_log_cache()
 
         # instantiate a new async event loop to allow class to be used as if it is synchronous
         self._loop = asyncio.new_event_loop()
@@ -146,12 +140,7 @@ class MatchEngine(object):
         """
         for collection, desired_indices in {
             'trial_match': {
-                'hash', 'mrn', 'sample_id', 'clinical_id', 'protocol_no'},
-            'matchengine_run_log': {
-                'clinical_id',
-                'protocol_no',
-                '_created'
-            }
+                'hash', 'mrn', 'sample_id', 'clinical_id', 'protocol_no'}
         }.items():
             indices = self.db_ro[collection].list_indexes()
             existing_indices = set()
@@ -162,25 +151,6 @@ class MatchEngine(object):
             for index in indices_to_create:
                 log.info('Creating index %s' % index)
                 self.db_rw[collection].create_index(index)
-
-    def populate_run_log_cache(self):
-        log.info("Populating run log cache")
-        run_log_pipeline = [
-            {"$match": {"protocol_no": {"$in": self.protocol_nos},
-                        "clinical_id": {"$in": list(self.clinical_ids)}}},
-            {"$group": {"_id": {"protocol_no": "$protocol_no", "clinical_id": "$clinical_id"},
-                        "_created": {"$max": "$_created"}}}
-        ]
-        for result in self.db_ro["matchengine_run_log"].aggregate(run_log_pipeline):
-            clinical_id = result["_id"]["clinical_id"]
-            protocol_no = result["_id"]["protocol_no"]
-            run_time = result["_created"]
-            self.run_log_cache.clinical_protocol_runs[clinical_id][protocol_no] = run_time
-        for protocol_no, trial in self.trials.items():
-            self.run_log_cache.trials[protocol_no] = trial["_updated"]
-        for result in self.db_ro.clinical.find({"_id": {"$in": list(self.clinical_ids)}}, {"_updated": 1}):
-            self.run_log_cache.clinical[result["_id"]] = result["_updated"]
-        # todo: genomic
 
     def _find_plugins(self):
         """
@@ -467,9 +437,6 @@ class MatchEngine(object):
                 if self.debug:
                     log.info(
                         f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask")
-                if self.use_run_log:
-                    if task.match_clause_data.protocol_no not in self.cache.run_log:
-                        self.cache.run_log = dict()
                 try:
                     results = await self._run_query(task.query, task.clinical_ids)
                 except Exception as e:
@@ -509,22 +476,6 @@ class MatchEngine(object):
                     if self.debug:
                         log.info(f"Worker {worker_id} got new UpdateTask {task.protocol_no}")
                     await self.async_db_rw.trial_match.bulk_write(task.ops, ordered=False)
-                except Exception as e:
-                    log.error(f"ERROR: Worker: {worker_id}, error: {e}")
-                    if isinstance(e, AutoReconnect):
-                        self._task_q.task_done()
-                        await self._task_q.put(task)
-                    else:
-                        raise e
-                finally:
-                    self._task_q.task_done()
-
-            elif isinstance(task, RunLogUpdateTask):
-                try:
-                    if self.debug:
-                        log.info(f"Worker {worker_id} got new RunLogUpdateTask {task.run_log.protocol_no}")
-                    if any([task.run_log.marked_disabled, task.run_log.marked_available, task.run_log.inserted]):
-                        await self.async_db_rw.matchengine_run_log.insert_one(task.run_log.__dict__)
                 except Exception as e:
                     log.error(f"ERROR: Worker: {worker_id}, error: {e}")
                     if isinstance(e, AutoReconnect):
@@ -837,13 +788,8 @@ class MatchEngine(object):
             clinical_id = to_disable['clinical_id']
             if clinical_id not in deleted_by_id:
                 deleted_by_id[clinical_id] = RunLog(protocol_no, clinical_id)
-            run_log = deleted_by_id[clinical_id]
-            run_log.marked_disabled.append(to_disable['hash'])
 
-        for run_log in deleted_by_id.values():
-            await self._task_q.put(RunLogUpdateTask(run_log))
         for sample_id in trial_matches_by_sample_id.keys():
-            run_log = RunLog(protocol_no, self.sample_mapping[sample_id])
             new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
 
             trial_matches_to_not_change_query = MongoQuery({'hash': {'$in': new_matches_hashes}})
@@ -879,19 +825,6 @@ class MatchEngine(object):
                 if trial_match['hash'] in trial_matches_disabled
             ]
 
-            run_log.inserted.extend([
-                trial_match['hash']
-                for trial_match in trial_matches_to_insert
-            ])
-            run_log.marked_available.extend([
-                trial_match['hash']
-                for trial_match in trial_matches_to_mark_available
-            ])
-            run_log.marked_disabled.extend([
-                trial_match['hash']
-                for trial_match in trial_matches_to_disable
-            ])
-
             ops = list()
             ops.append(UpdateMany(filter={'hash': {'$in': [trial_match['hash']
                                                            for trial_match in trial_matches_to_disable]}},
@@ -901,7 +834,6 @@ class MatchEngine(object):
             ops.append(UpdateMany(filter={'hash': {'$in': [trial_match['hash']
                                                            for trial_match in trial_matches_to_mark_available]}},
                                   update={'$set': {'is_disabled': False}}))
-            await self._task_q.put(RunLogUpdateTask(run_log))
             await self._task_q.put(UpdateTask(ops, protocol_no))
 
         await self._task_q.join()
@@ -921,24 +853,6 @@ class MatchEngine(object):
         log.info(f"Begin Protocol No: {protocol_no}")
         task = self._loop.create_task(self._async_get_matches_for_trial(protocol_no))
         return self._loop.run_until_complete(task)
-
-    def _get_clinical_ids_from_run_log(self, protocol_no: str) -> Set[ClinicalID]:
-        if protocol_no in self._param_cache:
-            clinical_ids = self._param_cache[protocol_no]
-        else:
-            protocol_no_last_updated = self.run_log_cache.trials.get(protocol_no, None)
-            clinical_ids = set()
-            for clinical_id in self.clinical_ids:
-                last_run = self.run_log_cache.clinical_protocol_runs[clinical_id][protocol_no]
-                clinical_last_updated = self.run_log_cache.clinical[clinical_id]
-                if protocol_no_last_updated is None or last_run is None:
-                    clinical_ids.add(clinical_id)
-                elif last_run > protocol_no_last_updated:
-                    clinical_ids.add(clinical_id)
-                elif clinical_last_updated > last_run:
-                    clinical_ids.add(clinical_id)
-            self._param_cache[protocol_no] = clinical_ids
-        return clinical_ids
 
     async def _async_get_matches_for_trial(self, protocol_no: str) -> Dict[str, List[Dict]]:
         """
@@ -961,15 +875,11 @@ class MatchEngine(object):
                     log.info(f"Query: {query}")
                 if query:
                     # put the query onto the task queue for execution
-                    if self.use_run_log:
-                        clinical_ids = self._get_clinical_ids_from_run_log(protocol_no)
-                    else:
-                        clinical_ids = self.clinical_ids
                     await self._task_q.put(QueryTask(trial,
                                                      match_clause,
                                                      match_path,
                                                      query,
-                                                     clinical_ids))
+                                                     self.clinical_ids))
         await self._task_q.join()
         logging.info(f"Total results: {len(self.matches[protocol_no])}")
         return self.matches[protocol_no]
@@ -1062,7 +972,6 @@ def main(run_args):
             config=args.config_path,
             match_document_creator_class=args.match_document_creator_class,
             db_secrets_class=args.db_secrets_class,
-            use_run_log=args.use_run_log,
             report_clinical_reasons=args.report_clinical_reasons
     ) as me:
         me.get_matches_for_all_trials()
@@ -1152,10 +1061,6 @@ if __name__ == "__main__":
     subp_p.add_argument("--match-on-deceased-patients",
                         dest="match_on_deceased",
                         action="store_true",
-                        help=deceased_help)
-    subp_p.add_argument("--disable-run-log",
-                        dest="use_run_log",
-                        action="store_false",
                         help=deceased_help)
     subp_p.add_argument("--report-clinical-reasons",
                         dest="report_clinical_reasons",
