@@ -1024,18 +1024,19 @@ class MatchEngine(object):
         """Stub function to be overriden by plugin"""
         return dict()
 
+    def _get_all_match_fieldnames(self) -> Set[str]:
+        fieldnames = set()
+        for protocol_no in self.matches:
+            for sample_id in self.matches[protocol_no]:
+                for match in self.matches[protocol_no][sample_id]:
+                    fieldnames.update(match.keys())
+        return fieldnames
+
     def create_output_csv(self):
         """Generate output CSV file from all generated trial_match documents"""
 
         # get column titles
-        fieldnames = list()
-        for protocol_no in self.matches:
-            for sample_id in self.matches[protocol_no]:
-                for match in self.matches[protocol_no][sample_id]:
-                    for key in match.keys():
-                        if key not in fieldnames:
-                            fieldnames.append(key)
-
+        fieldnames = self._get_all_match_fieldnames()
         # write CSV
         with open(f'trial_matches_{dt.datetime.now().strftime("%b_%d_%Y_%H:%M")}.csv', 'a') as csvFile:
             writer = csv.DictWriter(csvFile, fieldnames=fieldnames)
@@ -1044,7 +1045,6 @@ class MatchEngine(object):
                 for sample_id in self.matches[protocol_no]:
                     for match in self.matches[protocol_no][sample_id]:
                         writer.writerow(match)
-        csvFile.close()
 
 
 def main(run_args):
