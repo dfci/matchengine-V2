@@ -108,6 +108,8 @@ class MatchEngine(object):
         # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
         self.sample_ids = sample_ids
+
+        # TODO do trial filtering and run_log creation here. Add sample ids during create trial match
         self.protocol_nos = protocol_nos
         self.match_on_closed = match_on_closed
         self.match_on_deceased = match_on_deceased
@@ -425,7 +427,7 @@ class MatchEngine(object):
         """
         while True:
             # Execute update task
-            task: Union[QueryTask, UpdateTask, RunLogUpdateTask, PoisonPill] = await self._task_q.get()
+            task: Union[QueryTask, UpdateTask, PoisonPill] = await self._task_q.get()
             if isinstance(task, PoisonPill):
                 if self.debug:
                     log.info(f"Worker: {worker_id} got PoisonPill")
@@ -783,11 +785,9 @@ class MatchEngine(object):
                        update={'$set': {"is_disabled": True}})
         ]
         await self._task_q.put(UpdateTask(initial_delete_ops, protocol_no))
-        deleted_by_id: Dict[RunLog] = dict()
+
         for to_disable in remaining_to_disable:
             clinical_id = to_disable['clinical_id']
-            if clinical_id not in deleted_by_id:
-                deleted_by_id[clinical_id] = RunLog(protocol_no, clinical_id)
 
         for sample_id in trial_matches_by_sample_id.keys():
             new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
