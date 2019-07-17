@@ -108,9 +108,7 @@ class MatchEngine(object):
         # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
         self.sample_ids = sample_ids
-
-        # TODO do trial filtering and run_log creation here. Add sample ids during create trial match
-        self.protocol_nos = protocol_nos
+        self.protocol_nos = self.filter_protocols(protocol_nos)
         self.match_on_closed = match_on_closed
         self.match_on_deceased = match_on_deceased
         self.report_clinical_reasons = report_clinical_reasons
@@ -135,6 +133,31 @@ class MatchEngine(object):
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._async_init())
+
+    def filter_protocols(self, protocol_nos: Set(str)) -> Set(str):
+        # TODO
+        """
+        Look at the latest run_log entry for the passed in protocol_no. It has a SAMPLE_IDS field and date created.
+        Grab all sample ids created after the date on the run_log.
+
+        =======
+        TRIAL FILTER
+        ======
+        If the trial has been updated since the date of the run_log entry, run the trial through the ME.
+
+        ====
+        PATIENT FILTER
+        ====
+        If the trial has NOT been updated since the date of the last run_log entry, AND, the intersection of the
+        sample_ids from the run_log entry and the current clinical collection is 0, skip running the trial. There is no
+        new data.
+
+        If the trial has NOT been updated since the date of the last run_log entry, but after intersecting the
+        sample_ids with the run log there is a remainder, run the protocol with the remainder sample_ids.
+        Set the sample_ids on the run_log
+
+        """
+        return protocol_nos
 
     def check_indices(self):
         """
