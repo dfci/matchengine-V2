@@ -459,7 +459,7 @@ class MatchEngine(object):
                 try:
                     for result in results:
                         self._queue_task_count += 1
-                        if self._queue_task_count % 100 == 0:
+                        if self._queue_task_count % 1000 == 0:
                             log.info(f"Trial match count: {self._queue_task_count}")
                         match_document = self.create_trial_matches(TrialMatch(task.trial,
                                                                               task.match_clause_data,
