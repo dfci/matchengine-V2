@@ -172,36 +172,39 @@ class IntegrationTestMatchengine(TestCase):
             raise e
 
     def test_trial_arm_opens(self):
-        assert False
-
-    def test_trial_arm_closes(self):
-        sample_ids = [
-            '5d2799d86756630d8dd065b8',
-            '5d2799da6756630d8dd066a6',
-            '5d2799cc6756630d8dd06265',
-            '5d2799cb6756630d8dd0621d'
-        ]
+        # run 1 - a trial with no open arms.
+        # no documents should be added even though there are matches
+        # a row in run_log should be added with no values in sample_ids
         self._reset(
             do_reset_trial_matches=True,
             do_reset_trials=True,
-            trials_to_load=['run_log_arm_open'],
+            trials_to_load=['run_log_arm_closed'],
             disable_run_log=False,
             reset_run_log=True,
-            sample_ids=set(sample_ids)
+            match_on_closed=False,
+            match_on_deceased=False
         )
+
         self.me.get_matches_for_all_trials()
         run_log_1 = list(self.me.db_ro.run_log.find({}))
-        assert len(list(self.me.db_ro.trial_match.find({'is_disabled': False}))) > 0
+        assert len(list(self.me.db_ro.trial_match.find())) == 0
+        assert len(list(self.me.db_ro.run_log.find())) == 1
+
+        # run 2 - the same trial with an open arm
+        # documents should be added to trial match and a corresponding row added to run_log
         self._reset(
             do_reset_trial_matches=False,
             do_reset_trials=True,
-            trials_to_load=['run_log_arm_closed'],
+            trials_to_load=['run_log_arm_open'],
             disable_run_log=False,
-            sample_ids=set(sample_ids)
+            match_on_closed=False,
+            match_on_deceased=False
         )
         self.me.get_matches_for_all_trials()
-        run_log_2 = list(self.me.db_ro.run_log.find({"_id": {"$nin": [log['_id'] for log in run_log_1]}}))
-        assert len(list(self.me.db_ro.trial_match.find({'is_disabled': False}))) == 0
+        run_log_2 = list(self.me.db_ro.run_log.find({}))
+        assert len(list(self.me.db_ro.trial_match.find())) == 2
+
+
         assert len(run_log_1) == len(run_log_2) * 2
         assert all([log['protocol_no'] == '10-007' for log in run_log_1 + run_log_2])
         assert all([frozenset(log['sample_ids']) == frozenset(sample_ids) for log in run_log_1 + run_log_2])
@@ -219,10 +222,56 @@ class IntegrationTestMatchengine(TestCase):
             assert len(clinical_doc['run_history']) == 3
             assert clinical_doc['run_history'][0]['action'] == 'created'
             assert clinical_doc['run_history'][0]['id'] == run_log_1[0]['run_log_id']
-            assert clinical_doc['run_history'][1]['action'] == 'disabled'
-            assert clinical_doc['run_history'][1]['id'] == run_log_2[0]['run_log_id']
             assert clinical_doc['run_history'][1]['action'] == 'enabled'
+            assert clinical_doc['run_history'][1]['id'] == run_log_2[0]['run_log_id']
+            assert clinical_doc['run_history'][1]['action'] == 'disabled'
             assert clinical_doc['run_history'][1]['id'] == run_log_3[0]['run_log_id']
+
+    def test_trial_arm_closes(self):
+        assert False
+        # self._reset(
+        #     do_reset_trial_matches=True,
+        #     do_reset_trials=True,
+        #     trials_to_load=['run_log_arm_open'],
+        #     disable_run_log=False,
+        #     reset_run_log=True
+        # )
+        #
+        # self.me.get_matches_for_all_trials()
+        # self.me.update_all_matches()
+        # run_log_1 = list(self.me.db_ro.run_log.find({}))
+        # assert len(list(self.me.db_ro.trial_match.find({'is_disabled': False}))) > 0
+        #
+        # self._reset(
+        #     do_reset_trial_matches=False,
+        #     do_reset_trials=True,
+        #     trials_to_load=['run_log_arm_closed'],
+        #     disable_run_log=False,
+        # )
+        # self.me.get_matches_for_all_trials()
+        # run_log_2 = list(self.me.db_ro.run_log.find({"_id": {"$nin": [log['_id'] for log in run_log_1]}}))
+        # assert len(list(self.me.db_ro.trial_match.find({'is_disabled': False}))) == 0
+        # assert len(run_log_1) == len(run_log_2) * 2
+        # assert all([log['protocol_no'] == '10-007' for log in run_log_1 + run_log_2])
+        # assert all([frozenset(log['sample_ids']) == frozenset(sample_ids) for log in run_log_1 + run_log_2])
+        # self._reset(
+        #     do_reset_trial_matches=False,
+        #     do_reset_trials=True,
+        #     trials_to_load=['run_log_arm_open'],
+        #     disable_run_log=False,
+        #     sample_ids=set(sample_ids)
+        # )
+        # run_log_3 = list(self.me.db_ro.run_log.find(
+        #     {"_id": {"$nin": [log['_id'] for log in run_log_1] + [log['_id'] for log in run_log_2]}}))
+        # clinical_docs = list(self.me.db_ro.clinical.find({'SAMPLE_ID': {'$in': sample_ids}}))
+        # for clinical_doc in clinical_docs:
+        #     assert len(clinical_doc['run_history']) == 3
+        #     assert clinical_doc['run_history'][0]['action'] == 'created'
+        #     assert clinical_doc['run_history'][0]['id'] == run_log_1[0]['run_log_id']
+        #     assert clinical_doc['run_history'][1]['action'] == 'disabled'
+        #     assert clinical_doc['run_history'][1]['id'] == run_log_2[0]['run_log_id']
+        #     assert clinical_doc['run_history'][1]['action'] == 'enabled'
+        #     assert clinical_doc['run_history'][1]['id'] == run_log_3[0]['run_log_id']
 
     def test_trial_arm_changes_criteria(self):
         assert False
