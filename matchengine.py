@@ -152,10 +152,11 @@ class MatchEngine(object):
         sample_ids from the run_log entry and the current clinical collection is 0, skip running the trial. There is no
         new data.
 
-        If the trial has NOT been updated since the date of the last run_log entry, but after intersecting the
-        sample_ids with the run log there is a remainder, run the protocol with the remainder sample_ids.
-        Set the sample_ids on the run_log. For the other ids which are in the inverse of the remainder, set them as
-        is_disabled.
+            Else, if there is a remainder, run the protocol with the remainder sample_ids.
+            Set those IDs as the sample_ids in a new run_log entry.
+
+        For the other ids (outer) set them as is_disabled. Create trial matches should check the hashes of new
+        documents created and update appropriately.
 
         """
         return protocol_nos
