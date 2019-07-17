@@ -917,7 +917,7 @@ class MatchEngine(object):
         else:
             open_trials = dict()
             for protocol_no, trial in all_trials.items():
-            if trial['status'].lower().strip() not in {"open to accrual"}:
+                if trial['status'].lower().strip() not in {"open to accrual"}:
                     logging.info(f'Trial {trial["protocol_no"]} has status {trial["status"]}, skipping')
                     continue
                 else:
