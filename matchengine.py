@@ -11,6 +11,7 @@ from collections import deque
 from multiprocessing import cpu_count
 from types import MethodType
 from typing import Generator
+from datetime import datetime
 import csv
 
 import networkx as nx
@@ -108,7 +109,7 @@ class MatchEngine(object):
         # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
         self.sample_ids = sample_ids
-        self.protocol_nos = self.filter_protocols(protocol_nos)
+        self.protocol_nos = protocol_nos
         self.match_on_closed = match_on_closed
         self.match_on_deceased = match_on_deceased
         self.report_clinical_reasons = report_clinical_reasons
@@ -122,6 +123,8 @@ class MatchEngine(object):
         self.trials = self.get_trials()
         if self.protocol_nos is None:
             self.protocol_nos = list(self.trials.keys())
+        self.protocol_nos = self.filter_protocols(self.protocol_nos)
+
         self.clinical_mapping = self.get_clinical_ids_from_sample_ids()
         self.sample_mapping = {sample_id: clinical_id for clinical_id, sample_id in self.clinical_mapping.items()}
         self.clinical_ids = set(self.clinical_mapping.keys())
@@ -133,33 +136,6 @@ class MatchEngine(object):
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._async_init())
-
-    def filter_protocols(self, protocol_nos: Set(str)) -> Set(str):
-        # TODO
-        """
-        Look at the latest run_log entry for the passed in protocol_no. It has a SAMPLE_IDS field and date created.
-        Grab all sample ids created after the date on the run_log.
-
-        =======
-        TRIAL FILTER
-        ======
-        If the trial has been updated since the date of the run_log entry, run the trial through the ME.
-
-        ====
-        PATIENT FILTER
-        ====
-        If the trial has NOT been updated since the date of the last run_log entry, AND, the intersection of the
-        sample_ids from the run_log entry and the current clinical collection is 0, skip running the trial. There is no
-        new data.
-
-            Else, if there is a remainder, run the protocol with the remainder sample_ids.
-            Set those IDs as the sample_ids in a new run_log entry.
-
-        For the other ids (outer) set them as is_disabled. Create trial matches should check the hashes of new
-        documents created and update appropriately.
-
-        """
-        return protocol_nos
 
     def check_indices(self):
         """
@@ -947,6 +923,73 @@ class MatchEngine(object):
                 else:
                     open_trials.update({protocol_no: trial})
             return open_trials
+
+    def filter_protocols(self, protocol_nos: Set(str)) -> Set(str):
+        """
+        Look at the latest run_log entry for the passed in protocol_no. It has a SAMPLE_IDS field and date created.
+        Grab all sample ids created after that date in the run_log.
+
+        If the trial has been updated since the date of the last run_log entry, run the trial.
+
+        If the trial has NOT been updated since the date of the last run_log entry, look at the sample ids.
+        Run new sample ids based on _updated. Skip running old sample ids.
+
+        For the other ids (outer) set them as is_disabled. Create trial matches should check the hashes of new
+        documents created and update appropriately.
+
+        """
+        samples_removed_from_run = set()
+
+        # Grab all distinct sample_ids
+        all_samples = list(self.db_ro.clinical.find({}).projection({"SAMPLE_ID": 1, "_updated": 1}))
+        all_sample_ids = [sample_id for sample_id in all_samples['sample_id']]
+
+        for protocol_no in protocol_nos:
+            samples_to_run = set()
+
+            # Get all sample_ids from last run_log entry
+            run_log = list(self.db_ro.run_log.find({"protocol_no": protocol_no}))
+            trial_time_last_run = run_log['_created'] if run_log is not None else None
+            sample_ids_last_run = run_log['sample_id'] if run_log is not None else None
+
+            trial_raw_date = list(self.db_ro.find({"protocol_no": protocol_no}).projection({'last_updated': 1}))
+            trial_last_update = datetime.strptime(trial_raw_date, '%B %d, %Y')
+
+            # trial has not been updated
+            if trial_time_last_run is not None and trial_time_last_run > trial_last_update:
+
+                # have any samples been updated since the last run?
+                for sample_id in all_samples:
+                    if sample_id['_updated'] > trial_time_last_run:
+                        self.db_rw.clinical.update_one({'SAMPLE_ID': sample_id}, {
+                            # what if match history doesn't exist?
+                            # what should be added?
+                            '$push': {
+                                'match_history': ''
+                            }
+                        })
+                        self.sample_ids.extend(sample_id['sample_id'])
+                    else:
+                        samples_removed_from_run.add(sample_id['sample_id'])
+
+            self.db_rw.run_log.insert_one({
+                'protocol_no': protocol_no,
+                'sample_ids': self.sample_ids,
+                '_created': datetime.now()
+            })
+
+
+
+
+
+
+
+
+
+
+
+
+        return protocol_nos
 
     async def _perform_db_call(self, collection: str, query: MongoQuery, projection: Dict):
         """

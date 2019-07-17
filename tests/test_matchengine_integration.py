@@ -76,6 +76,7 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(do_reset_trials=True)
 
     def test__match_on_deceased_match_on_closed(self):
+        assert self.me.db_rw.name == 'integration'
         self._reset(do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         self.me.get_matches_for_all_trials()
