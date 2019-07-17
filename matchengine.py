@@ -154,7 +154,8 @@ class MatchEngine(object):
 
         If the trial has NOT been updated since the date of the last run_log entry, but after intersecting the
         sample_ids with the run log there is a remainder, run the protocol with the remainder sample_ids.
-        Set the sample_ids on the run_log
+        Set the sample_ids on the run_log. For the other ids which are in the inverse of the remainder, set them as
+        is_disabled.
 
         """
         return protocol_nos
