@@ -127,6 +127,7 @@ class MatchEngine(object):
         self.matches = defaultdict(lambda: defaultdict(list))
 
         self.trials = self.get_trials()
+        self._trials_to_match_on = self._get_trials_to_match_on(self.trials)
         if self.protocol_nos is None:
             self.protocol_nos = list(self.trials.keys())
 
@@ -868,6 +869,10 @@ class MatchEngine(object):
         Synchronously iterates over each protocol number, getting trial matches for each
         """
         for protocol_no in self.protocol_nos:
+            if protocol_no not in self._trials_to_match_on:
+                logging.info((f'Trial {protocol_no} '
+                              f'has status {self.trials[protocol_no]["status"]}, skipping'))
+                continue
             self.get_matches_for_trial(protocol_no)
         return self.matches
 
@@ -951,17 +956,15 @@ class MatchEngine(object):
             result['protocol_no']: result
             for result in self.db_ro.trial.find(trial_find_query, dict({"_updated": 1}, **projection))
         }
-        if self.match_on_closed:
-            return all_trials
-        else:
-            open_trials = dict()
-            for protocol_no, trial in all_trials.items():
-                if trial['status'].lower().strip() not in {"open to accrual"}:
-                    logging.info(f'Trial {trial["protocol_no"]} has status {trial["status"]}, skipping')
-                    continue
-                else:
-                    open_trials.update({protocol_no: trial})
-            return open_trials
+        return all_trials
+
+    def _get_trials_to_match_on(self, trials: Dict[str, Trial]) -> Set[str]:
+        return {
+            protocol_no
+            for protocol_no, trial
+            in trials.items()
+            if self.match_on_closed or trial['status'].lower().strip() in {"open to accrual"}
+        }
 
     def create_run_log_entry(self, protocol_no):
         """
@@ -997,7 +1000,10 @@ class MatchEngine(object):
         """
 
         # run logs since trial has been last updated
-        trial_last_update = datetime.datetime.strptime(self.trials[protocol_no]['last_updated'], '%B %d, %Y')
+        default_datetime = 'January 01, 0001'
+        fmt_string = '%B %d, %Y'
+        trial_last_update = datetime.datetime.strptime(self.trials[protocol_no].get('last_updated', default_datetime),
+                                                       fmt_string)
         query = {"protocol_no": protocol_no, "run_time": {'$gte': trial_last_update}}
         run_log_entries = list(self.db_ro.run_log.find(query).sort([("_created", pymongo.DESCENDING)]))
 
@@ -1020,7 +1026,9 @@ class MatchEngine(object):
             # Check if clinical_id has been updated since last run with current protocol.
             # If it has been updated, run.
             for clinical_id, updated_at in self.clinical_update_mapping.items():
-                if updated_at > run_log_created_at and clinical_id not in clinical_ids_to_not_run:
+                if updated_at is None:
+                    clinical_ids_to_run.add(clinical_id)
+                elif updated_at > run_log_created_at and clinical_id not in clinical_ids_to_not_run:
                     if is_all or clinical_id in run_log_clinical_ids['list']:
                         clinical_ids_to_run.add(clinical_id)
 
