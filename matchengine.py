@@ -89,7 +89,9 @@ class MatchEngine(object):
     ):
 
         self.starttime = datetime.datetime.now()
-        self.run_log_entries = list()
+        self.run_log_entries = dict()
+        self._protocol_nos_param = protocol_nos
+        self._sample_ids_param = sample_ids
 
         if isinstance(config, str):
             with open(config) as config_file_handle:
@@ -494,6 +496,21 @@ class MatchEngine(object):
                 finally:
                     self._task_q.task_done()
 
+            elif isinstance(task, RunLogUpdateTask):
+                try:
+                    if self.debug:
+                        log.info(f"Worker {worker_id} got new RunLogUpdateTask {task.protocol_no}")
+                    await self.async_db_rw.run_log.insert(self.run_log_entries[task.protocol_no])
+                except Exception as e:
+                    log.error(f"ERROR: Worker: {worker_id}, error: {e}")
+                    if isinstance(e, AutoReconnect):
+                        self._task_q.task_done()
+                        await self._task_q.put(task)
+                    else:
+                        raise e
+                finally:
+                    self._task_q.task_done()
+
     def extract_match_clauses_from_trial(self, protocol_no: str) -> Generator[MatchClauseData, None, None]:
         """
         Pull out all of the matches from a trial curation.
@@ -841,6 +858,7 @@ class MatchEngine(object):
                                                            for trial_match in trial_matches_to_mark_available]}},
                                   update={'$set': {'is_disabled': False}}))
             await self._task_q.put(UpdateTask(ops, protocol_no))
+            await self._task_q.put(RunLogUpdateTask(protocol_no))
 
         await self._task_q.join()
 
@@ -870,7 +888,7 @@ class MatchEngine(object):
         match_clauses = self.extract_match_clauses_from_trial(protocol_no)
 
         clinical_ids_to_run, clinical_ids_to_not_run = self.get_clinical_ids_for_protocol(protocol_no)
-        self.create_run_log_entry(protocol_no, clinical_ids_to_run, clinical_ids_to_not_run)
+        self.create_run_log_entry(protocol_no)
 
         # for each match clause, create the match tree, and extract each possible match path from the tree
         for match_clause in match_clauses:
@@ -944,20 +962,27 @@ class MatchEngine(object):
                     open_trials.update({protocol_no: trial})
             return open_trials
 
-    def create_run_log_entry(self, protocol_no, clinical_ids_to_run, clinical_ids_to_not_run):
+    def create_run_log_entry(self, protocol_no):
+        """
+        Create a record of a matchengine run by protocol no.
+        Include clinical ids run, either all or a list
+        Include original arguments.
+        """
         run_log_clinical_ids_new = dict()
-        if clinical_ids_to_run == self.clinical_ids and not clinical_ids_to_not_run:
+        if self._sample_ids_param is None:
             run_log_clinical_ids_new['all'] = None
-        elif clinical_ids_to_not_run > clinical_ids_to_run:
-            run_log_clinical_ids_new['list'] = list(clinical_ids_to_run)
-        elif clinical_ids_to_not_run >= clinical_ids_to_run:
-            run_log_clinical_ids_new['all_except'] = clinical_ids_to_not_run
+        else:
+            run_log_clinical_ids_new['list'] = list(self.clinical_ids)
 
-        self.run_log_entries.append({
+        self.run_log_entries[protocol_no] = {
             'protocol_no': protocol_no,
             'clinical_ids': run_log_clinical_ids_new,
+            'sample_ids_param': self._sample_ids_param,
+            'protocol_nos_param': self._protocol_nos_param,
+            'match_on_deceased': self.match_on_deceased,
+            'match_on_closed': self.match_on_closed,
             '_created': self.starttime
-        })
+        }
 
     def get_clinical_ids_for_protocol(self, protocol_no: str) -> Tuple(Set(ObjectId), Set(ObjectId)):
         """
@@ -978,7 +1003,7 @@ class MatchEngine(object):
         for run_log in run_log_entries:
             # All sample ids are accounted for, short circuit
             if clinical_ids_to_not_run.union(clinical_ids_to_run) == self.clinical_ids:
-                continue
+                break
 
             run_log_clinical_ids = run_log['sample_ids']
             run_log_created_at = run_log['_created']
@@ -992,12 +1017,6 @@ class MatchEngine(object):
             if 'all' in run_log_clinical_ids:
                 clinical_ids_to_not_run.update(self.clinical_ids - clinical_ids_to_run)
                 continue
-
-            elif 'all_except' in run_log_clinical_ids:
-                not_run_prev = set(run_log_clinical_ids['all_except'])
-                run_now_not_run_prev = not_run_prev.intersection(self.clinical_ids)
-                clinical_ids_to_run.update(run_now_not_run_prev - clinical_ids_to_not_run)
-                clinical_ids_to_not_run.update(run_now_not_run_prev.intersection(clinical_ids_to_not_run))
 
             elif 'list' in run_log_clinical_ids:
                 run_prev = set(run_log_clinical_ids['list'])
