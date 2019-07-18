@@ -123,9 +123,10 @@ class MatchEngine(object):
         self.trials = self.get_trials()
         if self.protocol_nos is None:
             self.protocol_nos = list(self.trials.keys())
-        self.protocol_nos = self.filter_protocols(self.protocol_nos)
 
+        self._clinical_data = self._get_clinical_data()
         self.clinical_mapping = self.get_clinical_ids_from_sample_ids()
+        self.clinical_update_mapping = self.get_clinical_updated_mapping()
         self.sample_mapping = {sample_id: clinical_id for clinical_id, sample_id in self.clinical_mapping.items()}
         self.clinical_ids = set(self.clinical_mapping.keys())
         if self.sample_ids is None:
@@ -885,16 +886,22 @@ class MatchEngine(object):
         logging.info(f"Total results: {len(self.matches[protocol_no])}")
         return self.matches[protocol_no]
 
-    def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
-        """
-        Clinical ids are unique to sample_ids
-        """
+    def _get_clinical_data(self):
         # if no sample ids are passed in as args, get all clinical documents
         query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
         if self.sample_ids is not None:
             query.update({"SAMPLE_ID": {"$in": list(self.sample_ids)}})
-        return {result['_id']: result['SAMPLE_ID']
-                for result in self.db_ro.clinical.find(query, {'_id': 1, 'SAMPLE_ID': 1})}
+        return {result['_id']: result
+                for result in self.db_ro.clinical.find(query, {'_id': 1, 'SAMPLE_ID': 1, '_updated': 1})}
+
+    def get_clinical_updated_mapping(self):
+        return {clinical_id: clinical_data.get('_updated', None) for clinical_id, clinical_data in self._clinical_data.items()}
+
+    def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
+        """
+        Clinical ids are unique to sample_ids
+        """
+        return {clinical_id: clinical_data['SAMPLE_ID'] for clinical_id, clinical_data in self._clinical_data.items()}
 
     def get_trials(self) -> Dict[str, Trial]:
         """
@@ -977,17 +984,6 @@ class MatchEngine(object):
                 'sample_ids': self.sample_ids,
                 '_created': datetime.now()
             })
-
-
-
-
-
-
-
-
-
-
-
 
         return protocol_nos
 
