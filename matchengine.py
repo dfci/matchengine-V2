@@ -88,6 +88,9 @@ class MatchEngine(object):
             report_clinical_reasons: bool = True
     ):
 
+        self.starttime = datetime.datetime.now()
+        self.run_log_entries = list()
+
         if isinstance(config, str):
             with open(config) as config_file_handle:
                 self.config = json.load(config_file_handle)
@@ -127,6 +130,7 @@ class MatchEngine(object):
         self._clinical_data = self._get_clinical_data()
         self.clinical_mapping = self.get_clinical_ids_from_sample_ids()
         self.clinical_update_mapping = self.get_clinical_updated_mapping()
+        self.clinical_run_log_mapping = self.get_clinical_run_log_mapping()
         self.sample_mapping = {sample_id: clinical_id for clinical_id, sample_id in self.clinical_mapping.items()}
         self.clinical_ids = set(self.clinical_mapping.keys())
         if self.sample_ids is None:
@@ -865,6 +869,9 @@ class MatchEngine(object):
         trial = self.trials[protocol_no]
         match_clauses = self.extract_match_clauses_from_trial(protocol_no)
 
+        clinical_ids_to_run, clinical_ids_to_not_run = self.get_clinical_ids_for_protocol(protocol_no)
+        self.create_run_log_entry(protocol_no, clinical_ids_to_run, clinical_ids_to_not_run)
+
         # for each match clause, create the match tree, and extract each possible match path from the tree
         for match_clause in match_clauses:
             match_tree = self.create_match_tree(match_clause)
@@ -881,7 +888,7 @@ class MatchEngine(object):
                                                      match_clause,
                                                      match_path,
                                                      query,
-                                                     self.clinical_ids))
+                                                     clinical_ids_to_run))
         await self._task_q.join()
         logging.info(f"Total results: {len(self.matches[protocol_no])}")
         return self.matches[protocol_no]
@@ -892,10 +899,16 @@ class MatchEngine(object):
         if self.sample_ids is not None:
             query.update({"SAMPLE_ID": {"$in": list(self.sample_ids)}})
         return {result['_id']: result
-                for result in self.db_ro.clinical.find(query, {'_id': 1, 'SAMPLE_ID': 1, '_updated': 1})}
+                for result in
+                self.db_ro.clinical.find(query, {'_id': 1, 'SAMPLE_ID': 1, '_updated': 1, 'run_history': 1})}
 
-    def get_clinical_updated_mapping(self):
-        return {clinical_id: clinical_data.get('_updated', None) for clinical_id, clinical_data in self._clinical_data.items()}
+    def get_clinical_updated_mapping(self) -> Dict[ObjectId: datetime.datetime]:
+        return {clinical_id: clinical_data.get('_updated', None) for clinical_id, clinical_data in
+                self._clinical_data.items()}
+
+    def get_clinical_run_log_mapping(self) -> Dict[ObjectId: ObjectId]:
+        return {clinical_id: clinical_data.get('run_history', None) for clinical_id, clinical_data in
+                self._clinical_data.items()}
 
     def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
         """
@@ -931,61 +944,71 @@ class MatchEngine(object):
                     open_trials.update({protocol_no: trial})
             return open_trials
 
-    def filter_protocols(self, protocol_nos: Set(str)) -> Set(str):
+    def create_run_log_entry(self, protocol_no, clinical_ids_to_run, clinical_ids_to_not_run):
+        run_log_clinical_ids_new = dict()
+        if clinical_ids_to_run == self.clinical_ids and not clinical_ids_to_not_run:
+            run_log_clinical_ids_new['all'] = None
+        elif clinical_ids_to_not_run > clinical_ids_to_run:
+            run_log_clinical_ids_new['list'] = list(clinical_ids_to_run)
+        elif clinical_ids_to_not_run >= clinical_ids_to_run:
+            run_log_clinical_ids_new['all_except'] = clinical_ids_to_not_run
+
+        self.run_log_entries.append({
+            'protocol_no': protocol_no,
+            'clinical_ids': run_log_clinical_ids_new,
+            '_created': self.starttime
+        })
+
+    def get_clinical_ids_for_protocol(self, protocol_no: str) -> Tuple(Set(ObjectId), Set(ObjectId)):
         """
-        Look at the latest run_log entry for the passed in protocol_no. It has a SAMPLE_IDS field and date created.
-        Grab all sample ids created after that date in the run_log.
-
-        If the trial has been updated since the date of the last run_log entry, run the trial.
-
-        If the trial has NOT been updated since the date of the last run_log entry, look at the sample ids.
-        Run new sample ids based on _updated. Skip running old sample ids.
-
-        For the other ids (outer) set them as is_disabled. Create trial matches should check the hashes of new
-        documents created and update appropriately.
+        Take protocol from args and lookup all run_log entries after protocol_no._updated_date.
+        Subset self.clinical_ids which have already been run since the trial's been updated.
 
         """
-        samples_removed_from_run = set()
 
-        # Grab all distinct sample_ids
-        all_samples = list(self.db_ro.clinical.find({}).projection({"SAMPLE_ID": 1, "_updated": 1}))
-        all_sample_ids = [sample_id for sample_id in all_samples['sample_id']]
+        # run logs since trial has been last updated
+        trial_last_update = self.trials[protocol_no]['_updated']
+        query = {"protocol_no": protocol_no, "run_time": {'$gte': trial_last_update}}
+        run_log_entries = list(self.db_ro.run_log.find(query).sort({"_created": -1}))
 
-        for protocol_no in protocol_nos:
-            samples_to_run = set()
+        clinical_ids_to_not_run = set()
+        clinical_ids_to_run = set()
 
-            # Get all sample_ids from last run_log entry
-            run_log = list(self.db_ro.run_log.find({"protocol_no": protocol_no}))
-            trial_time_last_run = run_log['_created'] if run_log is not None else None
-            sample_ids_last_run = run_log['sample_id'] if run_log is not None else None
+        # Iterate over all run logs
+        for run_log in run_log_entries:
+            # All sample ids are accounted for, short circuit
+            if clinical_ids_to_not_run.union(clinical_ids_to_run) == self.clinical_ids:
+                continue
 
-            trial_raw_date = list(self.db_ro.find({"protocol_no": protocol_no}).projection({'last_updated': 1}))
-            trial_last_update = datetime.strptime(trial_raw_date, '%B %d, %Y')
+            run_log_clinical_ids = run_log['sample_ids']
+            run_log_created_at = run_log['_created']
 
-            # trial has not been updated
-            if trial_time_last_run is not None and trial_time_last_run > trial_last_update:
+            # Check if clinical_id has been updated since last run with current protocol.
+            # If it has been updated, run.
+            for clinical_id, updated_at in self.clinical_update_mapping.items():
+                if updated_at > run_log_created_at and clinical_id not in clinical_ids_to_not_run:
+                    clinical_ids_to_run.add(clinical_id)
 
-                # have any samples been updated since the last run?
-                for sample_id in all_samples:
-                    if sample_id['_updated'] > trial_time_last_run:
-                        self.db_rw.clinical.update_one({'SAMPLE_ID': sample_id}, {
-                            # what if match history doesn't exist?
-                            # what should be added?
-                            '$push': {
-                                'match_history': ''
-                            }
-                        })
-                        self.sample_ids.extend(sample_id['sample_id'])
-                    else:
-                        samples_removed_from_run.add(sample_id['sample_id'])
+            if 'all' in run_log_clinical_ids:
+                clinical_ids_to_not_run.update(self.clinical_ids - clinical_ids_to_run)
+                continue
 
-            self.db_rw.run_log.insert_one({
-                'protocol_no': protocol_no,
-                'sample_ids': self.sample_ids,
-                '_created': datetime.now()
-            })
+            elif 'all_except' in run_log_clinical_ids:
+                not_run_prev = set(run_log_clinical_ids['all_except'])
+                run_now_not_run_prev = not_run_prev.intersection(self.clinical_ids)
+                clinical_ids_to_run.update(run_now_not_run_prev - clinical_ids_to_not_run)
+                clinical_ids_to_not_run.update(run_now_not_run_prev.intersection(clinical_ids_to_not_run))
 
-        return protocol_nos
+            elif 'list' in run_log_clinical_ids:
+                run_prev = set(run_log_clinical_ids['list'])
+                run_now_not_run_prev = self.clinical_ids - run_prev
+                clinical_ids_to_run.update(run_now_not_run_prev - clinical_ids_to_not_run)
+                clinical_ids_to_not_run.update(run_now_not_run_prev.intersection(clinical_ids_to_not_run))
+
+        # ensure that we have accounted for all clinical ids
+        assert clinical_ids_to_run.union(clinical_ids_to_not_run) == self.clinical_ids
+
+        return clinical_ids_to_run, clinical_ids_to_not_run
 
     async def _perform_db_call(self, collection: str, query: MongoQuery, projection: Dict):
         """
