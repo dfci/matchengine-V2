@@ -184,7 +184,7 @@ class IntegrationTestMatchengine(TestCase):
             trials_to_load=['run_log_arm_closed'],
             disable_run_log=False,
             reset_run_log=True,
-            match_on_closed=False,
+            match_on_closed=True,
             match_on_deceased=False,
             do_rm_clinical_run_history=True
         )
