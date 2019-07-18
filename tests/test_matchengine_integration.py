@@ -174,15 +174,12 @@ class IntegrationTestMatchengine(TestCase):
                 os.unlink(filename)
             raise e
 
-    def test_trial_arm_opens(self):
-        # run 1 - a trial with no open arms.
-        # no documents should be added even though there are matches
-        # a row in run_log should be added with no values in sample_ids
+    def test_run_log(self):
+        # run 1 - create matches and run log row
         self._reset(
             do_reset_trial_matches=True,
             do_reset_trials=True,
             trials_to_load=['run_log_arm_closed'],
-            disable_run_log=False,
             reset_run_log=True,
             match_on_closed=True,
             match_on_deceased=False,
@@ -190,45 +187,40 @@ class IntegrationTestMatchengine(TestCase):
         )
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
-        run_log_1 = list(self.me.db_ro.run_log.find({}))
-        assert len(list(self.me.db_ro.trial_match.find())) == 0
+        assert len(list(self.me.db_ro.trial_match.find())) == 5
         assert len(list(self.me.db_ro.run_log.find())) == 1
 
-        # # run 2 - the same trial with an open arm
-        # # documents should be added to trial match and a corresponding row added to run_log
-        # self._reset(
-        #     do_reset_trial_matches=False,
-        #     do_reset_trials=True,
-        #     trials_to_load=['run_log_arm_open'],
-        #     disable_run_log=False,
-        #     match_on_closed=False,
-        #     match_on_deceased=False
-        # )
-        # self.me.get_matches_for_all_trials()
-        # run_log_2 = list(self.me.db_ro.run_log.find({}))
-        # assert len(list(self.me.db_ro.trial_match.find())) == 2
-        #
-        # assert len(run_log_1) == len(run_log_2) * 2
-        # assert all([log['protocol_no'] == '10-007' for log in run_log_1 + run_log_2])
-        # assert all([frozenset(log['sample_ids']) == frozenset(sample_ids) for log in run_log_1 + run_log_2])
-        # self._reset(
-        #     do_reset_trial_matches=False,
-        #     do_reset_trials=True,
-        #     trials_to_load=['run_log_arm_open'],
-        #     disable_run_log=False,
-        #     sample_ids=set(sample_ids)
-        # )
-        # run_log_3 = list(self.me.db_ro.run_log.find(
-        #     {"_id": {"$nin": [log['_id'] for log in run_log_1] + [log['_id'] for log in run_log_2]}}))
-        # clinical_docs = list(self.me.db_ro.clinical.find({'SAMPLE_ID': {'$in': sample_ids}}))
-        # for clinical_doc in clinical_docs:
-        #     assert len(clinical_doc['run_history']) == 3
-        #     assert clinical_doc['run_history'][0]['action'] == 'created'
-        #     assert clinical_doc['run_history'][0]['id'] == run_log_1[0]['run_log_id']
-        #     assert clinical_doc['run_history'][1]['action'] == 'enabled'
-        #     assert clinical_doc['run_history'][1]['id'] == run_log_2[0]['run_log_id']
-        #     assert clinical_doc['run_history'][1]['action'] == 'disabled'
-        #     assert clinical_doc['run_history'][1]['id'] == run_log_3[0]['run_log_id']
+        # time travel to the future, of the current past. to the delorean we go...
+        set_static_date_time(2001, 12, 9, 21)
+
+        self._reset(
+            do_reset_trial_matches=False,
+            do_reset_trials=False,
+            reset_run_log=False,
+            match_on_closed=True,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=False
+        )
+
+        # check that run log has 2 rows, and number of trial matches has not changed
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        assert len(list(self.me.db_ro.run_log.find())) == 2
+        assert len(list(self.me.db_ro.trial_match.find())) == 5
+
+        # simulate a trial update
+        self.me.db_rw.trial.update({"protocol_no": "10-002"}, {'$set': {"last_updated": "December 20, 2001"} })
+
+        self._reset(
+            do_reset_trial_matches=False,
+            do_reset_trials=False,
+            reset_run_log=False,
+            match_on_closed=True,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=False
+        )
+
+
 
 
     def tearDown(self) -> None:
