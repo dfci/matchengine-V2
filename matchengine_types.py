@@ -145,6 +145,9 @@ class UpdateTask:
     ops: List
     protocol_no: str
 
+@dataclass
+class RunLogUpdateTask:
+    protocol_no: str
 
 @dataclass
 class Secrets:
