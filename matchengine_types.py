@@ -119,6 +119,7 @@ class TrialMatch:
     match_criterion: MatchCriterion
     multi_collection_query: MultiCollectionQuery
     match_reason: MatchReason
+    run_log: datetime.datetime
 
 
 class Cache(object):
