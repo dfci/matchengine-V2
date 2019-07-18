@@ -91,6 +91,7 @@ class MatchEngine(object):
 
         self.starttime = datetime.datetime.now()
         self.run_log_entries = dict()
+        self.clinical_run_log_entries = dict()
         self._protocol_nos_param = protocol_nos
         self._sample_ids_param = sample_ids
 
@@ -465,6 +466,7 @@ class MatchEngine(object):
                         log.error(e)
 
                 try:
+                    match_time = datetime.datetime.now()
                     for result in results:
                         self._queue_task_count += 1
                         if self._queue_task_count % 1000 == 0:
@@ -473,7 +475,8 @@ class MatchEngine(object):
                                                                               task.match_clause_data,
                                                                               task.match_path,
                                                                               task.query,
-                                                                              result))
+                                                                              result,
+                                                                              self.starttime))
                         self.matches[task.trial['protocol_no']][match_document['sample_id']].append(
                             match_document)
                 except Exception as e:
@@ -503,6 +506,10 @@ class MatchEngine(object):
                     if self.debug:
                         log.info(f"Worker {worker_id} got new RunLogUpdateTask {task.protocol_no}")
                     await self.async_db_rw.run_log.insert_one(self.run_log_entries[task.protocol_no])
+                    await self.async_db_rw.clinical.update_many(
+                        {'_id': {"$in": list(self.clinical_run_log_entries[task.protocol_no])}},
+                        {'$push': {"run_history": self.starttime}}
+                    )
                 except Exception as e:
                     log.error(f"ERROR: Worker: {worker_id}, error: {e}")
                     if isinstance(e, AutoReconnect):
@@ -894,7 +901,7 @@ class MatchEngine(object):
         match_clauses = self.extract_match_clauses_from_trial(protocol_no)
 
         clinical_ids_to_run = self.get_clinical_ids_for_protocol(protocol_no)
-        self.create_run_log_entry(protocol_no)
+        self.create_run_log_entry(protocol_no, clinical_ids_to_run)
 
         # for each match clause, create the match tree, and extract each possible match path from the tree
         for match_clause in match_clauses:
@@ -966,7 +973,7 @@ class MatchEngine(object):
             if self.match_on_closed or trial['status'].lower().strip() in {"open to accrual"}
         }
 
-    def create_run_log_entry(self, protocol_no):
+    def create_run_log_entry(self, protocol_no, clinical_ids: Set[ClinicalID]):
         """
         Create a record of a matchengine run by protocol no.
         Include clinical ids ran during run. 'all' meaning all sample ids in the db, or a subsetted list
@@ -991,6 +998,7 @@ class MatchEngine(object):
             },
             '_created': self.starttime
         }
+        self.clinical_run_log_entries[protocol_no] = clinical_ids
 
     def get_clinical_ids_for_protocol(self, protocol_no: str) -> Set(ObjectId):
         """
