@@ -69,10 +69,11 @@ class IntegrationTestMatchengine(TestCase):
 
         # To perform the override, we first iterate over each of the override classes (at the time of writing,
         # this is just StaticDatetime and StaticDate
-        if kwargs.get('date_args', False):
-            set_static_date_time(**kwargs['date_args'])
-        else:
-            set_static_date_time()
+        if kwargs.get("do_reset_time", True):
+            if kwargs.get('date_args', False):
+                set_static_date_time(**kwargs['date_args'])
+            else:
+                set_static_date_time()
 
     def setUp(self) -> None:
         self._reset(do_reset_trials=True)
@@ -193,13 +194,21 @@ class IntegrationTestMatchengine(TestCase):
         # time travel to the future, of the current past. to the delorean we go...
         set_static_date_time(2001, 12, 9, 21)
 
+        # simulate patients being updated
+        sample_ids = ["5d2799df6756630d8dd068c9", "5d2799df6756630d8dd068ca"]
+        self.me.db_rw.clinical.update({"SAMPLE_ID": {"$in": sample_ids}},
+                                      {'$set': {"_updated": datetime.datetime(2001, 10, 10, 10)}}, multi=True)
+
+        # run 2
         self._reset(
             do_reset_trial_matches=False,
+            sample_ids=sample_ids,
             do_reset_trials=False,
             reset_run_log=False,
             match_on_closed=True,
             match_on_deceased=False,
-            do_rm_clinical_run_history=False
+            do_rm_clinical_run_history=False,
+            do_reset_time=False
         )
 
         # check that run log has 2 rows, and number of trial matches has not changed
@@ -209,19 +218,61 @@ class IntegrationTestMatchengine(TestCase):
         assert len(list(self.me.db_ro.trial_match.find())) == 5
 
         # simulate a trial update
-        self.me.db_rw.trial.update({"protocol_no": "10-002"}, {'$set': {"last_updated": "December 20, 2001"} })
+        self.me.db_rw.trial.update({"protocol_no": "10-002"}, {'$set': {"last_updated": "December 20, 2001"}})
 
+        # move time forward a little
+        set_static_date_time(2001, 12, 21, 21)
+
+        # run 3
         self._reset(
             do_reset_trial_matches=False,
             do_reset_trials=False,
             reset_run_log=False,
             match_on_closed=True,
             match_on_deceased=False,
-            do_rm_clinical_run_history=False
+            do_rm_clinical_run_history=False,
+            do_reset_time=False
         )
 
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        assert len(list(self.me.db_ro.run_log.find())) == 3
+        the_chosen = list(self.me.db_ro.clinical.find({"SAMPLE_ID": {'$in': sample_ids}}))
 
+        # these two sample ids should have 3 runs and most everyone else should have 2
+        assert len(the_chosen) == 2
+        assert len(the_chosen[0]['run_history']) == 3
+        assert len(the_chosen[1]['run_history']) == 3
 
+        the_others = list(
+            self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids}, 'VITAL_STATUS': 'alive'}).limit(3))
+        assert len(the_others[0]['run_history']) == 2
+        assert len(the_others[1]['run_history']) == 2
+        assert len(the_others[2]['run_history']) == 2
+
+        # run 4
+        self._reset(
+            do_reset_trial_matches=False,
+            do_reset_trials=False,
+            reset_run_log=False,
+            match_on_closed=True,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=False,
+            do_reset_time=False
+        )
+
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        assert len(list(self.me.db_ro.run_log.find())) == 4
+
+        # now the chose should have 3, and the others should also have 3
+        the_chosen = list(self.me.db_ro.clinical.find({"SAMPLE_ID": {'$in': sample_ids}}))
+        assert len(the_chosen[0]['run_history']) == 3
+        assert len(the_chosen[1]['run_history']) == 3
+
+        the_others = list(self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids}, 'VITAL_STATUS': 'alive'}).limit(3))
+        assert len(the_others[0]['run_history']) == 3
+        assert len(the_others[1]['run_history']) == 3
 
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)
