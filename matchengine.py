@@ -961,7 +961,7 @@ class MatchEngine(object):
 
         all_trials = {
             result['protocol_no']: result
-            for result in self.db_ro.trial.find(trial_find_query, dict({"_updated": 1}, **projection))
+            for result in self.db_ro.trial.find(trial_find_query, dict({"_updated": 1, "last_updated": 1}, **projection))
         }
         return all_trials
 
@@ -1012,7 +1012,7 @@ class MatchEngine(object):
         fmt_string = '%B %d, %Y'
         trial_last_update = datetime.datetime.strptime(self.trials[protocol_no].get('last_updated', default_datetime),
                                                        fmt_string)
-        query = {"protocol_no": protocol_no, "run_time": {'$gte': trial_last_update}}
+        query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
         run_log_entries = list(self.db_ro.run_log.find(query).sort([("_created", pymongo.DESCENDING)]))
 
         if not run_log_entries:
@@ -1022,12 +1022,12 @@ class MatchEngine(object):
         clinical_ids_to_run = set()
 
         # Iterate over all run logs
-        for run_log in run_log_entries:  # 2
+        for run_log in run_log_entries:
             # All sample ids are accounted for, short circuit
             if clinical_ids_to_not_run.union(clinical_ids_to_run) == self.clinical_ids:
                 break
 
-            run_log_clinical_ids = run_log['sample_ids']
+            run_log_clinical_ids = run_log['clinical_ids']
             is_all = 'all' in run_log_clinical_ids
             run_log_created_at = run_log['_created']
 
