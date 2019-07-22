@@ -6,11 +6,13 @@ import json
 import logging
 import datetime as dt
 import os
+import pymongo
 import sys
 from collections import deque
 from multiprocessing import cpu_count
 from types import MethodType
 from typing import Generator
+from datetime import datetime
 import csv
 
 import networkx as nx
@@ -87,6 +89,12 @@ class MatchEngine(object):
             report_clinical_reasons: bool = True
     ):
 
+        self.starttime = datetime.datetime.now()
+        self.run_log_entries = dict()
+        self.clinical_run_log_entries = dict()
+        self._protocol_nos_param = protocol_nos
+        self._sample_ids_param = sample_ids
+
         if isinstance(config, str):
             with open(config) as config_file_handle:
                 self.config = json.load(config_file_handle)
@@ -120,9 +128,14 @@ class MatchEngine(object):
         self.matches = defaultdict(lambda: defaultdict(list))
 
         self.trials = self.get_trials()
+        self._trials_to_match_on = self._get_trials_to_match_on(self.trials)
         if self.protocol_nos is None:
             self.protocol_nos = list(self.trials.keys())
+
+        self._clinical_data = self._get_clinical_data()
         self.clinical_mapping = self.get_clinical_ids_from_sample_ids()
+        self.clinical_update_mapping = self.get_clinical_updated_mapping()
+        self.clinical_run_log_mapping = self.get_clinical_run_log_mapping()
         self.sample_mapping = {sample_id: clinical_id for clinical_id, sample_id in self.clinical_mapping.items()}
         self.clinical_ids = set(self.clinical_mapping.keys())
         if self.sample_ids is None:
@@ -286,6 +299,8 @@ class MatchEngine(object):
         """
         all_results: Dict[ObjectId, Set[ObjectId]] = defaultdict(set)
         potential_reasons = list()
+        if not multi_collection_query.genomic:
+            return {k: set() for k in clinical_ids}, list()
         for genomic_query_node in multi_collection_query.genomic:
             join_field = self.match_criteria_transform.collection_mappings['genomic']['join_field']
             query = genomic_query_node.extract_raw_query()
@@ -425,7 +440,7 @@ class MatchEngine(object):
         """
         while True:
             # Execute update task
-            task: Union[QueryTask, UpdateTask, RunLogUpdateTask, PoisonPill] = await self._task_q.get()
+            task: Union[QueryTask, UpdateTask, PoisonPill] = await self._task_q.get()
             if isinstance(task, PoisonPill):
                 if self.debug:
                     log.info(f"Worker: {worker_id} got PoisonPill")
@@ -453,15 +468,17 @@ class MatchEngine(object):
                         log.error(e)
 
                 try:
+                    match_time = datetime.datetime.now()
                     for result in results:
                         self._queue_task_count += 1
-                        if self._queue_task_count % 100 == 0:
+                        if self._queue_task_count % 1000 == 0:
                             log.info(f"Trial match count: {self._queue_task_count}")
                         match_document = self.create_trial_matches(TrialMatch(task.trial,
                                                                               task.match_clause_data,
                                                                               task.match_path,
                                                                               task.query,
-                                                                              result))
+                                                                              result,
+                                                                              self.starttime))
                         self.matches[task.trial['protocol_no']][match_document['sample_id']].append(
                             match_document)
                 except Exception as e:
@@ -476,6 +493,25 @@ class MatchEngine(object):
                     if self.debug:
                         log.info(f"Worker {worker_id} got new UpdateTask {task.protocol_no}")
                     await self.async_db_rw.trial_match.bulk_write(task.ops, ordered=False)
+                except Exception as e:
+                    log.error(f"ERROR: Worker: {worker_id}, error: {e}")
+                    if isinstance(e, AutoReconnect):
+                        self._task_q.task_done()
+                        await self._task_q.put(task)
+                    else:
+                        raise e
+                finally:
+                    self._task_q.task_done()
+
+            elif isinstance(task, RunLogUpdateTask):
+                try:
+                    if self.debug:
+                        log.info(f"Worker {worker_id} got new RunLogUpdateTask {task.protocol_no}")
+                    await self.async_db_rw.run_log.insert_one(self.run_log_entries[task.protocol_no])
+                    await self.async_db_rw.clinical.update_many(
+                        {'_id': {"$in": list(self.clinical_run_log_entries[task.protocol_no])}},
+                        {'$push': {"run_history": self.starttime}}
+                    )
                 except Exception as e:
                     log.error(f"ERROR: Worker: {worker_id}, error: {e}")
                     if isinstance(e, AutoReconnect):
@@ -783,11 +819,9 @@ class MatchEngine(object):
                        update={'$set': {"is_disabled": True}})
         ]
         await self._task_q.put(UpdateTask(initial_delete_ops, protocol_no))
-        deleted_by_id: Dict[RunLog] = dict()
+
         for to_disable in remaining_to_disable:
             clinical_id = to_disable['clinical_id']
-            if clinical_id not in deleted_by_id:
-                deleted_by_id[clinical_id] = RunLog(protocol_no, clinical_id)
 
         for sample_id in trial_matches_by_sample_id.keys():
             new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
@@ -836,6 +870,7 @@ class MatchEngine(object):
                                   update={'$set': {'is_disabled': False}}))
             await self._task_q.put(UpdateTask(ops, protocol_no))
 
+        await self._task_q.put(RunLogUpdateTask(protocol_no))
         await self._task_q.join()
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
@@ -843,6 +878,10 @@ class MatchEngine(object):
         Synchronously iterates over each protocol number, getting trial matches for each
         """
         for protocol_no in self.protocol_nos:
+            if protocol_no not in self._trials_to_match_on:
+                logging.info((f'Trial {protocol_no} '
+                              f'has status {self.trials[protocol_no]["status"]}, skipping'))
+                continue
             self.get_matches_for_trial(protocol_no)
         return self.matches
 
@@ -863,10 +902,13 @@ class MatchEngine(object):
         trial = self.trials[protocol_no]
         match_clauses = self.extract_match_clauses_from_trial(protocol_no)
 
+        clinical_ids_to_run = self.get_clinical_ids_for_protocol(protocol_no)
+        self.create_run_log_entry(protocol_no, clinical_ids_to_run)
+
         # for each match clause, create the match tree, and extract each possible match path from the tree
         for match_clause in match_clauses:
             match_tree = self.create_match_tree(match_clause)
-            match_paths = list(self.get_match_paths(match_tree))
+            match_paths = self.get_match_paths(match_tree)
 
             # for each match path, translate the path into valid mongo queries
             for match_path in match_paths:
@@ -879,21 +921,33 @@ class MatchEngine(object):
                                                      match_clause,
                                                      match_path,
                                                      query,
-                                                     self.clinical_ids))
+                                                     clinical_ids_to_run))
         await self._task_q.join()
         logging.info(f"Total results: {len(self.matches[protocol_no])}")
         return self.matches[protocol_no]
+
+    def _get_clinical_data(self):
+        # if no sample ids are passed in as args, get all clinical documents
+        query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
+        if self.sample_ids is not None:
+            query.update({"SAMPLE_ID": {"$in": list(self.sample_ids)}})
+        return {result['_id']: result
+                for result in
+                self.db_ro.clinical.find(query, {'_id': 1, 'SAMPLE_ID': 1, '_updated': 1, 'run_history': 1})}
+
+    def get_clinical_updated_mapping(self) -> Dict[ObjectId: datetime.datetime]:
+        return {clinical_id: clinical_data.get('_updated', None) for clinical_id, clinical_data in
+                self._clinical_data.items()}
+
+    def get_clinical_run_log_mapping(self) -> Dict[ObjectId: ObjectId]:
+        return {clinical_id: clinical_data.get('run_history', None) for clinical_id, clinical_data in
+                self._clinical_data.items()}
 
     def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
         """
         Clinical ids are unique to sample_ids
         """
-        # if no sample ids are passed in as args, get all clinical documents
-        query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
-        if self.sample_ids is not None:
-            query.update({"SAMPLE_ID": {"$in": list(self.sample_ids)}})
-        return {result['_id']: result['SAMPLE_ID']
-                for result in self.db_ro.clinical.find(query, {'_id': 1, 'SAMPLE_ID': 1})}
+        return {clinical_id: clinical_data['SAMPLE_ID'] for clinical_id, clinical_data in self._clinical_data.items()}
 
     def get_trials(self) -> Dict[str, Trial]:
         """
@@ -909,19 +963,99 @@ class MatchEngine(object):
 
         all_trials = {
             result['protocol_no']: result
-            for result in self.db_ro.trial.find(trial_find_query, dict({"_updated": 1}, **projection))
+            for result in self.db_ro.trial.find(trial_find_query, dict({"_updated": 1, "last_updated": 1}, **projection))
         }
-        if self.match_on_closed:
-            return all_trials
+        return all_trials
+
+    def _get_trials_to_match_on(self, trials: Dict[str, Trial]) -> Set[str]:
+        return {
+            protocol_no
+            for protocol_no, trial
+            in trials.items()
+            if self.match_on_closed or trial.get('status', "key not found").lower().strip() in {"open to accrual"}
+        }
+
+    def create_run_log_entry(self, protocol_no, clinical_ids: Set[ClinicalID]):
+        """
+        Create a record of a matchengine run by protocol no.
+        Include clinical ids ran during run. 'all' meaning all sample ids in the db, or a subsetted list
+        Include original arguments.
+        """
+        run_log_clinical_ids_new = dict()
+        if self._sample_ids_param is None:
+            run_log_clinical_ids_new['all'] = None
         else:
-            open_trials = dict()
-            for protocol_no, trial in all_trials.items():
-                if trial['status'].lower().strip() not in {"open to accrual"}:
-                    logging.info(f'Trial {trial["protocol_no"]} has status {trial["status"]}, skipping')
-                    continue
-                else:
-                    open_trials.update({protocol_no: trial})
-            return open_trials
+            run_log_clinical_ids_new['list'] = list(self.clinical_ids)
+
+        self.run_log_entries[protocol_no] = {
+            'protocol_no': protocol_no,
+            'clinical_ids': run_log_clinical_ids_new,
+            'run_params': {
+                'trials': self._protocol_nos_param,
+                'sample_ids': self._sample_ids_param,
+                'match_on_deceased': self.match_on_deceased,
+                'match_on_closed': self.match_on_closed,
+                'report_clinical_reasons': self.report_clinical_reasons,
+                'workers': self.num_workers
+            },
+            '_created': self.starttime
+        }
+        self.clinical_run_log_entries[protocol_no] = clinical_ids
+
+    def get_clinical_ids_for_protocol(self, protocol_no: str) -> Set(ObjectId):
+        """
+        Take protocol from args and lookup all run_log entries after protocol_no._updated_date.
+        Subset self.clinical_ids which have already been run since the trial's been updated.
+
+        """
+
+        # run logs since trial has been last updated
+        default_datetime = 'January 01, 0001'
+        fmt_string = '%B %d, %Y'
+        trial_last_update = datetime.datetime.strptime(self.trials[protocol_no].get('last_updated', default_datetime),
+                                                       fmt_string)
+        query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
+        run_log_entries = list(self.db_ro.run_log.find(query).sort([("_created", pymongo.DESCENDING)]))
+
+        if not run_log_entries:
+            return self.clinical_ids
+
+        clinical_ids_to_not_run = set()
+        clinical_ids_to_run = set()
+
+        # Iterate over all run logs
+        for run_log in run_log_entries:
+            # All sample ids are accounted for, short circuit
+            if clinical_ids_to_not_run.union(clinical_ids_to_run) == self.clinical_ids:
+                break
+
+            run_log_clinical_ids = run_log['clinical_ids']
+            is_all = 'all' in run_log_clinical_ids
+            run_log_created_at = run_log['_created']
+
+            # Check if clinical_id has been updated since last run with current protocol.
+            # If it has been updated, run.
+            for clinical_id, updated_at in self.clinical_update_mapping.items():
+                if updated_at is None:
+                    clinical_ids_to_run.add(clinical_id)
+                elif updated_at > run_log_created_at and clinical_id not in clinical_ids_to_not_run:
+                    if is_all or clinical_id in run_log_clinical_ids['list']:
+                        clinical_ids_to_run.add(clinical_id)
+
+            if is_all:
+                clinical_ids_to_not_run.update(self.clinical_ids - clinical_ids_to_run)
+                continue
+
+            elif 'list' in run_log_clinical_ids:
+                run_prev = set(run_log_clinical_ids['list']).intersection(self.clinical_ids)
+                run_now_not_run_prev = self.clinical_ids - run_prev
+                clinical_ids_to_run.update(run_now_not_run_prev - clinical_ids_to_not_run)
+                clinical_ids_to_not_run.update(run_prev - clinical_ids_to_run)
+
+        # ensure that we have accounted for all clinical ids
+        assert clinical_ids_to_run.union(clinical_ids_to_not_run) == self.clinical_ids
+
+        return clinical_ids_to_run
 
     async def _perform_db_call(self, collection: str, query: MongoQuery, projection: Dict):
         """

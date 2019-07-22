@@ -22,5 +22,12 @@
         ]
       }
     ]
-  }
+  },
+  "_summary" : {
+		"status" : [
+			{
+				"value" : "open to accrual"
+			}
+		]
+	}
 }
