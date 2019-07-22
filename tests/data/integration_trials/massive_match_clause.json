@@ -1,0 +1,86 @@
+{
+  "protocol_no": "11-113",
+  "status": "open to accrual",
+  "treatment_list": {
+    "step": [
+      {
+        "step_internal_id": 331,
+        "step_code": "2",
+        "arm": [
+          {
+            "arm_code": "EXP 5",
+            "arm_description": "DESCRIPTION 123",
+            "arm_suspended": "N",
+            "dose_level": [],
+            "match": [
+              {
+                "and": [
+                  {
+                    "or": [
+                      {
+                        "clinical": {
+                          "age_numerical": ">=6",
+                          "oncotree_primary_diagnosis": "_SOLID_"
+                        }
+                      },
+                      {
+                        "clinical": {
+                          "age_numerical": ">=8",
+                          "oncotree_primary_diagnosis": "_LIQUID_"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "clinical": {
+                      "age_numerical": "<21"
+                    }
+                  },
+                  {
+                    "or": [
+                      {
+                        "clinical": {
+                          "oncotree_primary_diagnosis": "Lung",
+                          "age_numerical": "<12"
+                        }
+                      },
+                      {
+                        "clinical": {
+                          "oncotree_primary_diagnosis": "Breast",
+                          "age_numerical": ">=12",
+                          "gender": "Female"
+                        }
+                      },
+                      {
+                        "and": [
+                          {
+                            "genomic": {
+                              "hugo_symbol": "RPA1",
+                              "true_variant_classification": "Missense_Mutation",
+                              "protein_change": "p.A466G"
+                            }
+                          },
+                          {
+                            "or": [
+                              {
+                                "genomic": {
+                                  "hugo_symbol": "FAAP20",
+                                  "variant_category": "!CNV"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "arm_internal_id": 345
+          }
+        ]
+      }
+    ]
+  }
+}
