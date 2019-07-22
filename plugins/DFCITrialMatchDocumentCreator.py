@@ -172,6 +172,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         new_trial_match = dict()
         new_trial_match.update(format_trial_match_k_v(self.cache.docs[trial_match.match_reason.clinical_id]))
         new_trial_match['clinical_id'] = self.cache.docs[trial_match.match_reason.clinical_id]['_id']
+        trial_summary_status = trial_match.trial['_summary']['status'][0]['value'].lower()
 
         new_trial_match.update(
             {'match_level': trial_match.match_clause_data.match_clause_level,
@@ -182,6 +183,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
              'q_width': trial_match.match_reason.width if trial_match.match_reason.reason_name == 'genomic' else 1,
              'code': trial_match.match_clause_data.code,
              'trial_accrual_status': 'closed' if trial_match.match_clause_data.is_suspended else 'open',
+             'trial_summary_status': trial_summary_status,
              'coordinating_center': trial_match.match_clause_data.coordinating_center})
 
         # remove extra fields from trial_match output
