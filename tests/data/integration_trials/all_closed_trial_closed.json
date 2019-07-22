@@ -90,5 +90,12 @@
         ]
       }
     ]
-  }
+  },
+  "_summary" : {
+		"status" : [
+			{
+				"value" : "closed to accrual"
+			}
+		]
+	}
 }
