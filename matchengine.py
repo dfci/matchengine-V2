@@ -299,6 +299,8 @@ class MatchEngine(object):
         """
         all_results: Dict[ObjectId, Set[ObjectId]] = defaultdict(set)
         potential_reasons = list()
+        if not multi_collection_query.genomic:
+            return {k: set() for k in clinical_ids}, list()
         for genomic_query_node in multi_collection_query.genomic:
             join_field = self.match_criteria_transform.collection_mappings['genomic']['join_field']
             query = genomic_query_node.extract_raw_query()
@@ -906,7 +908,7 @@ class MatchEngine(object):
         # for each match clause, create the match tree, and extract each possible match path from the tree
         for match_clause in match_clauses:
             match_tree = self.create_match_tree(match_clause)
-            match_paths = list(self.get_match_paths(match_tree))
+            match_paths = self.get_match_paths(match_tree)
 
             # for each match path, translate the path into valid mongo queries
             for match_path in match_paths:
@@ -970,7 +972,7 @@ class MatchEngine(object):
             protocol_no
             for protocol_no, trial
             in trials.items()
-            if self.match_on_closed or trial['status'].lower().strip() in {"open to accrual"}
+            if self.match_on_closed or trial.get('status', "key not found").lower().strip() in {"open to accrual"}
         }
 
     def create_run_log_entry(self, protocol_no, clinical_ids: Set[ClinicalID]):
