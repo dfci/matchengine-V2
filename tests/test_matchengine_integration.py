@@ -16,6 +16,7 @@ class IntegrationTestMatchengine(TestCase):
 
     def _reset(self, **kwargs):
         if not self.first_run_done:
+            set_static_date_time()
             self.me = MatchEngine(
                 config={'trial_key_mappings': {},
                         'match_criteria': {'clinical': [],
@@ -273,6 +274,15 @@ class IntegrationTestMatchengine(TestCase):
         the_others = list(self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids}, 'VITAL_STATUS': 'alive'}).limit(3))
         assert len(the_others[0]['run_history']) == 3
         assert len(the_others[1]['run_history']) == 3
+
+    def test__massive_match_clause(self):
+        assert self.me.db_rw.name == 'integration'
+        self._reset(do_reset_trials=True,
+                    trials_to_load=['massive_match_clause'],
+                    match_on_deceased=True,
+                    match_on_closed=True)
+        self.me.get_matches_for_all_trials()
+        print(len(self.me.matches["11-113"]))
 
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)
