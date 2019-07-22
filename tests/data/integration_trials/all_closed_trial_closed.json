@@ -1,10 +1,10 @@
 {
-  "protocol_no": "10-001",
-  "status": "open to accrual",
+  "protocol_no": "10-000",
+  "status": "closed to accrual",
   "treatment_list": {
     "step": [
       {
-        "step_internal_id": 112,
+        "step_internal_id": 110,
         "step_code": "1",
         "step_type": "Registration",
         "match": [
@@ -31,7 +31,7 @@
             "arm_code": "ARM 1",
             "arm_description": "ARM DESCRIPTION",
             "arm_suspended": "Y",
-            "arm_internal_id": 212,
+            "arm_internal_id": 210,
             "match": [
               {
                 "and": [
@@ -56,7 +56,7 @@
                 "level_description": "LEVEL DESCRIPTION",
                 "level_suspended": "Y",
                 "level_code": "LEVEL 1",
-                "level_internal_id": 312,
+                "level_internal_id": 310,
                 "match": [
                   {
                     "and": [
@@ -83,7 +83,7 @@
             "arm_code": "ARM 2",
             "arm_description": "ALWAYS CLOSED",
             "arm_suspended": "Y",
-            "arm_internal_id": 222,
+            "arm_internal_id": 220,
             "match": [],
             "dose_level": []
           }
@@ -94,7 +94,7 @@
   "_summary" : {
 		"status" : [
 			{
-				"value" : "open to accrual"
+				"value" : "closed to accrual"
 			}
 		]
 	}

@@ -1,25 +1,33 @@
 {
-  "protocol_no": "10-007",
+  "protocol_no": "10-002",
+  "last_updated": "June 17, 1999",
   "status": "open to accrual",
   "treatment_list": {
     "step": [
       {
-        "step_internal_id": 117,
+        "step_internal_id": 111,
         "step_code": "1",
         "step_type": "Registration",
         "arm": [
           {
-            "arm_suspended": "N",
-            "arm_internal_id": 217,
-            "arm_description": "blergh",
+            "arm_code": "ARM 1",
+            "arm_description": "ARM DESCRIPTION",
+            "arm_suspended": "Y",
+            "arm_internal_id": 211,
             "match": [
               {
                 "and": [
                   {
                     "genomic": {
-                      "hugo_symbol": "BRAF",
-                      "variant_category": "Mutation",
-                      "wildcard_protein_change": "p.V600"
+                      "variant_classification": "In_Frame_Del",
+                      "hugo_symbol": "EGFR",
+                      "variant_category": "Mutation"
+                    }
+                  },
+                  {
+                    "clinical": {
+                      "age_numerical": ">=18",
+                      "oncotree_primary_diagnosis": "Non-Small Cell Lung Cancer"
                     }
                   }
                 ]
@@ -29,5 +37,12 @@
         ]
       }
     ]
-  }
+  },
+  "_summary" : {
+		"status" : [
+			{
+				"value" : "open to accrual"
+			}
+		]
+	}
 }
