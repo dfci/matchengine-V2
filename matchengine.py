@@ -157,16 +157,13 @@ class MatchEngine(object):
         """
         Ensure indexes exist on the trial_match collection so queries are performant
         """
-        for collection, desired_indices in {
-            'trial_match': {
-                'hash', 'mrn', 'sample_id', 'clinical_id', 'protocol_no'}
-        }.items():
+        for collection, desired_indices in self.config['indices'].items():
             indices = self.db_ro[collection].list_indexes()
             existing_indices = set()
             for index in indices:
                 index_key = list(index['key'].to_dict().keys())[0]
                 existing_indices.add(index_key)
-            indices_to_create = desired_indices - existing_indices
+            indices_to_create = set(desired_indices) - existing_indices
             for index in indices_to_create:
                 log.info('Creating index %s' % index)
                 self.db_rw[collection].create_index(index)
