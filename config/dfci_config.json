@@ -17,9 +17,15 @@
       "CNV_CALL",
       "TRUE_VARIANT_CLASSIFICATION",
       "MMR_STATUS",
+      "STRUCTURAL_VARIANT_COMMENT",
       "CHROMOSOME",
       "ACTIONABILITY",
-      "POSITION"
+      "POSITION",
+      "APOBEC_STATUS",
+      "POLE_STATUS",
+      "TABACCO_STATUS",
+      "TEMOZOLOMIDE_STATUS",
+      "UVA_STATUS"
     ],
     "clinical": [
       "REPORT_DATE",
@@ -79,6 +85,26 @@
         "sample_key": "MMR_STATUS",
         "sample_value": "mmr_ms_map"
       },
+      "APOBEC_SIGNATURE": {
+        "sample_key": "APOBEC_STATUS",
+        "sample_value": "nomap"
+      },
+      "POLE_SIGNATURE": {
+        "sample_key": "POLE_STATUS",
+        "sample_value": "nomap"
+      },
+      "TOBACCO_SIGNATURE": {
+        "sample_key": "TABACCO_STATUS",
+        "sample_value": "nomap"
+      },
+      "TEMOZOLOMIDE_SIGNATURE": {
+        "sample_key": "TEMOZOLOMIDE_STATUS",
+        "sample_value": "nomap"
+      },
+      "UVA_SIGNATURE": {
+        "sample_key": "UVA_STATUS",
+        "sample_value": "nomap"
+      },
       "DISPLAY_NAME": {
         "ignore": true
       },
@@ -100,6 +126,7 @@
         "sample_key": "GENDER",
         "sample_value": "nomap"
       },
+
       "HER2_STATUS": {
         "ignore": true
       },
