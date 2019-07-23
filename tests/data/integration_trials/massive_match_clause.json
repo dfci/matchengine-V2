@@ -48,7 +48,8 @@
                         "clinical": {
                           "oncotree_primary_diagnosis": "Breast",
                           "age_numerical": ">=12",
-                          "gender": "Female"
+                          "gender": "Female",
+                          "her2_status": false
                         }
                       },
                       {
