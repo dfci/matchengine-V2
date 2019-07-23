@@ -42,7 +42,7 @@ node {
 
                     sh "cat SECRETS_JSON.json"
 
-                    sh "echo pygraphviz >> requirements.txt"
+                    sh 'printf "\npygraphviz" >> requirements.txt'
 
                     sh """
                        pip install -r requirements.txt && \
