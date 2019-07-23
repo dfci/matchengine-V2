@@ -1184,7 +1184,7 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help=closed_help)
-    subp_p.add_argument("--ignore-run-log",
+    subp_p.add_argument("--force",
                         dest="ignore_run_log",
                         action="store_true",
                         default=False,
