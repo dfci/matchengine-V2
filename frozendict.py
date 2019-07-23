@@ -26,4 +26,8 @@ class ComparableDict(object):
         self.tup = frozenset(output)
 
     def hash(self):
-        return hashlib.sha1(str(sorted(self.tup, key=lambda x: (x[0], x[1], x[2]))).encode('utf-8')).hexdigest()
+        return hashlib.sha1(str(sorted(self.tup, key=lambda x: (
+            str(type(x[0])) + str(x[0]),
+            str(type(x[1])) + str(x[1]),
+            str(type(x[2])) + str(x[2])
+        ))).encode('utf-8')).hexdigest()

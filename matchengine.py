@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+import traceback
 import asyncio
 import glob
 import json
@@ -88,12 +89,14 @@ class MatchEngine(object):
             db_init: bool = True,
             match_document_creator_class: str = None,
             db_secrets_class: str = None,
-            report_clinical_reasons: bool = True
+            report_clinical_reasons: bool = True,
+            ignore_run_log: bool = False
     ):
 
         self.starttime = datetime.datetime.now()
         self.run_id = uuid.uuid4()
         self.run_log_entries = dict()
+        self.ignore_run_log = ignore_run_log
         self.clinical_run_log_entries = dict()
         self._protocol_nos_param = protocol_nos
         self._sample_ids_param = sample_ids
@@ -459,6 +462,7 @@ class MatchEngine(object):
                     results = await self._run_query(task.query, task.clinical_ids)
                 except Exception as e:
                     log.error(f"ERROR: Worker: {worker_id}, error: {e}")
+                    log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
                     results = list()
                     if isinstance(e, AutoReconnect):
                         await self._task_q.put(task)
@@ -468,10 +472,10 @@ class MatchEngine(object):
                         self._task_q.task_done()
                     else:
                         self._loop.stop()
-                        log.error(e)
+                        log.error(f"ERROR: Worker: {worker_id}, error: {e}")
+                        log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
 
                 try:
-                    match_time = datetime.datetime.now()
                     for result in results:
                         self._queue_task_count += 1
                         if self._queue_task_count % 1000 == 0:
@@ -482,11 +486,12 @@ class MatchEngine(object):
                                                                               task.query,
                                                                               result,
                                                                               self.starttime))
-                        self.matches[task.trial['protocol_no']][match_document['sample_id']].append(
-                            match_document)
+                        self.matches[task.trial['protocol_no']][match_document['sample_id']].append(match_document)
                 except Exception as e:
                     self._loop.stop()
-                    log.error(e)
+                    log.error(f"ERROR: Worker: {worker_id}, error: {e}")
+                    log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
+                    raise e
 
                 self._task_q.task_done()
 
@@ -498,6 +503,7 @@ class MatchEngine(object):
                     await self.async_db_rw.trial_match.bulk_write(task.ops, ordered=False)
                 except Exception as e:
                     log.error(f"ERROR: Worker: {worker_id}, error: {e}")
+                    log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
                     if isinstance(e, AutoReconnect):
                         self._task_q.task_done()
                         await self._task_q.put(task)
@@ -517,6 +523,7 @@ class MatchEngine(object):
                     )
                 except Exception as e:
                     log.error(f"ERROR: Worker: {worker_id}, error: {e}")
+                    log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
                     if isinstance(e, AutoReconnect):
                         self._task_q.task_done()
                         await self._task_q.put(task)
@@ -966,7 +973,8 @@ class MatchEngine(object):
 
         all_trials = {
             result['protocol_no']: result
-            for result in self.db_ro.trial.find(trial_find_query, dict({"_updated": 1, "last_updated": 1}, **projection))
+            for result in
+            self.db_ro.trial.find(trial_find_query, dict({"_updated": 1, "last_updated": 1}, **projection))
         }
         return all_trials
 
@@ -1000,7 +1008,8 @@ class MatchEngine(object):
                 'match_on_deceased': self.match_on_deceased,
                 'match_on_closed': self.match_on_closed,
                 'report_clinical_reasons': self.report_clinical_reasons,
-                'workers': self.num_workers
+                'workers': self.num_workers,
+                'ignore_run_log': self.ignore_run_log
             },
             '_created': self.starttime
         }
@@ -1013,6 +1022,8 @@ class MatchEngine(object):
 
         """
 
+        if self.ignore_run_log:
+            return self.clinical_ids
         # run logs since trial has been last updated
         default_datetime = 'January 01, 0001'
         fmt_string = '%B %d, %Y'
@@ -1110,7 +1121,8 @@ def main(run_args):
             config=args.config_path,
             match_document_creator_class=args.match_document_creator_class,
             db_secrets_class=args.db_secrets_class,
-            report_clinical_reasons=args.report_clinical_reasons
+            report_clinical_reasons=args.report_clinical_reasons,
+            ignore_run_log=args.ignore_run_log
     ) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
@@ -1172,6 +1184,11 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help=closed_help)
+    subp_p.add_argument("--force",
+                        dest="ignore_run_log",
+                        action="store_true",
+                        default=False,
+                        help="Ignore the run log and run on all specified sample IDs/protocol nos")
     subp_p.add_argument("--visualize-match-paths",
                         dest="visualize_match_paths",
                         action="store_true",
