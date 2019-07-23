@@ -33,6 +33,7 @@
       "SAMPLE_ID",
       "MRN",
       "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
       "VITAL_STATUS"
     ],
     "trial": [
@@ -126,7 +127,10 @@
         "sample_key": "GENDER",
         "sample_value": "nomap"
       },
-
+      "TMB_NUMERICAL": {
+        "sample_key": "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
+        "sample_value": "nomap"
+      },
       "HER2_STATUS": {
         "ignore": true
       },
@@ -185,5 +189,37 @@
         "Dana-Farber Cancer Institute": 0
       }
     }
-  ]
+  ],
+  "indices": {
+    "genomic": [
+      "SAMPLE_ID",
+      "CLINICAL_ID",
+      "VARIANT_CATEGORY",
+      "TRUE_HUGO_SYMBOL",
+      "TRUE_PROTEIN_CHANGE",
+      "CNV_CALL",
+      "TRUE_VARIANT_CLASSIFICATION",
+      "MMR_STATUS",
+      "APOBEC_STATUS",
+      "POLE_STATUS",
+      "TABACCO_STATUS",
+      "TEMOZOLOMIDE_STATUS",
+      "UVA_STATUS"
+    ],
+    "clinical": [
+      "GENDER",
+      "SAMPLE_ID",
+      "MRN",
+      "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
+      "VITAL_STATUS"
+    ],
+    "trial_match": [
+      "hash",
+      "mrn",
+      "sample_id",
+      "clinical_id",
+      "protocol_no"
+    ]
+  }
 }

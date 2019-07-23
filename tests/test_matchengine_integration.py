@@ -21,7 +21,8 @@ class IntegrationTestMatchengine(TestCase):
                 config={'trial_key_mappings': {},
                         'match_criteria': {'clinical': [],
                                            'genomic': [],
-                                           'trial': ["protocol_no", "status"]}},
+                                           'trial': ["protocol_no", "status"]},
+                        'indices': {}},
                 plugin_dir='tests/plugins'
             )
             assert self.me.db_rw.name == 'integration'
@@ -325,6 +326,13 @@ class IntegrationTestMatchengine(TestCase):
             raise AssertionError("MatchEngine should have failed")
         except RuntimeError as e:
             print(f"Found expected RuntimeError {e}")
+
+    def test_signatures(self):
+        assert self.me.db_rw.name == 'integration'
+        self._reset(do_reset_trials=True,
+                    trials_to_load=['signatures'])
+        self.me.get_matches_for_all_trials()
+        print()
 
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)
