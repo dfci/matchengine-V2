@@ -43,7 +43,7 @@ node {
                     sh "cat SECRETS_JSON.json"
 
                     sh 'printf "\npygraphviz" >> requirements.txt'
-                    sh 'apt-get install -y graphviz'
+                    sh 'apt-get update && apt-get install -y graphviz'
 
                     sh """
                        pip install -r requirements.txt && \
