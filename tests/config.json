@@ -129,7 +129,7 @@
       },
       "TMB_NUMERICAL": {
         "sample_key": "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
-        "sample_value": "nomap"
+        "sample_value": "tmb_range_to_query"
       },
       "HER2_STATUS": {
         "ignore": true
