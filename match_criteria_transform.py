@@ -7,7 +7,8 @@ from itertools import chain
 def get_query_part_by_key(query_node: QueryNode, key: str) -> QueryPart:
     return next(chain((query_part
                        for query_part in query_node.query_parts
-                       if key in query_part.query), iter([None])))
+                       if key in query_part.query),
+                      iter([None])))
 
 
 def query_node_transform(query_node: QueryNode):
