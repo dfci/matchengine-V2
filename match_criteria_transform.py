@@ -31,7 +31,7 @@ def query_node_transform(query_node: QueryNode):
         sv_part.query['STRUCTURAL_VARIANT_COMMENT'] = re.compile(rf"(.*\W{gene}\W.*)|(^{gene}\W.*)|(.*\W{gene}$)",
                                                                  re.IGNORECASE)
     if {'UVA_STATUS',
-        'TOBACCO_STATUS',
+        'TABACCO_STATUS',
         'POLE_STATUS',
         'TEMOZOLOMIDE_STATUS',
         'MMR_STATUS',

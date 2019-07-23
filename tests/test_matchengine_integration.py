@@ -332,7 +332,7 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(do_reset_trials=True,
                     trials_to_load=['signatures'])
         self.me.get_matches_for_all_trials()
-        print()
+        assert len(self.me.matches['99-9999']['5d2799df6756630d8dd068ca']) == 5
 
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)
