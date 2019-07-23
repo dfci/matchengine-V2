@@ -1,12 +1,13 @@
 import re
 
 from matchengine_types import QueryNode, QueryPart
+from itertools import chain
 
 
 def get_query_part_by_key(query_node: QueryNode, key: str) -> QueryPart:
-    return next((query_part
-                 for query_part in query_node.query_parts
-                 if key in query_part.query))
+    return next(chain((query_part
+                       for query_part in query_node.query_parts
+                       if key in query_part.query), iter([None])))
 
 
 def query_node_transform(query_node: QueryNode):
@@ -30,7 +31,8 @@ def query_node_transform(query_node: QueryNode):
                                                                  re.IGNORECASE)
     elif 'MMR_STATUS' in whole_query:
         gene_part = get_query_part_by_key(query_node, 'TRUE_HUGO_SYMBOL')
-        gene_part.render = False
+        if gene_part is not None:
+            gene_part.render = False
 
 
 class AllTransformersContainer(object):

@@ -294,14 +294,36 @@ class IntegrationTestMatchengine(TestCase):
             os.unlink(os.path.join(fig_dir, file_name))
         os.rmdir(fig_dir)
 
-    def test__massive_match_clause(self):
-        assert self.me.db_rw.name == 'integration'
+    def test_massive_match_clause(self):
         self._reset(do_reset_trials=True,
                     trials_to_load=['massive_match_clause'],
                     match_on_deceased=True,
                     match_on_closed=True)
         self.me.get_matches_for_all_trials()
         print(len(self.me.matches["11-113"]))
+
+    def test_context_handler(self):
+        self._reset(
+            do_reset_trial_matches=True,
+            do_reset_trials=True,
+            trials_to_load=['all_closed']
+        )
+        with MatchEngine(sample_ids={'5d2799cb6756630d8dd0621d'},
+                         protocol_nos={'10-001'},
+                         match_on_closed=True,
+                         match_on_deceased=True,
+                         config='config/dfci_config.json',
+                         plugin_dir='plugins/',
+                         match_document_creator_class='DFCITrialMatchDocumentCreator',
+                         num_workers=1) as me:
+            me.get_matches_for_trial('10-001')
+            assert not me._loop.is_closed()
+        assert me._loop.is_closed()
+        try:
+            me.get_matches_for_trial('10-001')
+            raise AssertionError("MatchEngine should have failed")
+        except RuntimeError as e:
+            print(f"Found expected RuntimeError {e}")
 
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)

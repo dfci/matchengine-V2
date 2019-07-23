@@ -70,6 +70,7 @@ class MatchEngine(object):
             self._db_ro.__exit__(exception_type, exception_value, exception_traceback)
         self._loop.run_until_complete(self._async_exit())
         self._loop.stop()
+        self._loop.close()
 
     def __init__(
             self,
