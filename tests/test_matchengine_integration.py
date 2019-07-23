@@ -289,7 +289,7 @@ class IntegrationTestMatchengine(TestCase):
         )
         self.me.get_matches_for_trial('10-001')
         for file_name in ['10-001-arm-212.png', '10-001-arm-222.png', '10-001-dose-312.png', '10-001-step-112.png']:
-            assert os.path.exists(os.path.join(fig_dir, file_nam))
+            assert os.path.exists(os.path.join(fig_dir, file_name))
             assert os.path.isfile(os.path.join(fig_dir, file_name))
             os.unlink(os.path.join(fig_dir, file_name))
         os.rmdir(fig_dir)
