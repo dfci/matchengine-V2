@@ -13,6 +13,7 @@ from multiprocessing import cpu_count
 from types import MethodType
 from typing import Generator
 from datetime import datetime
+import uuid
 import csv
 
 import networkx as nx
@@ -90,6 +91,7 @@ class MatchEngine(object):
     ):
 
         self.starttime = datetime.datetime.now()
+        self.run_id = uuid.uuid4()
         self.run_log_entries = dict()
         self.clinical_run_log_entries = dict()
         self._protocol_nos_param = protocol_nos
@@ -510,7 +512,7 @@ class MatchEngine(object):
                     await self.async_db_rw.run_log.insert_one(self.run_log_entries[task.protocol_no])
                     await self.async_db_rw.clinical.update_many(
                         {'_id': {"$in": list(self.clinical_run_log_entries[task.protocol_no])}},
-                        {'$push': {"run_history": self.starttime}}
+                        {'$push': {"run_history": self.run_id}}
                     )
                 except Exception as e:
                     log.error(f"ERROR: Worker: {worker_id}, error: {e}")
@@ -990,6 +992,7 @@ class MatchEngine(object):
         self.run_log_entries[protocol_no] = {
             'protocol_no': protocol_no,
             'clinical_ids': run_log_clinical_ids_new,
+            'run_id': self.run_id.hex,
             'run_params': {
                 'trials': self._protocol_nos_param,
                 'sample_ids': self._sample_ids_param,
