@@ -85,13 +85,72 @@
                               {
                                 "genomic": {
                                   "mmr_status": "MMR-Deficient",
-                                  "true_hugo_symbol": 1
+                                  "hugo_symbol": 1
                                 }
                               },
                               {
                                 "genomic": {
                                   "ms_status": "MSI-H"
                                 }
+                              },
+                              {
+                                "genomic": {
+                                  "cnv_call": "Homozygous Deletion",
+                                  "hugo_symbol": "DCLRE1C"
+                                }
+                              },
+                              {
+                                "genomic": {
+                                  "cnv_call": "Low Amplification",
+                                  "hugo_symbol": "FH"
+                                }
+                              },
+                              {
+                                "and": [
+                                  {
+                                    "genomic": {
+                                      "hugo_symbol": "FAAP20",
+                                      "variant_category": "!CNV"
+                                    }
+                                  },
+                                  {
+                                    "genomic": {
+                                      "variant_category": "!Structural Variation",
+                                      "hugo_symbol": "BRCA",
+                                      "fusion_partner_hugo_symbol": "ALK1"
+                                    }
+                                  },
+                                  {
+                                    "genomic": {
+                                      "hugo_symbol": "RPA1",
+                                      "true_variant_classification": "!Missense_Mutation",
+                                      "protein_change": "!p.A466G"
+                                    }
+                                  },
+                                  {
+                                    "genomic": {
+                                      "mmr_status": "MMR-Deficient",
+                                      "hugo_symbol": 1
+                                    }
+                                  },
+                                  {
+                                    "genomic": {
+                                      "ms_status": "!MSI-H"
+                                    }
+                                  },
+                                  {
+                                    "genomic": {
+                                      "cnv_call": "!Homozygous Deletion",
+                                      "hugo_symbol": "DCLRE1C"
+                                    }
+                                  },
+                                  {
+                                    "genomic": {
+                                      "cnv_call": "!Low Amplification",
+                                      "hugo_symbol": "FH"
+                                    }
+                                  }
+                                ]
                               }
                             ]
                           }
