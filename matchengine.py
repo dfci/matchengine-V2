@@ -516,7 +516,7 @@ class MatchEngine(object):
                     await self.async_db_rw.run_log.insert_one(self.run_log_entries[task.protocol_no])
                     await self.async_db_rw.clinical.update_many(
                         {'_id': {"$in": list(self.clinical_run_log_entries[task.protocol_no])}},
-                        {'$push': {"run_history": self.run_id}}
+                        {'$push': {"run_history": self.run_id.hex}}
                     )
                 except Exception as e:
                     log.error(f"ERROR: Worker: {worker_id}, error: {e}")
