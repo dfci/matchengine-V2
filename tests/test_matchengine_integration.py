@@ -271,9 +271,28 @@ class IntegrationTestMatchengine(TestCase):
         assert len(the_chosen[0]['run_history']) == 3
         assert len(the_chosen[1]['run_history']) == 3
 
-        the_others = list(self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids}, 'VITAL_STATUS': 'alive'}).limit(3))
+        the_others = list(
+            self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids}, 'VITAL_STATUS': 'alive'}).limit(3))
         assert len(the_others[0]['run_history']) == 3
         assert len(the_others[1]['run_history']) == 3
+
+    def test_visualize_match_paths(self):
+        fig_dir = f"/tmp/{os.urandom(10).hex()}"
+        os.makedirs(fig_dir, exist_ok=True)
+        self._reset(
+            do_reset_trial_matches=True,
+            do_reset_trials=True,
+            trials_to_load=['all_closed'],
+            sample_ids={'5d2799cb6756630d8dd0621d'},
+            visualize_match_paths=True,
+            fig_dir=fig_dir
+        )
+        self.me.get_matches_for_trial('10-001')
+        for file_name in ['10-001-arm-212.png', '10-001-arm-222.png', '10-001-dose-312.png', '10-001-step-112.png']:
+            assert os.path.exists(os.path.join(fig_dir, file_nam))
+            assert os.path.isfile(os.path.join(fig_dir, file_name))
+            os.unlink(os.path.join(fig_dir, file_name))
+        os.rmdir(fig_dir)
 
     def test__massive_match_clause(self):
         assert self.me.db_rw.name == 'integration'
