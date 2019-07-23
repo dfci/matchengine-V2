@@ -298,7 +298,8 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(do_reset_trials=True,
                     trials_to_load=['massive_match_clause'],
                     match_on_deceased=True,
-                    match_on_closed=True)
+                    match_on_closed=True,
+                    num_workers=1)
         self.me.get_matches_for_all_trials()
         print(len(self.me.matches["11-113"]))
 

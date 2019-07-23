@@ -30,7 +30,12 @@ def query_node_transform(query_node: QueryNode):
         gene = whole_query.pop('TRUE_HUGO_SYMBOL')
         sv_part.query['STRUCTURAL_VARIANT_COMMENT'] = re.compile(rf"(.*\W{gene}\W.*)|(^{gene}\W.*)|(.*\W{gene}$)",
                                                                  re.IGNORECASE)
-    elif 'MMR_STATUS' in whole_query:
+    if {'UVA_SIGNATURE',
+        'TOBACCO_SIGNATURE',
+        'POLE_SIGNATURE',
+        'TEMOZOLOMIDE_SIGNATURE',
+        'MMR_STATUS',
+        'APOBEC_SIGNATURE'}.intersection(set(whole_query.keys())):
         gene_part = get_query_part_by_key(query_node, 'TRUE_HUGO_SYMBOL')
         if gene_part is not None:
             gene_part.render = False
