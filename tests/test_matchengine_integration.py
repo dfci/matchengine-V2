@@ -334,5 +334,14 @@ class IntegrationTestMatchengine(TestCase):
         self.me.get_matches_for_all_trials()
         assert len(self.me.matches['99-9999']['5d2799df6756630d8dd068ca']) == 5
 
+    def test_tmb(self):
+        assert self.me.db_rw.name == 'integration'
+        self._reset(do_reset_trials=True,
+                    trials_to_load=['signatures'])
+        self.me.get_matches_for_all_trials()
+        assert len(self.me.matches['99-9999']['1d2799df4446699a8ddeeee']) == 4
+        assert len(self.me.matches['99-9999']['4d2799df4446630a8dd068dd']) == 3
+        assert len(self.me.matches['99-9999']['1d2799df4446699a8dd068ee']) == 4
+
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)

@@ -31,6 +31,22 @@ class DFCITransformers(QueryTransformerContainer):
         query_datetime = datetime.datetime(query_date.year, query_date.month, query_date.day, query_date.hour, 0, 0, 0)
         return {sample_key: {operator_map[operator]: query_datetime}}, False
 
+    def tmb_range_to_query(self, **kwargs):
+        sample_key = kwargs['sample_key']
+        trial_value = kwargs['trial_value']
+        operator_map = {
+            "==": "$eq",
+            "<=": "$lte",
+            ">=": "$gte",
+            ">": "$gt",
+            "<": "$lt"
+        }
+        operator = ''.join([i for i in trial_value if not i.isdigit() and i != '.'])
+        numeric = "".join([i for i in trial_value if i.isdigit() or i == '.'])
+        if numeric.startswith('.'):
+            numeric = '0' + numeric
+        return {sample_key: {operator_map[operator]: float(numeric)}}, False
+
     def bool_from_text(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
