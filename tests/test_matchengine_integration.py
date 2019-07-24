@@ -247,7 +247,7 @@ class IntegrationTestMatchengine(TestCase):
         assert len(the_chosen[1]['run_history']) == 3
 
         the_others = list(
-            self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids}, 'VITAL_STATUS': 'alive'}).limit(3))
+            self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids}, 'VITAL_STATUS': 'alive'}))
         assert len(the_others[0]['run_history']) == 2
         assert len(the_others[1]['run_history']) == 2
         assert len(the_others[2]['run_history']) == 2
