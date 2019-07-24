@@ -1,0 +1,40 @@
+{
+  "protocol_no": "10-005",
+  "status": "Open to Accrual",
+  "treatment_list": {
+    "step": [
+      {
+        "step_internal_id": 3211,
+        "step_code": "1",
+        "step_type": "Registration",
+        "arm": [
+          {
+            "arm_code": "DOSE",
+            "arm_description": "DOSE: DOSE ESCALATION",
+            "arm_suspended": "N",
+            "dose_level": [
+              {
+                "level_suspended": "N",
+                "level_code": "-1",
+                "level_internal_id": 1234
+              }
+            ],
+            "match": [
+              {
+                "and": [
+                  {
+                    "genomic": {
+                      "hugo_symbol": "EGFR",
+                      "variant_category": "Structural Variation"
+                    }
+                  }
+                ]
+              }
+            ],
+            "arm_internal_id": 27517
+          }
+        ]
+      }
+    ]
+  }
+}

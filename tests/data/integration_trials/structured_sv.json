@@ -1,0 +1,104 @@
+{
+  "protocol_no": "99-9999",
+  "status": "Open to Accrual",
+  "treatment_list": {
+    "step": [
+      {
+        "step_internal_id": 3211,
+        "step_code": "1",
+        "step_type": "Registration",
+        "arm": [
+          {
+            "arm_code": "DOSE",
+            "arm_description": "DOSE: DOSE ESCALATION",
+            "arm_suspended": "N",
+            "dose_level": [
+              {
+                "level_suspended": "N",
+                "level_code": "-1",
+                "level_internal_id": 1234
+              }
+            ],
+            "match": [
+              {
+                "or": [
+                  {
+                    "genomic": {
+                      "hugo_symbol": "EGFR",
+                      "variant_category": "!Mutation",
+                      "protein_change": "p.L858R"
+                    }
+                  },
+                  {
+                    "genomic": {
+                      "hugo_symbol": "EGFR",
+                      "variant_category": "!Mutation",
+                      "protein_change": "p.T790M"
+                    }
+                  },
+                  {
+                    "genomic": {
+                      "hugo_symbol": "EML4",
+                      "variant_category": "!Structural Variation",
+                      "fusion_partner_hugo_symbol": "EML4",
+                      "display_name": "EML4-EML4"
+                    }
+                  },
+                  {
+                    "genomic": {
+                      "hugo_symbol": "CLIP4",
+                      "variant_category": "!Structural Variation",
+                      "fusion_partner_hugo_symbol": "ALK",
+                      "display_name": "CLIP4-ALK"
+                    }
+                  },
+                  {
+                    "genomic": {
+                      "hugo_symbol": "KIF5B",
+                      "variant_category": "!Structural Variation",
+                      "fusion_partner_hugo_symbol": "ALK",
+                      "display_name": "KIF5B-ALK"
+                    }
+                  },
+                  {
+                    "genomic": {
+                      "hugo_symbol": "NPM1",
+                      "variant_category": "!Structural Variation",
+                      "fusion_partner_hugo_symbol": "INTERGENIC",
+                      "display_name": "NPM1-INTERGENIC"
+                    }
+                  },
+                  {
+                    "genomic": {
+                      "hugo_symbol": "RANDB2",
+                      "variant_category": "!Structural Variation",
+                      "fusion_partner_hugo_symbol": "ALK",
+                      "display_name": "RANDB2-ALK"
+                    }
+                  },
+                  {
+                    "genomic": {
+                      "hugo_symbol": "STRN",
+                      "variant_category": "!Structural Variation",
+                      "fusion_partner_hugo_symbol": "INTERGENIC",
+                      "display_name": "STRN-INTERGENIC"
+                    }
+                  },
+                  {
+                    "genomic": {
+                      "hugo_symbol": "TFG",
+                      "variant_category": "!Structural Variation",
+                      "fusion_partner_hugo_symbol": "ALK",
+                      "display_name": "TFG-ALK"
+                    }
+                  }
+                ]
+              }
+            ],
+            "arm_internal_id": 27517
+          }
+        ]
+      }
+    ]
+  }
+}

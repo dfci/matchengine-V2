@@ -343,5 +343,12 @@ class IntegrationTestMatchengine(TestCase):
         assert len(self.me.matches['99-9999']['4d2799df4446630a8dd068dd']) == 3
         assert len(self.me.matches['99-9999']['1d2799df4446699a8dd068ee']) == 4
 
+    def test_unstructured_sv(self):
+        assert self.me.db_rw.name == 'integration'
+        self._reset(do_reset_trials=True,
+                    trials_to_load=['unstructured_sv'])
+        self.me.get_matches_for_all_trials()
+        assert len(self.me.matches['10-005']['1d2799df4446699a8ddeeee']) == 1
+
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)
