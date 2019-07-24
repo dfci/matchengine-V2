@@ -30,6 +30,11 @@ def query_node_transform(query_node: QueryNode):
         gene = whole_query.pop('TRUE_HUGO_SYMBOL')
         sv_part.query['STRUCTURAL_VARIANT_COMMENT'] = re.compile(rf"(.*\W{gene}\W.*)|(^{gene}\W.*)|(.*\W{gene}$)",
                                                                  re.IGNORECASE)
+    # if fusion_partner is present, query left/right gene
+    if 'FUSION_PARTNER_HUGO_SYMBOL' in whole_query:
+        pass
+
+    # if signature curation is passed, do not query TRUE_HUGO_SYMBOL
     if {'UVA_STATUS',
         'TABACCO_STATUS',
         'POLE_STATUS',
