@@ -155,7 +155,7 @@ class MatchEngine(object):
 
     def check_indices(self):
         """
-        Ensure indexes exist on the trial_match collection so queries are performant
+        Ensure indexes exist on collections so queries are performant
         """
         for collection, desired_indices in self.config['indices'].items():
             indices = self.db_ro[collection].list_indexes()
