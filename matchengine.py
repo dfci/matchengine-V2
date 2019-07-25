@@ -12,7 +12,7 @@ import sys
 from collections import deque
 from multiprocessing import cpu_count
 from types import MethodType
-from typing import Generator
+from typing import Generator, NoReturn
 from datetime import datetime
 import uuid
 import csv
@@ -23,11 +23,11 @@ from pymongo.errors import AutoReconnect, CursorNotFound
 
 import query_transform
 from load import load
-from match_criteria_transform import MatchCriteriaTransform, query_node_transform
+from match_criteria_transform import MatchCriteriaTransform
 from mongo_connection import MongoDBConnection
 from matchengine_types import *
 from query_transform import QueryTransformerContainer
-from plugin_stub import TrialMatchDocumentCreator, DBSecrets
+from plugin_stub import TrialMatchDocumentCreator, DBSecrets, QueryNodeTransformer
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
@@ -87,7 +87,8 @@ class MatchEngine(object):
             config: Union[str, dict] = None,
             plugin_dir: str = None,
             db_init: bool = True,
-            match_document_creator_class: str = None,
+            match_document_creator_class: str = "DFCITrialMatchDocumentCreator",
+            query_node_transformer_class: str = "DFCIQueryNodeTransformer",
             db_secrets_class: str = None,
             report_clinical_reasons: bool = True,
             ignore_run_log: bool = False
@@ -106,9 +107,12 @@ class MatchEngine(object):
                 self.config = json.load(config_file_handle)
         else:
             self.config = config
+
         self.match_criteria_transform = MatchCriteriaTransform(self.config)
+
         self.plugin_dir = plugin_dir
         self.match_document_creator_class = match_document_creator_class
+        self.query_node_transformer_class = query_node_transformer_class
         self.db_secrets_class = db_secrets_class
         self._find_plugins()
         self.db_init = db_init
@@ -199,16 +203,26 @@ class MatchEngine(object):
                     query_transform.attach_transformers_to_match_criteria_transform(self.match_criteria_transform,
                                                                                     item)
                 elif issubclass(item, TrialMatchDocumentCreator):
-                    log.info(f"Loading TrialMatchDocumentCreator {item_name} type: {item}")
                     if item_name == self.match_document_creator_class:
+                        log.info(f"Loading TrialMatchDocumentCreator {item_name} type: {item}")
                         setattr(self,
-                                'create_trial_matches', MethodType(getattr(item, 'create_trial_matches'),
-                                                                   self))
+                                'create_trial_matches',
+                                MethodType(getattr(item,
+                                                   'create_trial_matches'),
+                                           self))
                 elif issubclass(item, DBSecrets):
-                    log.info(f"Loading DBSecrets {item_name} type: {item}")
                     if item_name == self.db_secrets_class:
+                        log.info(f"Loading DBSecrets {item_name} type: {item}")
                         secrets = item().get_secrets()
                         setattr(MongoDBConnection, 'secrets', secrets)
+                elif issubclass(item, QueryNodeTransformer):
+                    if item_name == self.query_node_transformer_class:
+                        log.info(f"Loading QueryNodeTransformer {item_name} type: {item}")
+                        setattr(self,
+                                "query_node_transform",
+                                MethodType(getattr(item,
+                                                   "query_node_transform"),
+                                           self))
 
     async def _async_init(self):
         """
@@ -742,6 +756,10 @@ class MatchEngine(object):
                 if match_path:
                     yield match_path
 
+    def query_node_transform(self, query_node: QueryNode) -> NoReturn:
+        "Stub function to be overriden by plugin"
+        pass
+
     def translate_match_path(self,
                              match_clause_data: MatchClauseData,
                              match_criterion: MatchCriterion) -> MultiCollectionQuery:
@@ -781,7 +799,7 @@ class MatchEngine(object):
                         # set the exclusion = True on the query node if ANY of the query parts are negate
                         query_node.exclusion = True if negate or query_node.exclusion else False
                     if query_node.exclusion is not None:
-                        query_node_transform(query_node)
+                        self.query_node_transform(query_node)
                         query_node_hash = query_node.hash()
                         if query_node_hash not in query_cache:
                             getattr(multi_collection_query, genomic_or_clinical).append(query_node)
