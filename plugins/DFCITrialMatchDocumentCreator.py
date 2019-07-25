@@ -54,6 +54,7 @@ def get_genomic_details(genomic_doc, query):
     # add mutational signtature
     elif variant_category in genomic_doc \
             and genomic_doc[variant_category] == 'SIGNATURE' \
+            and mmr_status in mmr_map_rev \
             and mmr_status in genomic_doc \
             and genomic_doc[mmr_status] is not None:
         alteration += mmr_map_rev[genomic_doc[mmr_status]]
