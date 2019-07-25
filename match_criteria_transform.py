@@ -2,13 +2,6 @@ from matchengine_types import QueryNode, QueryPart
 from itertools import chain
 
 
-def get_query_part_by_key(query_node: QueryNode, key: str) -> QueryPart:
-    return next(chain((query_part
-                       for query_part in query_node.query_parts
-                       if key in query_part.query),
-                      iter([None])))
-
-
 class AllTransformersContainer(object):
     def __init__(self, match_criteria_transform):
         self._ = match_criteria_transform

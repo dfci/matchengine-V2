@@ -1,6 +1,7 @@
 import datetime
 from collections import defaultdict
 from dataclasses import dataclass
+from itertools import chain
 from typing import NewType, Tuple, Union, List, Dict, Any, Set
 from bson import ObjectId
 from networkx import DiGraph
@@ -70,6 +71,12 @@ class QueryNode:
             for key, value in query_part.query.items()
             if query_part.render
         }
+
+    def get_query_part_by_key(self, key: str) -> QueryPart:
+        return next(chain((query_part
+                           for query_part in self.query_parts
+                           if key in query_part.query),
+                          iter([None])))
 
 
 @dataclass
@@ -146,9 +153,11 @@ class UpdateTask:
     ops: List
     protocol_no: str
 
+
 @dataclass
 class RunLogUpdateTask:
     protocol_no: str
+
 
 @dataclass
 class Secrets:
