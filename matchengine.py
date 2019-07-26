@@ -845,9 +845,6 @@ class MatchEngine(object):
         ]
         await self._task_q.put(UpdateTask(initial_delete_ops, protocol_no))
 
-        for to_disable in remaining_to_disable:
-            clinical_id = to_disable['clinical_id']
-
         for sample_id in trial_matches_by_sample_id.keys():
             new_matches_hashes = [match['hash'] for match in trial_matches_by_sample_id[sample_id]]
 
