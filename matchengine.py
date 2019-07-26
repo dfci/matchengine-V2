@@ -773,7 +773,7 @@ class MatchEngine(object):
         for node in match_criterion.criteria_list:
             for criteria in node.criteria:
                 for genomic_or_clinical, values in criteria.items():
-                    query_node = QueryNode(genomic_or_clinical, node.depth, list(), None)
+                    primary_query_node = QueryNode(genomic_or_clinical, node.depth, list(), None)
                     or_query_parts = list()
                     for trial_key, trial_value in values.items():
                         trial_key_settings = self.match_criteria_transform.trial_key_mappings[
@@ -798,21 +798,21 @@ class MatchEngine(object):
                         for sample_value, negate in results:
                             query_part = QueryPart(sample_value, negate, True)
                             if len(results) == 1:
-                                query_node.query_parts.append(query_part)
-                                query_node.exclusion = True if query_part.negate or query_node.exclusion else False
+                                primary_query_node.query_parts.append(query_part)
+                                primary_query_node.exclusion = True if query_part.negate or primary_query_node.exclusion else False
                             else:
                                 result_list_or_query_parts.append(query_part)
                         if result_list_or_query_parts:
                             or_query_parts.append(result_list_or_query_parts)
                     query_nodes = list()
-                    query_nodes.append(query_node)  # [qn1]
+                    query_nodes.append(primary_query_node)  # [qn1]
                     for or_query_part_options in or_query_parts:
                         existing_query_nodes_len = len(query_nodes)
                         additional_query_nodes = [query_node.__copy__()
-                                             for _
-                                             in range(1, len(or_query_part_options))
-                                             for query_node
-                                             in query_nodes]
+                                                  for _
+                                                  in range(1, len(or_query_part_options))
+                                                  for query_node
+                                                  in query_nodes]
                         query_nodes.extend(additional_query_nodes)
                         query_nodes_iter = iter(query_nodes)
                         for or_query_part in or_query_part_options:
@@ -835,7 +835,7 @@ class MatchEngine(object):
                         if existing_mcq_list_len == 1:
                             qn = query_nodes_to_add[mcq_idx]
                         else:
-                            qn = query_nodes_to_add[mcq_idx % (existing_mcq_list_len - 1)]
+                            qn = query_nodes_to_add[mcq_idx % len(query_nodes_to_add)]
                         getattr(mcq, genomic_or_clinical).append(qn)
 
         return mcq_list
