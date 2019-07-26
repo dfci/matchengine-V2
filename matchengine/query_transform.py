@@ -3,8 +3,9 @@ import json
 from types import MethodType
 from typing import Type
 
-from match_criteria_transform import MatchCriteriaTransform
-from plugin_stub import QueryTransformerContainer
+from matchengine.match_criteria_transform import MatchCriteriaTransform
+from matchengine.plugin_stub import QueryTransformerContainer
+
 
 def tuple_list_decorator(func):
     def decorator(*args, **kwargs):
