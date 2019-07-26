@@ -2,6 +2,7 @@ from unittest import TestCase
 import csv
 import os
 import json
+import sys
 
 from matchengine import MatchEngine
 from timetravel_and_override import set_static_date_time
@@ -278,6 +279,10 @@ class IntegrationTestMatchengine(TestCase):
         assert len(the_others[1]['run_history']) == 3
 
     def test_visualize_match_paths(self):
+        # pygraphviz doesn't install easily on macOS so skip in that case.
+        if sys.platform == 'darwin':
+            return
+
         fig_dir = f"/tmp/{os.urandom(10).hex()}"
         os.makedirs(fig_dir, exist_ok=True)
         self._reset(
