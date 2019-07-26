@@ -1,8 +1,8 @@
 from typing import Dict
 
-from plugin_stub import TrialMatchDocumentCreator
-from frozendict import ComparableDict
-from matchengine_types import TrialMatch
+from matchengine.plugin_stub import TrialMatchDocumentCreator
+from utilities.frozendict import ComparableDict
+from utilities.matchengine_types import TrialMatch
 
 
 def get_genomic_details(genomic_doc, query):

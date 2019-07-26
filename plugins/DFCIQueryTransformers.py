@@ -3,7 +3,7 @@ import re
 
 from dateutil.relativedelta import relativedelta
 
-from query_transform import QueryTransformerContainer, tuple_list_decorator
+from matchengine.query_transform import QueryTransformerContainer, tuple_list_decorator
 
 
 class DFCITransformers(QueryTransformerContainer):

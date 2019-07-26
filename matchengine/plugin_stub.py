@@ -1,7 +1,7 @@
 from typing import Dict, NoReturn
 
-from match_criteria_transform import MatchCriteriaTransform
-from matchengine_types import TrialMatch, Cache, Secrets, QueryNode
+from matchengine.match_criteria_transform import MatchCriteriaTransform
+from utilities.matchengine_types import TrialMatch, Cache, Secrets, QueryNode
 
 
 class TrialMatchDocumentCreator(object):

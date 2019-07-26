@@ -4,8 +4,10 @@ import os
 import json
 import sys
 
-from matchengine import MatchEngine
-from timetravel_and_override import set_static_date_time
+from matchengine.engine import MatchEngine
+from utilities.utilities import check_indices
+
+from tests.timetravel_and_override import set_static_date_time
 
 import datetime
 
@@ -31,7 +33,7 @@ class IntegrationTestMatchengine(TestCase):
 
         if kwargs.get('do_reset_trial_matches', False):
             self.me.db_rw.trial_match.drop()
-            self.me.check_indices()
+            check_indices(self.me)
 
         if kwargs.get('reset_run_log', False):
             self.me.db_rw.run_log.drop()
@@ -356,6 +358,15 @@ class IntegrationTestMatchengine(TestCase):
         matches = self.me.matches['10-005']['1d2799df4446699a8ddeeee']
         assert matches[0]['genomic_alteration'] == 'EGFR Structural Variation'
         assert len(matches) == 1
+
+    def test_structured_sv(self):
+        assert self.me.db_rw.name == 'integration'
+        self._reset(do_reset_trials=True,
+                    trials_to_load=['structured_sv'])
+        self.me.get_matches_for_all_trials()
+        # matches = self.me.matches['10-005']['1d2799df4446699a8ddeeee']
+        # assert matches[0]['genomic_alteration'] == 'EGFR Structural Variation'
+        # assert len(matches) == 1
 
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)
