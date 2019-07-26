@@ -353,7 +353,9 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(do_reset_trials=True,
                     trials_to_load=['unstructured_sv'])
         self.me.get_matches_for_all_trials()
-        assert len(self.me.matches['10-005']['1d2799df4446699a8ddeeee']) == 1
+        matches = self.me.matches['10-005']['1d2799df4446699a8ddeeee']
+        assert matches[0]['genomic_alteration'] == 'EGFR Structural Variation'
+        assert len(matches) == 1
 
     def tearDown(self) -> None:
         self.me.__exit__(None, None, None)
