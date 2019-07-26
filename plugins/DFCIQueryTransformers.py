@@ -3,10 +3,11 @@ import re
 
 from dateutil.relativedelta import relativedelta
 
-from query_transform import QueryTransformerContainer
+from query_transform import QueryTransformerContainer, tuple_list_decorator
 
 
 class DFCITransformers(QueryTransformerContainer):
+    @tuple_list_decorator
     def age_range_to_date_query(self, **kwargs):
         sample_key = kwargs['sample_key']
         trial_value = kwargs['trial_value']
@@ -31,6 +32,7 @@ class DFCITransformers(QueryTransformerContainer):
         query_datetime = datetime.datetime(query_date.year, query_date.month, query_date.day, query_date.hour, 0, 0, 0)
         return {sample_key: {operator_map[operator]: query_datetime}}, False
 
+    @tuple_list_decorator
     def tmb_range_to_query(self, **kwargs):
         sample_key = kwargs['sample_key']
         trial_value = kwargs['trial_value']
@@ -47,6 +49,7 @@ class DFCITransformers(QueryTransformerContainer):
             numeric = '0' + numeric
         return {sample_key: {operator_map[operator]: float(numeric)}}, False
 
+    @tuple_list_decorator
     def bool_from_text(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
@@ -55,6 +58,7 @@ class DFCITransformers(QueryTransformerContainer):
         elif trial_value.upper() == 'FALSE':
             return {sample_key: False}, False
 
+    @tuple_list_decorator
     def cnv_map(self, **kwargs):
         # Heterozygous deletion,
         # Gain,
@@ -78,6 +82,7 @@ class DFCITransformers(QueryTransformerContainer):
         else:
             return {sample_key: trial_value}, negate
 
+    @tuple_list_decorator
     def variant_category_map(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
@@ -97,6 +102,7 @@ class DFCITransformers(QueryTransformerContainer):
         else:
             return {sample_key: trial_value.upper()}, negate
 
+    @tuple_list_decorator
     def wildcard_regex(self, **kwargs):
         """
         When trial curation criteria include a wildcard prefix (e.g. WILDCARD_PROTEIN_CHANGE), a genomic query must
@@ -122,6 +128,7 @@ class DFCITransformers(QueryTransformerContainer):
         trial_value = f'^{trial_value}[ACDEFGHIKLMNPQRSTVWY]$'
         return {kwargs['sample_key']: {'$regex': re.compile(trial_value, re.IGNORECASE)}}, negate
 
+    @tuple_list_decorator
     def mmr_ms_map(self, **kwargs):
         mmr_map = {
             'MMR-Proficient': 'Proficient (MMR-P / MSS)',
