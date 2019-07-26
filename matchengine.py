@@ -762,18 +762,19 @@ class MatchEngine(object):
 
     def translate_match_path(self,
                              match_clause_data: MatchClauseData,
-                             match_criterion: MatchCriterion) -> MultiCollectionQuery:
+                             match_criterion: MatchCriterion) -> List[MultiCollectionQuery]:
         """
         Translate the keys/values from the trial curation into keys/values used in a genomic/clinical document.
         Uses an external config file ./config/config.json
 
         """
-        multi_collection_query = MultiCollectionQuery(list(), list())
+        mcq_list = [MultiCollectionQuery(list(), list())]
         query_cache = set()
         for node in match_criterion.criteria_list:
             for criteria in node.criteria:
                 for genomic_or_clinical, values in criteria.items():
                     query_node = QueryNode(genomic_or_clinical, node.depth, list(), None)
+                    or_query_parts = list()
                     for trial_key, trial_value in values.items():
                         trial_key_settings = self.match_criteria_transform.trial_key_mappings[
                             genomic_or_clinical].get(
@@ -790,21 +791,54 @@ class MatchEngine(object):
                                                     trial_value=trial_value,
                                                     parent_path=match_clause_data.parent_path,
                                                     trial_path=genomic_or_clinical,
-                                                    trial_key=trial_key,
-                                                    query_node=query_node)
+                                                    trial_key=trial_key)
                         sample_function_args.update(trial_key_settings)
-                        sample_value, negate = sample_function(**sample_function_args)
-                        query_part = QueryPart(sample_value, negate, True)
-                        query_node.query_parts.append(query_part)
-                        # set the exclusion = True on the query node if ANY of the query parts are negate
-                        query_node.exclusion = True if negate or query_node.exclusion else False
-                    if query_node.exclusion is not None:
-                        self.query_node_transform(query_node)
-                        query_node_hash = query_node.hash()
-                        if query_node_hash not in query_cache:
-                            getattr(multi_collection_query, genomic_or_clinical).append(query_node)
-                            query_cache.add(query_node_hash)
-        return multi_collection_query
+                        results = sample_function(**sample_function_args)
+                        result_list_or_query_parts = list()
+                        for sample_value, negate in results:
+                            query_part = QueryPart(sample_value, negate, True)
+                            if len(results) == 1:
+                                query_node.query_parts.append(query_part)
+                                query_node.exclusion = True if query_part.negate or query_node.exclusion else False
+                            else:
+                                result_list_or_query_parts.append(query_part)
+                        if result_list_or_query_parts:
+                            or_query_parts.append(result_list_or_query_parts)
+                    query_nodes = list()
+                    query_nodes.append(query_node)  # [qn1]
+                    for or_query_part_options in or_query_parts:
+                        existing_query_nodes_len = len(query_nodes)
+                        additional_query_nodes = [query_node.__copy__()
+                                             for _
+                                             in range(1, len(or_query_part_options))
+                                             for query_node
+                                             in query_nodes]
+                        query_nodes.extend(additional_query_nodes)
+                        query_nodes_iter = iter(query_nodes)
+                        for or_query_part in or_query_part_options:
+                            for _ in range(0, existing_query_nodes_len):
+                                query_node = next(query_nodes_iter)
+                                query_node.query_parts.append(or_query_part)
+                                query_node.exclusion = True if or_query_part.negate or query_node.exclusion else False
+                    query_nodes_to_add = list()
+                    for query_node in query_nodes:
+                        if query_node.exclusion is not None:
+                            self.query_node_transform(query_node)
+                            if query_node.hash() not in query_cache:
+                                query_cache.add(query_node.hash())
+                                query_nodes_to_add.append(query_node)
+                    mcq_count_to_add = len(query_nodes_to_add) - 1
+                    existing_mcq_list_len = len(mcq_list)
+                    for _ in range(0, mcq_count_to_add):
+                        mcq_list.extend([mcq.__copy__() for mcq in mcq_list[0:existing_mcq_list_len]])
+                    for mcq_idx, mcq in enumerate(mcq_list):
+                        if existing_mcq_list_len == 1:
+                            qn = query_nodes_to_add[mcq_idx]
+                        else:
+                            qn = query_nodes_to_add[mcq_idx % (existing_mcq_list_len - 1)]
+                        getattr(mcq, genomic_or_clinical).append(qn)
+
+        return mcq_list
 
     def update_matches_for_protocol_number(self, protocol_no):
         """
@@ -937,16 +971,17 @@ class MatchEngine(object):
 
             # for each match path, translate the path into valid mongo queries
             for match_path in match_paths:
-                query = self.translate_match_path(match_clause, match_path)
-                if self.debug:
-                    log.info(f"Query: {query}")
-                if query:
-                    # put the query onto the task queue for execution
-                    await self._task_q.put(QueryTask(trial,
-                                                     match_clause,
-                                                     match_path,
-                                                     query,
-                                                     clinical_ids_to_run))
+                queries = self.translate_match_path(match_clause, match_path)
+                for query in queries:
+                    if self.debug:
+                        log.info(f"Query: {query}")
+                    if query:
+                        # put the query onto the task queue for execution
+                        await self._task_q.put(QueryTask(trial,
+                                                         match_clause,
+                                                         match_path,
+                                                         query,
+                                                         clinical_ids_to_run))
         await self._task_q.join()
         logging.info(f"Total results: {len(self.matches[protocol_no])}")
         return self.matches[protocol_no]
