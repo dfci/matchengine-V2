@@ -121,7 +121,7 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help=deceased_help)
-    subp_p.add_argument("-workers", nargs=1, type=int, default=[cpu_count() * 5])
+    subp_p.add_argument("--workers", nargs=1, type=int, default=[cpu_count() * 5])
     subp_p.add_argument('-o', dest="csv_output", action="store_true", default=False, required=False,
                         help=csv_output_help)
     args = parser.parse_args()
