@@ -1,12 +1,11 @@
 import datetime
-from collections import defaultdict
 from dataclasses import dataclass
 from itertools import chain
 from typing import NewType, Tuple, Union, List, Dict, Any, Set
 from bson import ObjectId
 from networkx import DiGraph
 
-from frozendict import ComparableDict
+from utilities.frozendict import ComparableDict
 
 Trial = NewType("Trial", dict)
 ParentPath = NewType("ParentPath", Tuple[Union[str, int]])
