@@ -120,6 +120,7 @@ class MatchEngine(object):
             config: Union[str, dict] = None,
             plugin_dir: str = None,
             db_init: bool = True,
+            db_name: str = None,
             match_document_creator_class: str = "DFCITrialMatchDocumentCreator",
             query_node_transformer_class: str = "DFCIQueryNodeTransformer",
             db_secrets_class: str = None,
@@ -149,9 +150,9 @@ class MatchEngine(object):
         self.db_secrets_class = db_secrets_class
         find_plugins(self)
         self.db_init = db_init
-        self._db_ro = MongoDBConnection(read_only=True, async_init=False) if self.db_init else None
+        self._db_ro = MongoDBConnection(read_only=True, async_init=False, db=db_name) if self.db_init else None
         self.db_ro = self._db_ro.__enter__() if self.db_init else None
-        self._db_rw = MongoDBConnection(read_only=False, async_init=False) if self.db_init else None
+        self._db_rw = MongoDBConnection(read_only=False, async_init=False, db=db_name) if self.db_init else None
         self.db_rw = self._db_rw.__enter__() if self.db_init else None
         log.info(f"Connected to database {self.db_ro.name}")
 
