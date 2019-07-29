@@ -2,7 +2,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from matchengine.match_criteria_transform import MatchCriteriaTransform
+    from matchengine.match_criteria_transform import (
+        MatchCriteriaTransform,
+        TransformFunctions
+    )
     from matchengine.utilities.matchengine_types import (
         Secrets,
         QueryNode,
@@ -25,6 +28,8 @@ class TrialMatchDocumentCreator(object):
 
 class QueryTransformerContainer(object):
     _: MatchCriteriaTransform
+    transform: TransformFunctions
+    resources: Dict
 
 
 class DBSecrets(object):
