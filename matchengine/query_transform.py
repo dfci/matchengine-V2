@@ -3,8 +3,15 @@ import json
 from types import MethodType
 from typing import Type
 
-from match_criteria_transform import MatchCriteriaTransform
-from plugin_stub import QueryTransformerContainer
+from matchengine.match_criteria_transform import MatchCriteriaTransform
+from matchengine.plugin_stub import QueryTransformerContainer
+
+
+def tuple_list_decorator(func):
+    def decorator(*args, **kwargs):
+        return [func(*args, **kwargs)]
+
+    return decorator
 
 
 def is_negate(trial_value):
@@ -31,6 +38,7 @@ def attach_transformers_to_match_criteria_transform(match_criteria_transform: Ma
 
 class BaseTransformers(QueryTransformerContainer):
 
+    @tuple_list_decorator
     def nomap(self, **kwargs):
         trial_path = kwargs['trial_path']
         trial_key = kwargs['trial_key']
@@ -39,6 +47,7 @@ class BaseTransformers(QueryTransformerContainer):
         trial_value, negate = is_negate(trial_value)
         return {sample_key: trial_value}, negate
 
+    @tuple_list_decorator
     def external_file_mapping(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
@@ -54,6 +63,7 @@ class BaseTransformers(QueryTransformerContainer):
         else:
             return {sample_key: match_value}, negate
 
+    @tuple_list_decorator
     def to_upper(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']

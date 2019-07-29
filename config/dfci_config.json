@@ -124,7 +124,7 @@
       "ONCOTREE_PRIMARY_DIAGNOSIS": {
         "sample_key": "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
         "sample_value": "external_file_mapping",
-        "file": "oncotree_mapping.json"
+        "file": "ref/oncotree_mapping.json"
       },
       "GENDER": {
         "sample_key": "GENDER",
