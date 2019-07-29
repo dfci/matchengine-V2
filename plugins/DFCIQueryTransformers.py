@@ -93,7 +93,9 @@ class DFCITransformers(QueryTransformerContainer):
         # if a curation calls for a Structural Variant, search the free text in the genomic document under
         # STRUCTURAL_VARIANT_COMMENT for mention of the TRUE_HUGO_SYMBOL
         if trial_value == 'Structural Variation':
-            return QueryTransformerResult({'STRUCTURAL_VARIANT_COMMENT': None}, negate)
+            results = QueryTransformerResult()
+            results.add_result({'STRUCTURAL_VARIANT_COMMENT': None}, negate)
+            return results
         elif trial_value.lower() in variant_category_map:
             return QueryTransformerResult({sample_key: variant_category_map[trial_value.lower()]}, negate)
         else:

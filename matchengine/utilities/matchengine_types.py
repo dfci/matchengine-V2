@@ -218,5 +218,5 @@ class QueryTransformerResult:
                 raise Exception("If adding query result directly to results container, "
                                 "both Negate and Query must be specified")
 
-    def add_result(self, result: QueryPart):
-        self.results.append(result)
+    def add_result(self, query_clause: Dict, negate: bool, render: bool = True):
+        self.results.append(QueryPart(query_clause, negate, render))
