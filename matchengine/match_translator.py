@@ -3,8 +3,9 @@ from typing import Generator, Dict, Any, Tuple, List
 
 import networkx as nx
 
-from utilities.matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel, MatchTree, NodeID, MatchCriteria, \
-    MatchCriterion, MultiCollectionQuery, QueryNode, QueryPart
+from utilities.matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel, MatchTree, NodeID, MatchCriteria
+from utilities.matchengine_types import MatchCriterion, MultiCollectionQuery, QueryNode, QueryPart
+from utilities.matchengine_types import QueryTransformerResults, QueryTransformerResult
 
 
 def extract_match_clauses_from_trial(me, protocol_no: str) -> Generator[MatchClauseData, None, None]:
@@ -257,13 +258,13 @@ def translate_match_path(self,
                                                 trial_path=genomic_or_clinical,
                                                 trial_key=trial_key)
                     sample_function_args.update(trial_key_settings)
-                    results = sample_function(**sample_function_args)
+                    translated_node_part: QueryTransformerResults = sample_function(**sample_function_args)
 
                     # if results returned from DFCIQueryTransformer function > 1, save extra queries for splitting later
                     result_list_or_query_parts = list()
-                    for sample_value, negate in results:
-                        query_part = QueryPart(sample_value, negate, True)
-                        if len(results) == 1:
+                    for node_part in translated_node_part.results:
+                        query_part = QueryPart(node_part.query_clause, node_part.negate, True)
+                        if len(translated_node_part.results) == 1:
                             primary_query_node.query_parts.append(query_part)
                             primary_query_node.exclusion = True if query_part.negate or primary_query_node.exclusion else False
                         else:

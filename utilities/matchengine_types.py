@@ -193,3 +193,25 @@ class Secrets:
     RW_PASSWORD: str
     REPLICASET: str
     MAX_POOL_SIZE: str
+
+
+@dataclass
+class QueryTransformerResult:
+    query_clause: Dict[str, Any]
+    negate: bool
+
+
+class QueryTransformerResults:
+    results: List[QueryTransformerResult]
+
+    def __init__(self, query_clause=None, negate=None):
+        self.results = list()
+        if query_clause is not None:
+            if negate is not None:
+                self.results.append(QueryTransformerResult(query_clause, negate))
+            else:
+                raise Exception("If adding query result directly to results container, "
+                                "both Negate and Query must be specified")
+
+    def add_result(self, result: QueryTransformerResult):
+        self.results.append(result)
