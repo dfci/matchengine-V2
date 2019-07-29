@@ -3,9 +3,14 @@ import json
 import os
 from unittest import TestCase
 
-from match_criteria_transform import MatchCriteriaTransform
-from matchengine import MatchEngine, log, ComparableDict
-from matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel, MatchClause, MatchCriteria, MatchCriterion
+from matchengine.engine import MatchEngine
+from utilities.frozendict import ComparableDict
+from utilities.utilities import find_plugins
+from matchengine.match_criteria_transform import MatchCriteriaTransform
+from matchengine.match_translator import create_match_tree, get_match_paths, extract_match_clauses_from_trial, \
+    translate_match_path
+from utilities.matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel, MatchClause, MatchCriteria, \
+    MatchCriterion
 
 
 class TestMatchEngine(TestCase):
@@ -23,17 +28,17 @@ class TestMatchEngine(TestCase):
 
         self.me.match_criteria_transform = MatchCriteriaTransform(self.config)
 
-    def test__find_plugins(self):
+    def test_find_plugins(self):
         """Verify functions inside external config files are reachable within the Matchengine class"""
         old_create_trial_matches = self.me.create_trial_matches
-        self.me._find_plugins()
+        find_plugins(self.me)
         assert hasattr(self.me, 'create_trial_matches')
         assert id(self.me.create_trial_matches) != old_create_trial_matches
         blank_trial_match = self.me.create_trial_matches({})
         assert isinstance(blank_trial_match, dict) and not blank_trial_match
 
     def test_query_transform(self):
-        self.me._find_plugins()
+        find_plugins(self.me)
 
         assert hasattr(self.me.match_criteria_transform.transform, 'is_negate')
         assert getattr(self.me.match_criteria_transform.transform, 'is_negate')('this') == ('this', False)
@@ -85,7 +90,7 @@ class TestMatchEngine(TestCase):
             match_clause = data['treatment_list']['step'][0]['arm'][0]['match'][0]
             self.me.trials['11-111'] = data
 
-        extracted = next(self.me.extract_match_clauses_from_trial('11-111'))
+        extracted = next(extract_match_clauses_from_trial(self.me, '11-111'))
         assert extracted.match_clause[0]['and'] == match_clause['and']
         assert extracted.parent_path == ('treatment_list', 'step', 0, 'arm', 0, 'match')
         assert extracted.match_clause_level == 'arm'
@@ -104,16 +109,16 @@ class TestMatchEngine(TestCase):
 
         for trial in self.me.trials:
             me_trial = self.me.trials[trial]
-            match_tree = self.me.create_match_tree(MatchClauseData(match_clause=me_trial,
-                                                                   internal_id='123',
-                                                                   code='456',
-                                                                   coordinating_center='The Death Star',
-                                                                   status='Open to Accrual',
-                                                                   parent_path=ParentPath(()),
-                                                                   match_clause_level=MatchClauseLevel('arm'),
-                                                                   match_clause_additional_attributes={},
-                                                                   protocol_no='12-345',
-                                                                   is_suspended=True))
+            match_tree = create_match_tree(self.me, MatchClauseData(match_clause=me_trial,
+                                                                    internal_id='123',
+                                                                    code='456',
+                                                                    coordinating_center='The Death Star',
+                                                                    status='Open to Accrual',
+                                                                    parent_path=ParentPath(()),
+                                                                    match_clause_level=MatchClauseLevel('arm'),
+                                                                    match_clause_additional_attributes={},
+                                                                    protocol_no='12-345',
+                                                                    is_suspended=True))
             test_case = test_cases[os.path.basename(trial)]
             assert len(test_case["nodes"]) == len(match_tree.nodes)
             for test_case_key in test_case.keys():
@@ -139,17 +144,17 @@ class TestMatchEngine(TestCase):
         for trial in self.me.trials:
             filename = os.path.basename(trial)
             me_trial = self.me.trials[trial]
-            match_tree = self.me.create_match_tree(MatchClauseData(match_clause=me_trial,
-                                                                   internal_id='123',
-                                                                   code='456',
-                                                                   coordinating_center='The Death Star',
-                                                                   status='Open to Accrual',
-                                                                   parent_path=ParentPath(()),
-                                                                   match_clause_level=MatchClauseLevel('arm'),
-                                                                   match_clause_additional_attributes={},
-                                                                   is_suspended=True,
-                                                                   protocol_no='12-345'))
-            match_paths = list(self.me.get_match_paths(match_tree))
+            match_tree = create_match_tree(self.me, MatchClauseData(match_clause=me_trial,
+                                                                    internal_id='123',
+                                                                    code='456',
+                                                                    coordinating_center='The Death Star',
+                                                                    status='Open to Accrual',
+                                                                    parent_path=ParentPath(()),
+                                                                    match_clause_level=MatchClauseLevel('arm'),
+                                                                    match_clause_additional_attributes={},
+                                                                    is_suspended=True,
+                                                                    protocol_no='12-345'))
+            match_paths = list(get_match_paths(match_tree))
             for test_case, match_path in zip(test_cases[filename], match_paths):
                 assert match_path.hash() == test_case["hash"]
                 for test_case_criteria_idx, test_case_criteria in enumerate(test_case["criteria_list"]):
@@ -162,7 +167,7 @@ class TestMatchEngine(TestCase):
 
     def test_translate_match_path(self):
         self.me.trials = dict()
-        self.me._find_plugins()
+        find_plugins(self.me)
         match_clause_data = MatchClauseData(match_clause=MatchClause([{}]),
                                             internal_id='123',
                                             code='456',
@@ -173,8 +178,8 @@ class TestMatchEngine(TestCase):
                                             match_clause_additional_attributes={},
                                             protocol_no='12-345',
                                             is_suspended=True)
-        match_paths = self.me.translate_match_path(match_clause_data=match_clause_data,
-                                                  match_criterion=MatchCriterion([MatchCriteria({}, 0)]))
+        match_paths = translate_match_path(self.me, match_clause_data=match_clause_data,
+                                           match_criterion=MatchCriterion([MatchCriteria({}, 0)]))
         assert len(match_paths) == 1
         assert len(match_paths[0].clinical) == 0
         assert len(match_paths[0].genomic) == 0

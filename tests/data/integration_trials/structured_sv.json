@@ -24,20 +24,6 @@
                 "or": [
                   {
                     "genomic": {
-                      "hugo_symbol": "EGFR",
-                      "variant_category": "!Mutation",
-                      "protein_change": "p.L858R"
-                    }
-                  },
-                  {
-                    "genomic": {
-                      "hugo_symbol": "EGFR",
-                      "variant_category": "!Mutation",
-                      "protein_change": "p.T790M"
-                    }
-                  },
-                  {
-                    "genomic": {
                       "hugo_symbol": "EML4",
                       "variant_category": "!Structural Variation",
                       "fusion_partner_hugo_symbol": "EML4",

@@ -2,8 +2,8 @@ from typing import NoReturn
 
 import re
 
-from matchengine_types import QueryNode
-from plugin_stub import QueryNodeTransformer
+from utilities.matchengine_types import QueryNode
+from matchengine.plugin_stub import QueryNodeTransformer
 
 
 class DFCIQueryNodeTransformer(QueryNodeTransformer):

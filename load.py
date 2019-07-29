@@ -6,8 +6,8 @@ import logging
 import subprocess
 import pandas as pd
 from bson import json_util
-from pymongo import ASCENDING, DESCENDING
-from mongo_connection import MongoDBConnection
+from pymongo import ASCENDING
+from utilities.mongo_connection import MongoDBConnection
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
