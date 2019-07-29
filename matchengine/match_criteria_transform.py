@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 class AllTransformersContainer(object):
     def __init__(self, match_criteria_transform):
         self._ = match_criteria_transform

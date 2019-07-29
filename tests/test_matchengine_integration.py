@@ -88,32 +88,32 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         self.me.get_matches_for_all_trials()
-        assert len(set(self.me.matches.keys()).intersection({'10-001', '10-002', '10-003', '10-004'})) == 4
-        assert len(self.me.matches['10-001']) == 5
-        assert len(self.me.matches['10-002']) == 5
-        assert len(self.me.matches['10-003']) == 5
-        assert len(self.me.matches['10-004']) == 5
+        assert len(set(self.me._matches.keys()).intersection({'10-001', '10-002', '10-003', '10-004'})) == 4
+        assert len(self.me._matches['10-001']) == 5
+        assert len(self.me._matches['10-002']) == 5
+        assert len(self.me._matches['10-003']) == 5
+        assert len(self.me._matches['10-004']) == 5
 
     def test__match_on_deceased(self):
         self._reset(match_on_deceased=True, match_on_closed=False,
                     do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         self.me.get_matches_for_all_trials()
-        assert len(set(self.me.matches.keys()).intersection({'10-002', '10-003', '10-004'})) == 3
-        assert len(self.me.matches['10-002']) == 5
-        assert len(self.me.matches['10-003']) == 5
-        assert len(self.me.matches['10-004']) == 0
+        assert len(set(self.me._matches.keys()).intersection({'10-002', '10-003', '10-004'})) == 3
+        assert len(self.me._matches['10-002']) == 5
+        assert len(self.me._matches['10-003']) == 5
+        assert len(self.me._matches['10-004']) == 0
 
     def test__match_on_closed(self):
         self._reset(match_on_deceased=False, match_on_closed=True,
                     do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         self.me.get_matches_for_all_trials()
-        assert len(set(self.me.matches.keys()).intersection({'10-001', '10-002', '10-003', '10-004'})) == 4
-        assert len(self.me.matches['10-001']) == 4
-        assert len(self.me.matches['10-002']) == 4
-        assert len(self.me.matches['10-003']) == 4
-        assert len(self.me.matches['10-004']) == 4
+        assert len(set(self.me._matches.keys()).intersection({'10-001', '10-002', '10-003', '10-004'})) == 4
+        assert len(self.me._matches['10-001']) == 4
+        assert len(self.me._matches['10-002']) == 4
+        assert len(self.me._matches['10-003']) == 4
+        assert len(self.me._matches['10-004']) == 4
 
     def test_update_trial_matches(self):
         self._reset(do_reset_trial_matches=True,
@@ -129,8 +129,8 @@ class IntegrationTestMatchengine(TestCase):
                     do_reset_trials=True,
                     trials_to_load=['wildcard_protein_found', 'wildcard_protein_not_found'])
         self.me.get_matches_for_all_trials()
-        assert len(self.me.matches['10-005']) == 64
-        assert len(self.me.matches['10-006']) == 0
+        assert len(self.me._matches['10-005']) == 64
+        assert len(self.me._matches['10-006']) == 0
 
     def test_match_on_individual_protocol_no(self):
         self._reset(do_reset_trial_matches=True,
@@ -138,8 +138,8 @@ class IntegrationTestMatchengine(TestCase):
                     trials_to_load=['wildcard_protein_not_found'],
                     protocol_nos={'10-006'})
         self.me.get_matches_for_all_trials()
-        assert len(self.me.matches.keys()) == 1
-        assert len(self.me.matches['10-006']) == 0
+        assert len(self.me._matches.keys()) == 1
+        assert len(self.me._matches['10-006']) == 0
 
     def test_match_on_individual_sample(self):
         self._reset(
@@ -149,10 +149,10 @@ class IntegrationTestMatchengine(TestCase):
             sample_ids={'5d2799cb6756630d8dd0621d'}
         )
         self.me.get_matches_for_all_trials()
-        assert len(self.me.matches['10-001']) == 1
-        assert len(self.me.matches['10-002']) == 1
-        assert len(self.me.matches['10-003']) == 1
-        assert len(self.me.matches['10-004']) == 1
+        assert len(self.me._matches['10-001']) == 1
+        assert len(self.me._matches['10-002']) == 1
+        assert len(self.me._matches['10-003']) == 1
+        assert len(self.me._matches['10-004']) == 1
 
     def test_output_csv(self):
         self._reset(do_reset_trial_matches=True,
@@ -161,16 +161,18 @@ class IntegrationTestMatchengine(TestCase):
         self.me.get_matches_for_all_trials()
         filename = f'trial_matches_{datetime.datetime.now().strftime("%b_%d_%Y_%H:%M")}.csv'
         try:
-            self.me.create_output_csv()
+            from matchengine.utilities.output import create_output_csv
+            create_output_csv(self.me)
             assert os.path.exists(filename)
             assert os.path.isfile(filename)
             with open(filename) as csv_file_handle:
                 csv_reader = csv.DictReader(csv_file_handle)
                 fieldnames = set(csv_reader.fieldnames)
                 rows = list(csv_reader)
-            assert len(fieldnames.intersection(self.me._get_all_match_fieldnames())) == len(fieldnames)
+            from matchengine.utilities.output import get_all_match_fieldnames
+            assert len(fieldnames.intersection(get_all_match_fieldnames(self.me))) == len(fieldnames)
             assert sum([1
-                        for protocol_matches in self.me.matches.values()
+                        for protocol_matches in self.me._matches.values()
                         for sample_matches in protocol_matches.values()
                         for _ in sample_matches]) == 80
             assert len(rows) == 80
@@ -309,7 +311,7 @@ class IntegrationTestMatchengine(TestCase):
                     match_on_closed=True,
                     num_workers=1)
         self.me.get_matches_for_all_trials()
-        print(len(self.me.matches["11-113"]))
+        print(len(self.me._matches["11-113"]))
 
     def test_context_handler(self):
         self._reset(
@@ -339,23 +341,23 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(do_reset_trials=True,
                     trials_to_load=['signatures'])
         self.me.get_matches_for_all_trials()
-        assert len(self.me.matches['99-9999']['5d2799df6756630d8dd068ca']) == 5
+        assert len(self.me._matches['99-9999']['5d2799df6756630d8dd068ca']) == 5
 
     def test_tmb(self):
         assert self.me.db_rw.name == 'integration'
         self._reset(do_reset_trials=True,
                     trials_to_load=['signatures'])
         self.me.get_matches_for_all_trials()
-        assert len(self.me.matches['99-9999']['1d2799df4446699a8ddeeee']) == 4
-        assert len(self.me.matches['99-9999']['4d2799df4446630a8dd068dd']) == 3
-        assert len(self.me.matches['99-9999']['1d2799df4446699a8dd068ee']) == 4
+        assert len(self.me._matches['99-9999']['1d2799df4446699a8ddeeee']) == 4
+        assert len(self.me._matches['99-9999']['4d2799df4446630a8dd068dd']) == 3
+        assert len(self.me._matches['99-9999']['1d2799df4446699a8dd068ee']) == 4
 
     def test_unstructured_sv(self):
         assert self.me.db_rw.name == 'integration'
         self._reset(do_reset_trials=True,
                     trials_to_load=['unstructured_sv'])
         self.me.get_matches_for_all_trials()
-        matches = self.me.matches['10-005']['1d2799df4446699a8ddeeee']
+        matches = self.me._matches['10-005']['1d2799df4446699a8ddeeee']
         assert matches[0]['genomic_alteration'] == 'EGFR Structural Variation'
         assert len(matches) == 1
 

@@ -1,12 +1,24 @@
+from __future__ import annotations
 import glob
 import logging
 import os
 import sys
 from types import MethodType
+from typing import TYPE_CHECKING
 
 from matchengine import query_transform
 from matchengine.utilities.mongo_connection import MongoDBConnection
-from matchengine.plugin_stub import QueryTransformerContainer, TrialMatchDocumentCreator, DBSecrets, QueryNodeTransformer
+from matchengine.plugin_stub import (
+    QueryTransformerContainer,
+    TrialMatchDocumentCreator,
+    DBSecrets,
+    QueryNodeTransformer
+)
+
+if TYPE_CHECKING:
+    from typing import Dict, List
+    from matchengine.engine import MatchEngine
+    from matchengine.utilities.matchengine_types import MongoQuery
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
@@ -26,6 +38,14 @@ def check_indices(me):
         for index in indices_to_create:
             log.info('Creating index %s' % index)
             me.db_rw[collection].create_index(index)
+
+
+async def perform_db_call(matchengine: MatchEngine, collection: str, query: MongoQuery, projection: Dict) -> List:
+    """
+    Asynchronously executes a find query on the database, with specified query and projection and a collection
+    Used to parallelize DB calls, with asyncio.gather
+    """
+    return await matchengine.async_db_ro[collection].find(query, projection).to_list(None)
 
 
 def find_plugins(me):
