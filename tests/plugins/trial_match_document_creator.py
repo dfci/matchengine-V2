@@ -1,7 +1,7 @@
 from typing import Dict
 
-from plugin_stub import TrialMatchDocumentCreator
-from matchengine_types import TrialMatch
+from matchengine.plugin_stub import TrialMatchDocumentCreator
+from utilities.matchengine_types import TrialMatch
 
 
 class TestTrialMatchDocumentCreator(TrialMatchDocumentCreator):
