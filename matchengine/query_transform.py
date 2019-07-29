@@ -5,7 +5,7 @@ from typing import Type
 
 from matchengine.match_criteria_transform import MatchCriteriaTransform
 from matchengine.plugin_stub import QueryTransformerContainer
-from matchengine.utilities.matchengine_types import QueryTransformerResults
+from matchengine.utilities.matchengine_types import QueryTransformerResult
 
 
 def is_negate(trial_value):
@@ -38,7 +38,7 @@ class BaseTransformers(QueryTransformerContainer):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
         trial_value, negate = is_negate(trial_value)
-        return QueryTransformerResults({sample_key: trial_value}, negate)
+        return QueryTransformerResult({sample_key: trial_value}, negate)
 
     def external_file_mapping(self, **kwargs):
         trial_value = kwargs['trial_value']
@@ -51,15 +51,15 @@ class BaseTransformers(QueryTransformerContainer):
         trial_value, negate = is_negate(trial_value)
         match_value = resource.setdefault(trial_value, trial_value)
         if isinstance(match_value, list):
-            return QueryTransformerResults({sample_key: {"$in": sorted(match_value)}}, negate)
+            return QueryTransformerResult({sample_key: {"$in": sorted(match_value)}}, negate)
         else:
-            return QueryTransformerResults({sample_key: match_value}, negate)
+            return QueryTransformerResult({sample_key: match_value}, negate)
 
     def to_upper(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
         trial_value, negate = is_negate(trial_value)
-        return QueryTransformerResults({sample_key: trial_value.upper()}, negate)
+        return QueryTransformerResult({sample_key: trial_value.upper()}, negate)
 
 
 __export__ = ["BaseTransformers"]

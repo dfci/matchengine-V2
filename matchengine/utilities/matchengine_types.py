@@ -206,7 +206,7 @@ class Secrets:
     MAX_POOL_SIZE: str
 
 
-class QueryTransformerResults:
+class QueryTransformerResult:
     results: List[QueryPart]
 
     def __init__(self, query_clause: Dict = None, negate: bool = None, render: bool = True):
