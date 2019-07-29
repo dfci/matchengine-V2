@@ -5,7 +5,7 @@ from typing import Type
 
 from matchengine.match_criteria_transform import MatchCriteriaTransform
 from matchengine.plugin_stub import QueryTransformerContainer
-from matchengine.utilities.matchengine_types import QueryTransformerResult, QueryTransformerResults
+from matchengine.utilities.matchengine_types import QueryTransformerResults
 
 
 def is_negate(trial_value):

@@ -1,7 +1,18 @@
-from typing import Dict, NoReturn
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
-from matchengine.match_criteria_transform import MatchCriteriaTransform
-from matchengine.utilities.matchengine_types import TrialMatch, Cache, Secrets, QueryNode
+if TYPE_CHECKING:
+    from matchengine.match_criteria_transform import MatchCriteriaTransform
+    from matchengine.utilities.matchengine_types import (
+        Secrets,
+        QueryNode,
+        TrialMatch,
+        Cache
+    )
+    from typing import (
+        Dict,
+        NoReturn
+    )
 
 
 class TrialMatchDocumentCreator(object):

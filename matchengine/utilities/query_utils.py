@@ -1,22 +1,40 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Tuple, Set, List, Dict
-
-from bson import ObjectId
+from typing import TYPE_CHECKING
 
 from matchengine.utilities.frozendict import ComparableDict
-from matchengine.utilities.matchengine_types import ClinicalMatchReason, MultiCollectionQuery
-from matchengine.utilities.matchengine_types import ClinicalID, GenomicMatchReason, MongoQuery
+from matchengine.utilities.matchengine_types import (
+    ClinicalMatchReason,
+    GenomicMatchReason,
+    MongoQuery
+)
+from matchengine.utilities.utilities import perform_db_call
+
+if TYPE_CHECKING:
+    from bson import ObjectId
+    from matchengine.engine import MatchEngine
+    from matchengine.utilities.matchengine_types import (
+        ClinicalID,
+        MultiCollectionQuery
+    )
+    from typing import (
+        Tuple,
+        Set,
+        List,
+        Dict
+    )
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
 
 
-async def _execute_clinical_queries(me,
-                                    multi_collection_query: MultiCollectionQuery,
-                                    clinical_ids: Set[ClinicalID]) -> Tuple[Set[ObjectId],
-                                                                            List[ClinicalMatchReason]]:
+async def execute_clinical_queries(me,
+                                   multi_collection_query: MultiCollectionQuery,
+                                   clinical_ids: Set[ClinicalID]) -> Tuple[Set[ObjectId],
+                                                                           List[ClinicalMatchReason]]:
     """
     Take in a list of queries and only execute the clinical ones. Take the resulting clinical ids, and pass that
     to the next clinical query. Repeat for all clinical queries, continuously subsetting the returned ids.
@@ -80,10 +98,10 @@ async def _execute_clinical_queries(me,
     return clinical_ids, reasons
 
 
-async def _execute_genomic_queries(me,
-                                   multi_collection_query: MultiCollectionQuery,
-                                   clinical_ids: Set[ClinicalID]) -> Tuple[Dict[ObjectId, Set[ObjectId]],
-                                                                           List[GenomicMatchReason]]:
+async def execute_genomic_queries(me,
+                                  multi_collection_query: MultiCollectionQuery,
+                                  clinical_ids: Set[ClinicalID]) -> Tuple[Dict[ObjectId, Set[ObjectId]],
+                                                                          List[GenomicMatchReason]]:
     """
     Take in a list of queries and clinical ids.
     Return an object e.g.
@@ -182,20 +200,20 @@ def get_needed_ids(all_results, cache):
     return needed_clinical, needed_genomic
 
 
-async def get_query_results(me, needed_clinical, needed_genomic):
+async def get_query_results(matchengine: MatchEngine, needed_clinical, needed_genomic):
     """
     Matching criteria for clinical and genomic values can be set/extended in config.json
-    :param me:
+    :param matchengine:
     :param needed_clinical:
     :param needed_genomic:
     :return:
     """
-    genomic_projection = me.match_criteria_transform.genomic_projection
-    clinical_projection = me.match_criteria_transform.clinical_projection
+    genomic_projection = matchengine.match_criteria_transform.genomic_projection
+    clinical_projection = matchengine.match_criteria_transform.clinical_projection
     clinical_query = MongoQuery({"_id": {"$in": list(needed_clinical)}})
     genomic_query = MongoQuery({"_id": {"$in": list(needed_genomic)}})
-    results = await asyncio.gather(me._perform_db_call("clinical", clinical_query, clinical_projection),
-                                   me._perform_db_call("genomic", genomic_query, genomic_projection))
+    results = await asyncio.gather(perform_db_call(matchengine, "clinical", clinical_query, clinical_projection),
+                                   perform_db_call(matchengine, "genomic", genomic_query, genomic_projection))
     return results
 
 
@@ -211,7 +229,7 @@ def get_valid_genomic_reasons(genomic_match_reasons, all_results):
 
 def get_valid_clinical_reasons(self, clinical_match_reasons, all_results):
     return [
-            clinical_reason
-            for clinical_reason in clinical_match_reasons
-            if clinical_reason.clinical_id in all_results
-        ] if self.report_clinical_reasons else list()
+        clinical_reason
+        for clinical_reason in clinical_match_reasons
+        if clinical_reason.clinical_id in all_results
+    ] if self.report_clinical_reasons else list()

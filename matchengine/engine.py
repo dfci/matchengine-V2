@@ -1,27 +1,64 @@
 from __future__ import annotations
-import csv
 import uuid
 import json
 import asyncio
 import logging
 from collections import defaultdict
+from multiprocessing import cpu_count
 
 import pymongo
-import datetime as dt
-from typing import NoReturn
-from datetime import datetime
-from matchengine.utilities.matchengine_types import *
-from multiprocessing import cpu_count
+import datetime
 from matchengine.utilities.mongo_connection import MongoDBConnection
-from matchengine.utilities.utilities import check_indices, find_plugins
+from matchengine.utilities.utilities import (
+    check_indices,
+    find_plugins
+)
 from matchengine.match_criteria_transform import MatchCriteriaTransform
-from matchengine.utilities.task_utils import run_query_task, run_poison_pill, run_update_task, run_run_log_update_task
-from matchengine.match_translator import extract_match_clauses_from_trial, create_match_tree, get_match_paths, \
+from matchengine.utilities.task_utils import (
+    run_query_task,
+    run_poison_pill,
+    run_update_task,
+    run_run_log_update_task
+)
+from matchengine.match_translator import (
+    extract_match_clauses_from_trial,
+    create_match_tree,
+    get_match_paths,
     translate_match_path
-from matchengine.utilities.query_utils import _execute_clinical_queries, _execute_genomic_queries, get_needed_ids
-from matchengine.utilities.query_utils import get_query_results, get_valid_genomic_reasons
-from matchengine.utilities.query_utils import get_valid_clinical_reasons
-from matchengine.utilities.update_match_utils import _async_update_matches_by_protocol_no
+)
+from matchengine.utilities.query_utils import (
+    execute_clinical_queries,
+    execute_genomic_queries,
+    get_needed_ids,
+    get_query_results,
+    get_valid_genomic_reasons,
+    get_valid_clinical_reasons
+)
+from matchengine.utilities.update_match_utils import async_update_matches_by_protocol_no
+from matchengine.utilities.matchengine_types import (
+    PoisonPill,
+    Cache,
+    QueryTask,
+    UpdateTask,
+    RunLogUpdateTask
+)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from matchengine.utilities.matchengine_types import (
+        Dict,
+        Union,
+        List,
+        Set,
+        ClinicalID,
+        MultiCollectionQuery,
+        MatchReason,
+        ObjectId,
+        Trial,
+        QueryNode,
+        TrialMatch
+    )
+    from typing import NoReturn
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
@@ -39,7 +76,7 @@ class MatchEngine(object):
     num_workers: int
     clinical_ids: Set[ClinicalID]
     _task_q: asyncio.queues.Queue
-    matches: Dict[str, Dict[str, List[Dict]]]
+    _matches: Dict[str, Dict[str, List[Dict]]]
     _loop: asyncio.AbstractEventLoop
     _queue_task_count: int
     _workers: Dict[int, asyncio.Task]
@@ -129,7 +166,7 @@ class MatchEngine(object):
         self.visualize_match_paths = visualize_match_paths
         self.fig_dir = fig_dir
         self._queue_task_count = int()
-        self.matches = defaultdict(lambda: defaultdict(list))
+        self._matches = defaultdict(lambda: defaultdict(list))
 
         self.trials = self.get_trials()
         self._trials_to_match_on = self._get_trials_to_match_on(self.trials)
@@ -174,20 +211,20 @@ class MatchEngine(object):
         First execute the clinical query. If no records are returned short-circuit and return.
         """
         clinical_ids = set(initial_clinical_ids)
-        new_clinical_ids, clinical_match_reasons = await _execute_clinical_queries(self,
-                                                                                   multi_collection_query,
-                                                                                   clinical_ids
-                                                                                   if clinical_ids
-                                                                                   else set(initial_clinical_ids))
+        new_clinical_ids, clinical_match_reasons = await execute_clinical_queries(self,
+                                                                                  multi_collection_query,
+                                                                                  clinical_ids
+                                                                                  if clinical_ids
+                                                                                  else set(initial_clinical_ids))
         clinical_ids = new_clinical_ids
         if not clinical_ids:
             return list()
 
-        all_results, genomic_match_reasons = await _execute_genomic_queries(self,
-                                                                            multi_collection_query,
-                                                                            clinical_ids
-                                                                            if clinical_ids
-                                                                            else set(initial_clinical_ids))
+        all_results, genomic_match_reasons = await execute_genomic_queries(self,
+                                                                           multi_collection_query,
+                                                                           clinical_ids
+                                                                           if clinical_ids
+                                                                           else set(initial_clinical_ids))
 
         needed_clinical, needed_genomic = get_needed_ids(all_results, self.cache.docs)
         results = await get_query_results(self, needed_clinical, needed_genomic)
@@ -224,14 +261,14 @@ class MatchEngine(object):
                 await run_run_log_update_task(self, task, worker_id)
 
     def query_node_transform(self, query_node: QueryNode) -> NoReturn:
-        "Stub function to be overriden by plugin"
+        """Stub function to be overriden by plugin"""
         pass
 
     def update_matches_for_protocol_number(self, protocol_no):
         """
         Updates all trial matches for a given protocol number
         """
-        self._loop.run_until_complete(_async_update_matches_by_protocol_no(self, protocol_no))
+        self._loop.run_until_complete(async_update_matches_by_protocol_no(self, protocol_no))
 
     def update_all_matches(self):
         """
@@ -250,7 +287,7 @@ class MatchEngine(object):
                               f'has status {self.trials[protocol_no]["status"]}, skipping'))
                 continue
             self.get_matches_for_trial(protocol_no)
-        return self.matches
+        return self._matches
 
     def get_matches_for_trial(self, protocol_no: str):
         """
@@ -291,8 +328,8 @@ class MatchEngine(object):
                                                          query,
                                                          clinical_ids_to_run))
         await self._task_q.join()
-        logging.info(f"Total results: {len(self.matches[protocol_no])}")
-        return self.matches[protocol_no]
+        logging.info(f"Total results: {len(self._matches[protocol_no])}")
+        return self._matches[protocol_no]
 
     def _get_clinical_data(self):
         # if no sample ids are passed in as args, get all clinical documents
@@ -430,35 +467,26 @@ class MatchEngine(object):
 
         return clinical_ids_to_run
 
-    async def _perform_db_call(self, collection: str, query: MongoQuery, projection: Dict):
-        """
-        Asynchronously executes a find query on the database, with specified query and projection and a collection
-        Used to parallelize DB calls, with asyncio.gather
-        """
-        return await self.async_db_ro[collection].find(query, projection).to_list(None)
-
     def create_trial_matches(self, trial_match: TrialMatch) -> Dict:
         """Stub function to be overriden by plugin"""
         return dict()
 
-    def _get_all_match_fieldnames(self) -> Set[str]:
-        fieldnames = set()
-        for protocol_no in self.matches:
-            for sample_id in self.matches[protocol_no]:
-                for match in self.matches[protocol_no][sample_id]:
-                    fieldnames.update(match.keys())
-        return fieldnames
+    @property
+    def task_q(self):
+        return self._task_q
 
-    def create_output_csv(self):
-        """Generate output CSV file from all generated trial_match documents"""
+    @property
+    def loop(self):
+        return self._loop
 
-        # get column titles
-        fieldnames = self._get_all_match_fieldnames()
-        # write CSV
-        with open(f'trial_matches_{dt.datetime.now().strftime("%b_%d_%Y_%H:%M")}.csv', 'a') as csvFile:
-            writer = csv.DictWriter(csvFile, fieldnames=fieldnames)
-            writer.writeheader()
-            for protocol_no in self.matches:
-                for sample_id in self.matches[protocol_no]:
-                    for match in self.matches[protocol_no][sample_id]:
-                        writer.writerow(match)
+    @property
+    def queue_task_count(self):
+        return self._queue_task_count
+
+    @queue_task_count.setter
+    def queue_task_count(self, value):
+        self._queue_task_count = value
+
+    @property
+    def matches(self):
+        return self._matches
