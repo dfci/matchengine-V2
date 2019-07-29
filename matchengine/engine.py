@@ -1,19 +1,22 @@
 from __future__ import annotations
+
 import uuid
 import json
 import asyncio
 import logging
-from collections import defaultdict
-from multiprocessing import cpu_count
-
 import pymongo
 import datetime
+
+from typing import TYPE_CHECKING
+from collections import defaultdict
+from multiprocessing import cpu_count
 from matchengine.utilities.mongo_connection import MongoDBConnection
+from matchengine.match_criteria_transform import MatchCriteriaTransform
+from matchengine.utilities.update_match_utils import async_update_matches_by_protocol_no
 from matchengine.utilities.utilities import (
     check_indices,
     find_plugins
 )
-from matchengine.match_criteria_transform import MatchCriteriaTransform
 from matchengine.utilities.task_utils import (
     run_query_task,
     run_poison_pill,
@@ -34,7 +37,6 @@ from matchengine.utilities.query_utils import (
     get_valid_genomic_reasons,
     get_valid_clinical_reasons
 )
-from matchengine.utilities.update_match_utils import async_update_matches_by_protocol_no
 from matchengine.utilities.matchengine_types import (
     PoisonPill,
     Cache,
@@ -42,9 +44,10 @@ from matchengine.utilities.matchengine_types import (
     UpdateTask,
     RunLogUpdateTask
 )
-from typing import TYPE_CHECKING
+
 
 if TYPE_CHECKING:
+    from typing import NoReturn
     from matchengine.utilities.matchengine_types import (
         Dict,
         Union,
@@ -58,7 +61,6 @@ if TYPE_CHECKING:
         QueryNode,
         TrialMatch
     )
-    from typing import NoReturn
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
