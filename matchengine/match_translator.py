@@ -1,14 +1,34 @@
+from __future__ import annotations
 from collections import deque
-from typing import Generator, Dict, Any, Tuple, List
 
+from typing import TYPE_CHECKING
 import networkx as nx
 
-from matchengine.utilities.matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel, MatchTree, NodeID, MatchCriteria
-from matchengine.utilities.matchengine_types import MatchCriterion, MultiCollectionQuery, QueryNode, QueryPart
-from matchengine.utilities.matchengine_types import QueryTransformerResults, QueryTransformerResult
+from matchengine.utilities.matchengine_types import (
+    MatchClauseData,
+    ParentPath,
+    MatchClauseLevel,
+    MatchTree,
+    NodeID,
+    MatchCriteria,
+    MatchCriterion,
+    MultiCollectionQuery,
+    QueryNode,
+    QueryTransformerResults
+)
+
+if TYPE_CHECKING:
+    from typing import (
+        Generator,
+        Dict,
+        Any,
+        Tuple,
+        List
+    )
+    from matchengine.engine import MatchEngine
 
 
-def extract_match_clauses_from_trial(me, protocol_no: str) -> Generator[MatchClauseData, None, None]:
+def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str) -> Generator[MatchClauseData]:
     """
     Pull out all of the matches from a trial curation.
     Return the parent path and the values of that match clause.
@@ -17,7 +37,7 @@ def extract_match_clauses_from_trial(me, protocol_no: str) -> Generator[MatchCla
     otherwise specified.
     """
 
-    trial = me.trials[protocol_no]
+    trial = matchengine.trials[protocol_no]
     trial_status = trial.get('_summary', dict()).get('status', [dict()])
     site_status = trial_status[0].get('value', 'open to accrual').lower()
     status_for_match_clause = 'open' if site_status.lower() == 'open to accrual' else 'closed'
@@ -43,28 +63,28 @@ def extract_match_clauses_from_trial(me, protocol_no: str) -> Generator[MatchCla
                     if match_level == 'step':
                         if all([arm.get('arm_suspended', 'n').lower().strip() == 'y'
                                 for arm in parent_value.get('arm', list())]):
-                            if not me.match_on_closed:
+                            if not matchengine.match_on_closed:
                                 continue
                             is_suspended = True
                     elif match_level == 'arm':
                         if parent_value.get('arm_suspended', 'n').lower().strip() == 'y':
-                            if not me.match_on_closed:
+                            if not matchengine.match_on_closed:
                                 continue
                             is_suspended = True
                     elif match_level == 'dose_level':
                         if parent_value.get('level_suspended', 'n').lower().strip() == 'y':
-                            if not me.match_on_closed:
+                            if not matchengine.match_on_closed:
                                 continue
                             is_suspended = True
 
                     parent_path = ParentPath(path + (parent_key, inner_key))
                     level = MatchClauseLevel(
-                        me.match_criteria_transform.level_mapping[
+                        matchengine.match_criteria_transform.level_mapping[
                             [item for item in parent_path[::-1] if not isinstance(item, int) and item != 'match'][
                                 0]])
 
-                    internal_id = parent_value[me.match_criteria_transform.internal_id_mapping[level]]
-                    code = parent_value[me.match_criteria_transform.code_mapping[level]]
+                    internal_id = parent_value[matchengine.match_criteria_transform.internal_id_mapping[level]]
+                    code = parent_value[matchengine.match_criteria_transform.code_mapping[level]]
                     yield MatchClauseData(inner_value,
                                           internal_id,
                                           code,
@@ -82,7 +102,7 @@ def extract_match_clauses_from_trial(me, protocol_no: str) -> Generator[MatchCla
                 process_q.append((path + (parent_key,), index, item))
 
 
-def create_match_tree(self, match_clause_data: MatchClauseData) -> MatchTree:
+def create_match_tree(matchengine, match_clause_data: MatchClauseData) -> MatchTree:
     """
     Turn a match clause from a trial curation into a digraph.
     """
@@ -117,9 +137,9 @@ def create_match_tree(self, match_clause_data: MatchClauseData) -> MatchTree:
         pos = graphviz_layout(graph, prog="dot", root=0)
         plt.figure(figsize=(30, 30))
         nx.draw_networkx(graph, pos, with_labels=True, node_size=[600 for _ in graph.nodes], labels=labels)
-        plt.savefig(os.path.join(self.fig_dir, (f'{match_clause_data.protocol_no}-'
-                                                f'{match_clause_data.match_clause_level}-'
-                                                f'{match_clause_data.internal_id}.png')))
+        plt.savefig(os.path.join(matchengine.fig_dir, (f'{match_clause_data.protocol_no}-'
+                                                       f'{match_clause_data.match_clause_level}-'
+                                                       f'{match_clause_data.internal_id}.png')))
         return plt
 
     while process_q:
@@ -199,12 +219,12 @@ def create_match_tree(self, match_clause_data: MatchClauseData) -> MatchTree:
                     graph.add_edge(parent_id, node_id)
                     node_id += 1
 
-    if self.visualize_match_paths:
+    if matchengine.visualize_match_paths:
         graph_match_clause()
     return MatchTree(graph)
 
 
-def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, None]:
+def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion]:
     """
     Takes a MatchTree (from create_match_tree) and yields the criteria from each possible path on the tree,
     from the root node to each leaf node
@@ -223,7 +243,7 @@ def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion, None, No
                 yield match_path
 
 
-def translate_match_path(self,
+def translate_match_path(matchengine,
                          match_clause_data: MatchClauseData,
                          match_criterion: MatchCriterion) -> List[MultiCollectionQuery]:
     """
@@ -241,7 +261,7 @@ def translate_match_path(self,
 
                 # iterate over individual keys/vals in curation
                 for trial_key, trial_value in values.items():
-                    trial_key_settings = self.match_criteria_transform.trial_key_mappings[
+                    trial_key_settings = matchengine.match_criteria_transform.trial_key_mappings[
                         genomic_or_clinical].get(
                         trial_key.upper(),
                         dict())
@@ -250,7 +270,7 @@ def translate_match_path(self,
                         continue
 
                     sample_value_function_name = trial_key_settings.get('sample_value', 'nomap')
-                    sample_function = getattr(self.match_criteria_transform.query_transformers,
+                    sample_function = getattr(matchengine.match_criteria_transform.query_transformers,
                                               sample_value_function_name)
                     sample_function_args = dict(sample_key=trial_key.upper(),
                                                 trial_value=trial_value,
@@ -262,11 +282,12 @@ def translate_match_path(self,
 
                     # if results returned from DFCIQueryTransformer function > 1, save extra queries for splitting later
                     result_list_or_query_parts = list()
-                    for node_part in translated_node_part.results:
-                        query_part = QueryPart(node_part.query_clause, node_part.negate, True)
+                    for query_part in translated_node_part.results:
                         if len(translated_node_part.results) == 1:
                             primary_query_node.query_parts.append(query_part)
-                            primary_query_node.exclusion = True if query_part.negate or primary_query_node.exclusion else False
+                            primary_query_node.exclusion = (True
+                                                            if query_part.negate or primary_query_node.exclusion
+                                                            else False)
                         else:
                             result_list_or_query_parts.append(query_part)
                     if result_list_or_query_parts:
@@ -294,7 +315,7 @@ def translate_match_path(self,
                 query_nodes_to_add = list()
                 for query_node in query_nodes:
                     if query_node.exclusion is not None:
-                        self.query_node_transform(query_node)
+                        matchengine.query_node_transform(query_node)
                         if query_node.hash() not in query_cache:
                             query_cache.add(query_node.hash())
                             query_nodes_to_add.append(query_node)

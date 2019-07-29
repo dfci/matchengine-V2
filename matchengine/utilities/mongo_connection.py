@@ -1,17 +1,18 @@
-from typing import Union, Dict
-
+from __future__ import annotations
 import motor.motor_asyncio
 import pymongo.database
 
-from matchengine.utilities.matchengine_types import Secrets
 from matchengine.plugin_stub import DBSecrets
+from typing import Union, Dict
+from matchengine.utilities.matchengine_types import Secrets
 
 
 class DefaultDBSecrets(DBSecrets):
     _secrets: Dict
 
     def __init__(self):
-        import os, json
+        import os
+        import json
         secrets_json = os.getenv('SECRETS_JSON', None)
         if secrets_json is None:
             raise Exception("SECRETS_JSON not set; exiting")
