@@ -1,7 +1,3 @@
-from matchengine_types import QueryNode, QueryPart
-from itertools import chain
-
-
 class AllTransformersContainer(object):
     def __init__(self, match_criteria_transform):
         self._ = match_criteria_transform

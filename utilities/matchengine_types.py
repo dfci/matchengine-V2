@@ -1,12 +1,11 @@
 import datetime
-from collections import defaultdict
 from dataclasses import dataclass
 from itertools import chain
 from typing import NewType, Tuple, Union, List, Dict, Any, Set
 from bson import ObjectId
 from networkx import DiGraph
 
-from frozendict import ComparableDict
+from utilities.frozendict import ComparableDict
 
 Trial = NewType("Trial", dict)
 ParentPath = NewType("ParentPath", Tuple[Union[str, int]])
@@ -49,6 +48,11 @@ class QueryPart:
     def hash(self) -> str:
         return ComparableDict(self.query).hash()
 
+    def __copy__(self):
+        return QueryPart(self.query,
+                         self.negate,
+                         self.render)
+
 
 @dataclass
 class QueryNode:
@@ -78,11 +82,29 @@ class QueryNode:
                            if key in query_part.query),
                           iter([None])))
 
+    def __copy__(self):
+        return QueryNode(self.query_level,
+                         self.query_depth,
+                         [query_part.__copy__()
+                          for query_part
+                          in self.query_parts],
+                         self.exclusion)
+
 
 @dataclass
 class MultiCollectionQuery:
     genomic: List[QueryNode]
     clinical: List[QueryNode]
+
+    def __copy__(self):
+        return MultiCollectionQuery(
+            [query_node.__copy__()
+             for query_node
+             in self.genomic],
+            [query_node.__copy__()
+             for query_node
+             in self.clinical]
+        )
 
 
 @dataclass
