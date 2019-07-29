@@ -266,9 +266,6 @@ def translate_match_path(matchengine,
                         trial_key.upper(),
                         dict())
 
-                    if trial_key_settings.get('ignore', False):
-                        continue
-
                     sample_value_function_name = trial_key_settings.get('sample_value', 'nomap')
                     sample_function = getattr(matchengine.match_criteria_transform.query_transformers,
                                               sample_value_function_name)
@@ -283,6 +280,8 @@ def translate_match_path(matchengine,
                     # if results returned from DFCIQueryTransformer function > 1, save extra queries for splitting later
                     result_list_or_query_parts = list()
                     for query_part in translated_node_part.results:
+                        if trial_key_settings.get('ignore', False):
+                            query_part.render = False
                         if len(translated_node_part.results) == 1:
                             primary_query_node.query_parts.append(query_part)
                             primary_query_node.exclusion = (True
