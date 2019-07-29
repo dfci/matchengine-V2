@@ -4,7 +4,7 @@ import re
 from dateutil.relativedelta import relativedelta
 
 from matchengine.query_transform import QueryTransformerContainer
-from utilities.matchengine_types import QueryTransformerResult, QueryTransformerResults
+from matchengine.utilities.matchengine_types import QueryTransformerResult, QueryTransformerResults
 
 
 class DFCITransformers(QueryTransformerContainer):

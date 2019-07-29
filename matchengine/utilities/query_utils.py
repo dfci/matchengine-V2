@@ -5,8 +5,9 @@ from typing import Tuple, Set, List, Dict
 
 from bson import ObjectId
 
-from utilities.frozendict import ComparableDict
-from utilities.matchengine_types import ClinicalMatchReason, MultiCollectionQuery, ClinicalID, GenomicMatchReason, MongoQuery
+from matchengine.utilities.frozendict import ComparableDict
+from matchengine.utilities.matchengine_types import ClinicalMatchReason, MultiCollectionQuery
+from matchengine.utilities.matchengine_types import ClinicalID, GenomicMatchReason, MongoQuery
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')

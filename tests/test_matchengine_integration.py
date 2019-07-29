@@ -5,7 +5,7 @@ import json
 import sys
 
 from matchengine.engine import MatchEngine
-from utilities.utilities import check_indices
+from matchengine.utilities.utilities import check_indices
 
 from tests.timetravel_and_override import set_static_date_time
 

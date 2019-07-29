@@ -3,7 +3,7 @@ from typing import Union, Dict
 import motor.motor_asyncio
 import pymongo.database
 
-from utilities.matchengine_types import Secrets
+from matchengine.utilities.matchengine_types import Secrets
 from matchengine.plugin_stub import DBSecrets
 
 

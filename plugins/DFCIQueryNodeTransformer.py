@@ -2,7 +2,7 @@ from typing import NoReturn
 
 import re
 
-from utilities.matchengine_types import QueryNode
+from matchengine.utilities.matchengine_types import QueryNode
 from matchengine.plugin_stub import QueryNodeTransformer
 
 

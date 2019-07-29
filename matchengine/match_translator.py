@@ -3,9 +3,9 @@ from typing import Generator, Dict, Any, Tuple, List
 
 import networkx as nx
 
-from utilities.matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel, MatchTree, NodeID, MatchCriteria
-from utilities.matchengine_types import MatchCriterion, MultiCollectionQuery, QueryNode, QueryPart
-from utilities.matchengine_types import QueryTransformerResults, QueryTransformerResult
+from matchengine.utilities.matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel, MatchTree, NodeID, MatchCriteria
+from matchengine.utilities.matchengine_types import MatchCriterion, MultiCollectionQuery, QueryNode, QueryPart
+from matchengine.utilities.matchengine_types import QueryTransformerResults, QueryTransformerResult
 
 
 def extract_match_clauses_from_trial(me, protocol_no: str) -> Generator[MatchClauseData, None, None]:
