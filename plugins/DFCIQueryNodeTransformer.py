@@ -1,9 +1,12 @@
-from typing import NoReturn
-
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import re
 
-from matchengine.utilities.matchengine_types import QueryNode
 from matchengine.plugin_stub import QueryNodeTransformer
+
+if TYPE_CHECKING:
+    from typing import NoReturn
+    from matchengine.utilities.matchengine_types import QueryNode
 
 
 class DFCIQueryNodeTransformer(QueryNodeTransformer):

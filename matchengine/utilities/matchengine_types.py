@@ -1,7 +1,18 @@
+from __future__ import annotations
+
 import datetime
 from dataclasses import dataclass
 from itertools import chain
-from typing import NewType, Tuple, Union, List, Dict, Any, Set
+from typing import (
+    NewType,
+    Tuple,
+    Union,
+    List,
+    Dict,
+    Any,
+    Set
+)
+
 from bson import ObjectId
 from networkx import DiGraph
 
@@ -195,23 +206,17 @@ class Secrets:
     MAX_POOL_SIZE: str
 
 
-@dataclass
-class QueryTransformerResult:
-    query_clause: Dict[str, Any]
-    negate: bool
-
-
 class QueryTransformerResults:
-    results: List[QueryTransformerResult]
+    results: List[QueryPart]
 
-    def __init__(self, query_clause=None, negate=None):
+    def __init__(self, query_clause: Dict = None, negate: bool = None, render: bool = True):
         self.results = list()
         if query_clause is not None:
             if negate is not None:
-                self.results.append(QueryTransformerResult(query_clause, negate))
+                self.results.append(QueryPart(query_clause, negate, render))
             else:
                 raise Exception("If adding query result directly to results container, "
                                 "both Negate and Query must be specified")
 
-    def add_result(self, result: QueryTransformerResult):
+    def add_result(self, result: QueryPart):
         self.results.append(result)

@@ -1,8 +1,11 @@
-from typing import Dict
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
 from matchengine.plugin_stub import TrialMatchDocumentCreator
 from matchengine.utilities.frozendict import ComparableDict
-from matchengine.utilities.matchengine_types import TrialMatch
+if TYPE_CHECKING:
+    from matchengine.utilities.matchengine_types import TrialMatch
+    from typing import Dict
 
 
 def get_genomic_details(genomic_doc, query):
