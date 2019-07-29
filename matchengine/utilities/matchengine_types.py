@@ -5,7 +5,7 @@ from typing import NewType, Tuple, Union, List, Dict, Any, Set
 from bson import ObjectId
 from networkx import DiGraph
 
-from utilities.frozendict import ComparableDict
+from matchengine.utilities.frozendict import ComparableDict
 
 Trial = NewType("Trial", dict)
 ParentPath = NewType("ParentPath", Tuple[Union[str, int]])

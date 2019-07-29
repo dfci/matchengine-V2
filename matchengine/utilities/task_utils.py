@@ -3,7 +3,7 @@ import traceback
 
 from pymongo.errors import AutoReconnect, CursorNotFound
 
-from utilities.matchengine_types import TrialMatch
+from matchengine.utilities.matchengine_types import TrialMatch
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')

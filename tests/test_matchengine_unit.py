@@ -4,13 +4,14 @@ import os
 from unittest import TestCase
 
 from matchengine.engine import MatchEngine
-from utilities.frozendict import ComparableDict
-from utilities.utilities import find_plugins
+from matchengine.utilities.frozendict import ComparableDict
+from matchengine.utilities.utilities import find_plugins
 from matchengine.match_criteria_transform import MatchCriteriaTransform
 from matchengine.match_translator import create_match_tree, get_match_paths, extract_match_clauses_from_trial, \
     translate_match_path
-from utilities.matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel, MatchClause, MatchCriteria, \
-    MatchCriterion
+from matchengine.utilities.matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel
+
+from matchengine.utilities.matchengine_types import MatchClause, MatchCriteria, MatchCriterion
 
 
 class TestMatchEngine(TestCase):

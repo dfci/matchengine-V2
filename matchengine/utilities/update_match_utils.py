@@ -3,7 +3,7 @@ import logging
 
 from pymongo import UpdateMany, InsertOne
 
-from utilities.matchengine_types import RunLogUpdateTask, UpdateTask, MongoQuery
+from matchengine.utilities.matchengine_types import RunLogUpdateTask, UpdateTask, MongoQuery
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')

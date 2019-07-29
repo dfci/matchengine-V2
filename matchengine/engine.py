@@ -10,18 +10,18 @@ import pymongo
 import datetime as dt
 from typing import NoReturn
 from datetime import datetime
-from utilities.matchengine_types import *
+from matchengine.utilities.matchengine_types import *
 from multiprocessing import cpu_count
-from utilities.mongo_connection import MongoDBConnection
-from utilities.utilities import check_indices, find_plugins
+from matchengine.utilities.mongo_connection import MongoDBConnection
+from matchengine.utilities.utilities import check_indices, find_plugins
 from matchengine.match_criteria_transform import MatchCriteriaTransform
-from utilities.task_utils import run_query_task, run_poison_pill, run_update_task, run_run_log_update_task
+from matchengine.utilities.task_utils import run_query_task, run_poison_pill, run_update_task, run_run_log_update_task
 from matchengine.match_translator import extract_match_clauses_from_trial, create_match_tree, get_match_paths, \
     translate_match_path
-from utilities.query_utils import _execute_clinical_queries, _execute_genomic_queries, get_needed_ids, \
-    get_query_results, \
-    get_valid_genomic_reasons, get_valid_clinical_reasons
-from utilities.update_match_utils import _async_update_matches_by_protocol_no
+from matchengine.utilities.query_utils import _execute_clinical_queries, _execute_genomic_queries, get_needed_ids
+from matchengine.utilities.query_utils import get_query_results, get_valid_genomic_reasons
+from matchengine.utilities.query_utils import get_valid_clinical_reasons
+from matchengine.utilities.update_match_utils import _async_update_matches_by_protocol_no
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')

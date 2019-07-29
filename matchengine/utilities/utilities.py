@@ -5,7 +5,7 @@ import sys
 from types import MethodType
 
 from matchengine import query_transform
-from utilities.mongo_connection import MongoDBConnection
+from matchengine.utilities.mongo_connection import MongoDBConnection
 from matchengine.plugin_stub import QueryTransformerContainer, TrialMatchDocumentCreator, DBSecrets, QueryNodeTransformer
 
 logging.basicConfig(level=logging.INFO)
@@ -37,7 +37,7 @@ def find_plugins(me):
     """
     log.info(f"Checking for plugins in {me.plugin_dir}")
     potential_files = glob.glob(os.path.join(me.plugin_dir, "*.py"))
-    to_load = [('matchengine', 'query_transform')]
+    to_load = [(None, 'matchengine.query_transform')]
     for potential_file_path in potential_files:
         dir_path = os.path.dirname(potential_file_path)
         module_name = ''.join(os.path.basename(potential_file_path).split('.')[0:-1])
@@ -46,6 +46,10 @@ def find_plugins(me):
         if dir_path is not None:
             sys.path.append(dir_path)
         module = __import__(module_name)
+        module_path = module_name.split('.')
+        if len(module_path) > 1:
+            for sub_item in module_path[1::]:
+                module = getattr(module, sub_item)
         if dir_path is not None:
             sys.path.pop()
         for item_name in getattr(module, '__shared__', list()):
