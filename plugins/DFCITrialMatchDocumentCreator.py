@@ -17,6 +17,7 @@ def get_genomic_details(genomic_doc, query):
     cnv = 'CNV_CALL'
     variant_classification = 'TRUE_VARIANT_CLASSIFICATION'
     variant_category = 'VARIANT_CATEGORY'
+    sv_comment = 'STRUCTURAL_VARIANT_COMMENT'
     wildtype = 'WILDTYPE'
     mmr_status = 'MMR_STATUS'
 
@@ -49,13 +50,16 @@ def get_genomic_details(genomic_doc, query):
 
     # add structural variation
     elif variant_category in genomic_doc and genomic_doc[variant_category] == 'SV':
-        alteration += ' Structural Variation'
+        pattern = query[sv_comment].pattern.split("|")[0]
+        gene = pattern.replace("(.*\\W", "").replace("\\W.*)", "")
+        alteration += f'{gene} Structural Variation'
 
     # add mutational signtature
     elif variant_category in genomic_doc \
             and genomic_doc[variant_category] == 'SIGNATURE' \
-            and mmr_status in genomic_doc \
-            and genomic_doc[mmr_status] is not None:
+            and genomic_doc[mmr_status] is not None \
+            and genomic_doc[mmr_status] in mmr_map_rev \
+            and mmr_status in genomic_doc:
         alteration += mmr_map_rev[genomic_doc[mmr_status]]
 
     return {
@@ -132,8 +136,6 @@ def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
         for sort_key in sort_dimension:
             if match_document.setdefault(sort_key, None):
                 trial_match_val = str(match_document[sort_key])
-                # how to deal with oncotree primary diagnosis _LIQUID, or _SOLID
-
                 if trial_match_val is not None and trial_match_val in sort_dimension[sort_key]:
                     if sort_dimension[sort_key][trial_match_val] < sort_index:
                         sort_index = sort_dimension[sort_key][trial_match_val]
@@ -209,6 +211,8 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         new_trial_match['combo_coord'] = ComparableDict({'query_hash': new_trial_match['query_hash'],
                                                          'match_path': new_trial_match['match_path'],
                                                          'protocol_no': new_trial_match['protocol_no']}).hash()
+        new_trial_match.pop("_updated", None)
+        new_trial_match.pop("last_updated", None)
         return new_trial_match
 
 
