@@ -14,7 +14,7 @@ from matchengine.utilities.matchengine_types import (
     MatchCriterion,
     MultiCollectionQuery,
     QueryNode,
-    QueryTransformerResults
+    QueryTransformerResult
 )
 
 if TYPE_CHECKING:
@@ -278,7 +278,7 @@ def translate_match_path(matchengine,
                                                 trial_path=genomic_or_clinical,
                                                 trial_key=trial_key)
                     sample_function_args.update(trial_key_settings)
-                    translated_node_part: QueryTransformerResults = sample_function(**sample_function_args)
+                    translated_node_part: QueryTransformerResult = sample_function(**sample_function_args)
 
                     # if results returned from DFCIQueryTransformer function > 1, save extra queries for splitting later
                     result_list_or_query_parts = list()
