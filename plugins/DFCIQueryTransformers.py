@@ -3,11 +3,11 @@ import re
 
 from dateutil.relativedelta import relativedelta
 
-from matchengine.query_transform import QueryTransformerContainer, tuple_list_decorator
+from matchengine.query_transform import QueryTransformerContainer
+from utilities.matchengine_types import QueryTransformerResult, QueryTransformerResults
 
 
 class DFCITransformers(QueryTransformerContainer):
-    @tuple_list_decorator
     def age_range_to_date_query(self, **kwargs):
         sample_key = kwargs['sample_key']
         trial_value = kwargs['trial_value']
@@ -30,9 +30,8 @@ class DFCITransformers(QueryTransformerContainer):
         current_date = datetime.date.today()
         query_date = current_date + (- relativedelta(years=years, months=months) + relativedelta(hours=6))
         query_datetime = datetime.datetime(query_date.year, query_date.month, query_date.day, query_date.hour, 0, 0, 0)
-        return {sample_key: {operator_map[operator]: query_datetime}}, False
+        return QueryTransformerResults({sample_key: {operator_map[operator]: query_datetime}}, False)
 
-    @tuple_list_decorator
     def tmb_range_to_query(self, **kwargs):
         sample_key = kwargs['sample_key']
         trial_value = kwargs['trial_value']
@@ -47,18 +46,16 @@ class DFCITransformers(QueryTransformerContainer):
         numeric = "".join([i for i in trial_value if i.isdigit() or i == '.'])
         if numeric.startswith('.'):
             numeric = '0' + numeric
-        return {sample_key: {operator_map[operator]: float(numeric)}}, False
+        return QueryTransformerResults({sample_key: {operator_map[operator]: float(numeric)}}, False)
 
-    @tuple_list_decorator
     def bool_from_text(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
         if trial_value.upper() == 'TRUE':
-            return {sample_key: True}, False
+            return QueryTransformerResults({sample_key: True}, False)
         elif trial_value.upper() == 'FALSE':
-            return {sample_key: False}, False
+            return QueryTransformerResults({sample_key: False}, False)
 
-    @tuple_list_decorator
     def cnv_map(self, **kwargs):
         # Heterozygous deletion,
         # Gain,
@@ -78,11 +75,10 @@ class DFCITransformers(QueryTransformerContainer):
 
         trial_value, negate = self._.transform.is_negate(trial_value)
         if trial_value in cnv_map:
-            return {sample_key: cnv_map[trial_value]}, negate
+            return QueryTransformerResults({sample_key: cnv_map[trial_value]}, negate)
         else:
-            return {sample_key: trial_value}, negate
+            return QueryTransformerResults({sample_key: trial_value}, negate)
 
-    @tuple_list_decorator
     def variant_category_map(self, **kwargs):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
@@ -96,13 +92,12 @@ class DFCITransformers(QueryTransformerContainer):
         # if a curation calls for a Structural Variant, search the free text in the genomic document under
         # STRUCTURAL_VARIANT_COMMENT for mention of the TRUE_HUGO_SYMBOL
         if trial_value == 'Structural Variation':
-            return {'STRUCTURAL_VARIANT_COMMENT': None}, negate
+            return QueryTransformerResults({'STRUCTURAL_VARIANT_COMMENT': None}, negate)
         elif trial_value.lower() in variant_category_map:
-            return {sample_key: variant_category_map[trial_value.lower()]}, negate
+            return QueryTransformerResults({sample_key: variant_category_map[trial_value.lower()]}, negate)
         else:
-            return {sample_key: trial_value.upper()}, negate
+            return QueryTransformerResults({sample_key: trial_value.upper()}, negate)
 
-    @tuple_list_decorator
     def wildcard_regex(self, **kwargs):
         """
         When trial curation criteria include a wildcard prefix (e.g. WILDCARD_PROTEIN_CHANGE), a genomic query must
@@ -126,9 +121,9 @@ class DFCITransformers(QueryTransformerContainer):
         if not trial_value.startswith('p.'):
             trial_value = re.escape('p.' + trial_value)
         trial_value = f'^{trial_value}[ACDEFGHIKLMNPQRSTVWY]$'
-        return {kwargs['sample_key']: {'$regex': re.compile(trial_value, re.IGNORECASE)}}, negate
+        return QueryTransformerResults({kwargs['sample_key']: {'$regex': re.compile(trial_value, re.IGNORECASE)}},
+                                       negate)
 
-    @tuple_list_decorator
     def mmr_ms_map(self, **kwargs):
         mmr_map = {
             'MMR-Proficient': 'Proficient (MMR-P / MSS)',
@@ -141,7 +136,7 @@ class DFCITransformers(QueryTransformerContainer):
         trial_value, negate = self._.transform.is_negate(trial_value)
         sample_key = kwargs['sample_key']
         sample_value = mmr_map[trial_value]
-        return {sample_key: sample_value}, negate
+        return QueryTransformerResults({sample_key: sample_value}, negate)
 
 
 __export__ = ["DFCITransformers"]

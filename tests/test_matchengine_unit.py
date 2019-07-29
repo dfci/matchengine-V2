@@ -55,30 +55,33 @@ class TestMatchEngine(TestCase):
         }
 
         assert hasattr(self.me.match_criteria_transform.query_transformers, 'nomap')
-        nomap_ret, nomap_no_negate = getattr(self.me.match_criteria_transform.query_transformers,
-                                             'nomap')(**transform_args)[0]
+        query_transform_result = getattr(self.me.match_criteria_transform.query_transformers,
+                                         'nomap')(**transform_args).results[0]
+        nomap_ret, nomap_no_negate = query_transform_result.query_clause, query_transform_result.negate
         assert len(nomap_ret) == 1 and nomap_ret['test'] == 'test' and not nomap_no_negate
 
         assert hasattr(self.me.match_criteria_transform.query_transformers, 'external_file_mapping')
-        ext_f_map_ret, ext_f_map_no_negate = getattr(self.me.match_criteria_transform.query_transformers,
-                                                     'external_file_mapping')(**transform_args)[0]
+        query_transform_result = getattr(self.me.match_criteria_transform.query_transformers,
+                                         'external_file_mapping')(**transform_args).results[0]
+        ext_f_map_ret, ext_f_map_no_negate = query_transform_result.query_clause, query_transform_result.negate
         assert len(ext_f_map_ret) == 1 and not ext_f_map_no_negate
         assert 'test' in ext_f_map_ret and '$in' in ext_f_map_ret['test']
         assert all(map(lambda x: x[0] == x[1],
                        zip(ext_f_map_ret['test']['$in'],
                            ['option_1', 'option_2', 'option_3'])))
-
-        ext_f_map_ret_single, ext_f_map_no_negate_single = getattr(
+        query_transform_result = getattr(
             self.me.match_criteria_transform.query_transformers,
             'external_file_mapping')(**dict(transform_args,
-                                            **{'trial_value': '!test2'}))[0]
+                                            **{'trial_value': '!test2'})).results[0]
+        ext_f_map_ret_single, ext_f_map_no_negate_single = query_transform_result.query_clause, query_transform_result.negate
         assert len(ext_f_map_ret) == 1 and ext_f_map_no_negate_single
         assert 'test' in ext_f_map_ret_single and isinstance(ext_f_map_ret_single['test'], str)
         assert ext_f_map_ret_single['test'] == 'option_4'
 
         assert hasattr(self.me.match_criteria_transform.query_transformers, 'to_upper')
-        to_upper_ret, to_upper_no_negate = getattr(self.me.match_criteria_transform.query_transformers,
-                                                   'to_upper')(**transform_args)[0]
+        query_transform_result = getattr(self.me.match_criteria_transform.query_transformers,
+                                         'to_upper')(**transform_args).results[0]
+        to_upper_ret, to_upper_no_negate = query_transform_result.query_clause, query_transform_result.negate
         assert len(to_upper_ret) == 1 and not to_upper_no_negate
         assert 'test' in ext_f_map_ret and to_upper_ret['test'] == 'TEST'
 
