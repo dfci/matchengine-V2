@@ -1,12 +1,29 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import (
+        Callable,
+        Any
+    )
 
 
 class AllTransformersContainer(object):
-    def __init__(self, match_criteria_transform):
+    def __init__(self, match_criteria_transform: MatchCriteriaTransform):
         self._ = match_criteria_transform
+
+    @property
+    def resources(self):
+        return self._.resources
+
+    @property
+    def transform(self):
+        return self._.transform
 
 
 class TransformFunctions(object):
+    if TYPE_CHECKING:
+        is_negate: Callable[[Any], bool]
     pass
 
 

@@ -74,7 +74,7 @@ class DFCITransformers(QueryTransformerContainer):
 
         }
 
-        trial_value, negate = self._.transform.is_negate(trial_value)
+        trial_value, negate = self.transform.is_negate(trial_value)
         if trial_value in cnv_map:
             return QueryTransformerResults({sample_key: cnv_map[trial_value]}, negate)
         else:
@@ -88,7 +88,7 @@ class DFCITransformers(QueryTransformerContainer):
             "Any Variation".lower(): {"$in": ["MUTATION", "CNV"]}
         }
 
-        trial_value, negate = self._.transform.is_negate(trial_value)
+        trial_value, negate = self.transform.is_negate(trial_value)
 
         # if a curation calls for a Structural Variant, search the free text in the genomic document under
         # STRUCTURAL_VARIANT_COMMENT for mention of the TRUE_HUGO_SYMBOL
@@ -118,7 +118,7 @@ class DFCITransformers(QueryTransformerContainer):
 
         # By convention, all protein changes being with "p."
 
-        trial_value, negate = self._.transform.is_negate(trial_value)
+        trial_value, negate = self.transform.is_negate(trial_value)
         if not trial_value.startswith('p.'):
             trial_value = re.escape('p.' + trial_value)
         trial_value = f'^{trial_value}[ACDEFGHIKLMNPQRSTVWY]$'
@@ -134,7 +134,7 @@ class DFCITransformers(QueryTransformerContainer):
             'MSS': 'Proficient (MMR-P / MSS)'
         }
         trial_value = kwargs['trial_value']
-        trial_value, negate = self._.transform.is_negate(trial_value)
+        trial_value, negate = self.transform.is_negate(trial_value)
         sample_key = kwargs['sample_key']
         sample_value = mmr_map[trial_value]
         return QueryTransformerResults({sample_key: sample_value}, negate)

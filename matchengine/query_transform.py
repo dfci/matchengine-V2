@@ -44,10 +44,10 @@ class BaseTransformers(QueryTransformerContainer):
         trial_value = kwargs['trial_value']
         sample_key = kwargs['sample_key']
         file = kwargs['file']
-        if file not in self._.resources:
+        if file not in self.resources:
             with open(file) as file_handle:
-                self._.resources[file] = json.load(file_handle)
-        resource = self._.resources[file]
+                self.resources[file] = json.load(file_handle)
+        resource = self.resources[file]
         trial_value, negate = is_negate(trial_value)
         match_value = resource.setdefault(trial_value, trial_value)
         if isinstance(match_value, list):
