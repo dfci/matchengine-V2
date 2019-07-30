@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 from matchengine.plugin_stub import TrialMatchDocumentCreator
 from matchengine.utilities.frozendict import ComparableDict
+
 if TYPE_CHECKING:
     from matchengine.utilities.matchengine_types import TrialMatch
     from typing import Dict
