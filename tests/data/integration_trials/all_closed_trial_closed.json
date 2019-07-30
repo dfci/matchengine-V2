@@ -91,11 +91,11 @@
       }
     ]
   },
-  "_summary" : {
-		"status" : [
-			{
-				"value" : "closed to accrual"
-			}
-		]
-	}
+  "_summary": {
+    "status": [
+      {
+        "value": "closed to accrual"
+      }
+    ]
+  }
 }
