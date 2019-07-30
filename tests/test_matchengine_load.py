@@ -9,15 +9,8 @@ class IntegrationTestMatchengineLoading(TestCase):
         super().__init__(*args, **kwargs)
 
     def _reset(self, **kwargs):
-        if kwargs.get('do_reset_trials', False):
-            self.me.db_rw.trial.drop()
-
-        if kwargs.get('do_reset_patient', False):
-            self.me.db_rw.clinical.drop()
-            self.me.db_rw.genomic.drop()
-
-    def setUp(self) -> None:
-        # instantiate matchengine to get access to db helper functions
+        if hasattr(self, 'me'):
+            self.me.__exit__(None, None, None)
         self.me = MatchEngine(
             config={'trial_key_mappings': {},
                     'match_criteria': {'clinical': [],
@@ -27,9 +20,19 @@ class IntegrationTestMatchengineLoading(TestCase):
             plugin_dir='tests/plugins',
             db_name='integration_load'
         )
+        if kwargs.get('do_reset_trials', False):
+            self.me.db_rw.trial.drop()
+
+        if kwargs.get('do_reset_patient', False):
+            self.me.db_rw.clinical.drop()
+            self.me.db_rw.genomic.drop()
+
+    def setUp(self) -> None:
+        # instantiate matchengine to get access to db helper functions
+        self._reset()
 
         # check to make sure not accidentally connected to production db since tests will drop collections
-        assert self.me.db_rw.name != 'matchminer'
+        assert self.me.db_rw.name == 'integration_load'
 
     def test__load_trial_single_json(self):
         self._reset(do_reset_trials=True)
