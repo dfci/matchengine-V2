@@ -182,5 +182,9 @@ def is_valid_single_json(path: str):
             if isinstance(json_file, list):
                 return False
             return True
-    except ValueError:
-        return False
+    except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
+        if isinstance(e, FileNotFoundError):
+            log.error(f"{e}")
+            raise e
+        elif isinstance(e, json.decoder.JSONDecodeError):
+            return False
