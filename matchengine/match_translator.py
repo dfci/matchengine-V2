@@ -322,11 +322,12 @@ def translate_match_path(matchengine,
                 existing_mcq_list_len = len(mcq_list)
                 for _ in range(0, mcq_count_to_add):
                     mcq_list.extend([mcq.__copy__() for mcq in mcq_list[0:existing_mcq_list_len]])
-                for mcq_idx, mcq in enumerate(mcq_list):
-                    if existing_mcq_list_len == 1:
-                        qn = query_nodes_to_add[mcq_idx]
-                    else:
-                        qn = query_nodes_to_add[mcq_idx % len(query_nodes_to_add)]
-                    getattr(mcq, genomic_or_clinical).append(qn)
+                if query_nodes_to_add:
+                    for mcq_idx, mcq in enumerate(mcq_list):
+                        if existing_mcq_list_len == 1:
+                            qn = query_nodes_to_add[mcq_idx]
+                        else:
+                            qn = query_nodes_to_add[mcq_idx % len(query_nodes_to_add)]
+                        getattr(mcq, genomic_or_clinical).append(qn)
 
     return mcq_list
