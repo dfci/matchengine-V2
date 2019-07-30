@@ -73,13 +73,10 @@ class IntegrationTestMatchengine(TestCase):
             else:
                 set_static_date_time()
 
-    def setUp(self) -> None:
-        self._reset(do_reset_trials=True)
-
     def test__match_on_deceased_match_on_closed(self):
-        assert self.me.db_rw.name == 'integration'
         self._reset(do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert len(set(self.me._matches.keys()).intersection({'10-001', '10-002', '10-003', '10-004'})) == 4
         assert len(self.me._matches['10-001']) == 5
@@ -91,6 +88,7 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(match_on_deceased=True, match_on_closed=False,
                     do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert len(set(self.me._matches.keys()).intersection({'10-002', '10-003', '10-004'})) == 3
         assert len(self.me._matches['10-002']) == 5
@@ -101,6 +99,7 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(match_on_deceased=False, match_on_closed=True,
                     do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert len(set(self.me._matches.keys()).intersection({'10-001', '10-002', '10-003', '10-004'})) == 4
         assert len(self.me._matches['10-001']) == 4
@@ -112,6 +111,7 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(do_reset_trial_matches=True,
                     do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         for protocol_no in self.me.trials.keys():
             self.me.update_matches_for_protocol_number(protocol_no)
@@ -121,6 +121,7 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(do_reset_trial_matches=True,
                     do_reset_trials=True,
                     trials_to_load=['wildcard_protein_found', 'wildcard_protein_not_found'])
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert len(self.me._matches['10-005']) == 64
         assert len(self.me._matches['10-006']) == 0
@@ -130,6 +131,7 @@ class IntegrationTestMatchengine(TestCase):
                     do_reset_trials=True,
                     trials_to_load=['wildcard_protein_not_found'],
                     protocol_nos={'10-006'})
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert len(self.me._matches.keys()) == 1
         assert len(self.me._matches['10-006']) == 0
@@ -141,6 +143,7 @@ class IntegrationTestMatchengine(TestCase):
             trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'],
             sample_ids={'5d2799cb6756630d8dd0621d'}
         )
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert len(self.me._matches['10-001']) == 1
         assert len(self.me._matches['10-002']) == 1
@@ -151,6 +154,7 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(do_reset_trial_matches=True,
                     do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         filename = f'trial_matches_{datetime.datetime.now().strftime("%b_%d_%Y_%H:%M")}.csv'
         try:
@@ -186,6 +190,7 @@ class IntegrationTestMatchengine(TestCase):
             match_on_deceased=False,
             do_rm_clinical_run_history=True
         )
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
         assert len(list(self.me.db_ro.trial_match.find())) == 5
@@ -290,6 +295,7 @@ class IntegrationTestMatchengine(TestCase):
             visualize_match_paths=True,
             fig_dir=fig_dir
         )
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_trial('10-001')
         for file_name in ['10-001-arm-212.png', '10-001-arm-222.png', '10-001-dose-312.png', '10-001-step-112.png']:
             assert os.path.exists(os.path.join(fig_dir, file_name))
@@ -303,6 +309,7 @@ class IntegrationTestMatchengine(TestCase):
                     match_on_deceased=True,
                     match_on_closed=True,
                     num_workers=1)
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         print(len(self.me._matches["11-113"]))
 
@@ -312,6 +319,7 @@ class IntegrationTestMatchengine(TestCase):
             do_reset_trials=True,
             trials_to_load=['all_closed']
         )
+        assert self.me.db_rw.name == 'integration'
         with MatchEngine(sample_ids={'5d2799cb6756630d8dd0621d'},
                          protocol_nos={'10-001'},
                          match_on_closed=True,
@@ -330,38 +338,39 @@ class IntegrationTestMatchengine(TestCase):
             print(f"Found expected RuntimeError {e}")
 
     def test_signatures(self):
-        assert self.me.db_rw.name == 'integration'
         self._reset(do_reset_trials=True,
                     trials_to_load=['signatures'])
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert len(self.me._matches['99-9999']['5d2799df6756630d8dd068ca']) == 5
 
     def test_tmb(self):
-        assert self.me.db_rw.name == 'integration'
         self._reset(do_reset_trials=True,
                     trials_to_load=['signatures'])
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert len(self.me._matches['99-9999']['1d2799df4446699a8ddeeee']) == 4
         assert len(self.me._matches['99-9999']['4d2799df4446630a8dd068dd']) == 3
         assert len(self.me._matches['99-9999']['1d2799df4446699a8dd068ee']) == 4
 
     def test_unstructured_sv(self):
-        assert self.me.db_rw.name == 'integration'
         self._reset(do_reset_trials=True,
                     trials_to_load=['unstructured_sv'])
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         matches = self.me._matches['10-005']['1d2799df4446699a8ddeeee']
         assert matches[0]['genomic_alteration'] == 'EGFR Structural Variation'
         assert len(matches) == 1
 
     def test_structured_sv(self):
-        assert self.me.db_rw.name == 'integration'
         self._reset(do_reset_trials=True,
                     trials_to_load=['structured_sv'])
+        assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         # matches = self.me.matches['10-005']['1d2799df4446699a8ddeeee']
         # assert matches[0]['genomic_alteration'] == 'EGFR Structural Variation'
         # assert len(matches) == 1
 
     def tearDown(self) -> None:
-        self.me.__exit__(None, None, None)
+        if hasattr(self, 'me'):
+            self.me.__exit__(None, None, None)
