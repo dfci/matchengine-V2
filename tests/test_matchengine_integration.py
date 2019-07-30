@@ -367,6 +367,7 @@ class IntegrationTestMatchengine(TestCase):
                     trials_to_load=['structured_sv'])
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
+        print()
         # matches = self.me.matches['10-005']['1d2799df4446699a8ddeeee']
         # assert matches[0]['genomic_alteration'] == 'EGFR Structural Variation'
         # assert len(matches) == 1
