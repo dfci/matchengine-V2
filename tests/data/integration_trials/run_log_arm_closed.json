@@ -38,11 +38,11 @@
       }
     ]
   },
-  "_summary" : {
-		"status" : [
-			{
-				"value" : "open to accrual"
-			}
-		]
-	}
+  "_summary": {
+    "status": [
+      {
+        "value": "open to accrual"
+      }
+    ]
+  }
 }
