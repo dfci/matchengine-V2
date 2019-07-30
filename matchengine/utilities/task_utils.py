@@ -8,13 +8,71 @@ from pymongo.errors import (
     CursorNotFound
 )
 
-from matchengine.utilities.matchengine_types import TrialMatch
+from matchengine.utilities.matchengine_types import TrialMatch, IndexUpdateTask
 
 if TYPE_CHECKING:
     from matchengine.engine import MatchEngine
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
+
+
+async def run_check_indices_task(matchengine: MatchEngine, task, worker_id):
+    """
+    Ensure indexes exist on collections so queries are performant
+    """
+    if matchengine.debug:
+        log.info(
+            f"Worker: {worker_id}, got new CheckIndicesTask")
+    try:
+        for collection, desired_indices in matchengine.config['indices'].items():
+            indices = list()
+            indices.extend(matchengine.db_ro[collection].list_indexes())
+            existing_indices = set()
+            for index in indices:
+                index_key = list(index['key'].to_dict().keys())[0]
+                existing_indices.add(index_key)
+            indices_to_create = set(desired_indices) - existing_indices
+            for index in indices_to_create:
+                await matchengine.task_q.put(IndexUpdateTask(collection, index))
+        matchengine.task_q.task_done()
+    except Exception as e:
+        log.error(f"ERROR: Worker: {worker_id}, error: {e}")
+        log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
+        if isinstance(e, AutoReconnect):
+            await matchengine.task_q.put(task)
+            matchengine.task_q.task_done()
+        elif isinstance(e, CursorNotFound):
+            await matchengine.task_q.put(task)
+            matchengine.task_q.task_done()
+        else:
+            matchengine.__exit__(None, None, None)
+            matchengine.loop.stop()
+            log.error((f"ERROR: Worker: {worker_id}, error: {e}"
+                       f"TRACEBACK: {traceback.print_tb(e.__traceback__)}"))
+            raise e
+
+
+async def run_index_update_task(matchengine: MatchEngine, task: IndexUpdateTask, worker_id):
+    if matchengine.debug:
+        log.info(
+            f"Worker: {worker_id}, index {task.index}, collection {task.collection} got new IndexUpdateTask")
+    try:
+        matchengine.db_rw[task.collection].create_index(task.index)
+        matchengine.task_q.task_done()
+    except Exception as e:
+        log.error(f"ERROR: Worker: {worker_id}, error: {e}")
+        log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
+        if isinstance(e, AutoReconnect):
+            await matchengine.task_q.put(task)
+            matchengine.task_q.task_done()
+        elif isinstance(e, CursorNotFound):
+            await matchengine.task_q.put(task)
+            matchengine.task_q.task_done()
+        else:
+            matchengine.loop.stop()
+            log.error((f"ERROR: Worker: {worker_id}, error: {e}"
+                       f"TRACEBACK: {traceback.print_tb(e.__traceback__)}"))
 
 
 async def run_query_task(matchengine: MatchEngine, task, worker_id):
@@ -59,7 +117,7 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
     matchengine.task_q.task_done()
 
 
-async def run_poison_pill(matchengine: MatchEngine, worker_id):
+async def run_poison_pill(matchengine: MatchEngine, task, worker_id):
     if matchengine.debug:
         log.info(f"Worker: {worker_id} got PoisonPill")
     matchengine.task_q.task_done()
