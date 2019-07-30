@@ -1,38 +1,38 @@
-from matchengine.engine import MatchEngine
+from __future__ import annotations
 from argparse import Namespace
 from unittest import TestCase
 from load import load
+from matchengine.utilities.mongo_connection import MongoDBConnection
 
 
 class IntegrationTestMatchengineLoading(TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def _db_exit(self):
+        for attr in ['_db_rw', '_db_ro']:
+            if hasattr(self, attr):
+                getattr(self, attr).__exit__(None, None, None)
+
     def _reset(self, **kwargs):
-        if hasattr(self, 'me'):
-            self.me.__exit__(None, None, None)
-        self.me = MatchEngine(
-            config={'trial_key_mappings': {},
-                    'match_criteria': {'clinical': [],
-                                       'genomic': [],
-                                       'trial': ["protocol_no", "status"]},
-                    'indices': {}},
-            plugin_dir='tests/plugins',
-            db_name='integration_load'
-        )
+        self._db_exit()
+        self._db_rw = MongoDBConnection(read_only=False, db='integration_load', async_init=False)
+        self._db_ro = MongoDBConnection(read_only=False, db='integration_load', async_init=False)
+        self.db_rw = self._db_rw.__enter__()
+        self.db_ro = self._db_ro.__enter__()
         if kwargs.get('do_reset_trials', False):
-            self.me.db_rw.trial.drop()
+            self.db_rw.trial.drop()
 
         if kwargs.get('do_reset_patient', False):
-            self.me.db_rw.clinical.drop()
-            self.me.db_rw.genomic.drop()
+            self.db_rw.clinical.drop()
+            self.db_rw.genomic.drop()
 
     def setUp(self) -> None:
         # instantiate matchengine to get access to db helper functions
         self._reset()
 
         # check to make sure not accidentally connected to production db since tests will drop collections
-        assert self.me.db_rw.name == 'integration_load'
+        assert self.db_rw.name == 'integration_load'
 
     def test__load_trial_single_json(self):
         self._reset(do_reset_trials=True)
@@ -44,7 +44,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          trial='tests/data/trials/11-111.json',
                          upsert_fields='')
         load(args)
-        assert len(list(self.me.db_ro.trial.find({}))) == 1
+        assert len(list(self.db_ro.trial.find({}))) == 1
 
     def test__load_trials_single_json_multiple_trials(self):
         """mongoexport by default creates 'json' objects separated by new lines."""
@@ -57,7 +57,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          trial='tests/data/trials/two_trials_one_doc.json',
                          upsert_fields='')
         load(args)
-        assert len(list(self.me.db_ro.trial.find({}))) == 2
+        assert len(list(self.db_ro.trial.find({}))) == 2
 
     def test__load_trials_json_array(self):
         """mongoexport also allows exporting of trials as an array of json objects."""
@@ -71,7 +71,7 @@ class IntegrationTestMatchengineLoading(TestCase):
             trial='tests/data/trials/trials_json_array.json',
             upsert_fields='')
         load(args)
-        assert len(list(self.me.db_ro.trial.find({}))) == 2
+        assert len(list(self.db_ro.trial.find({}))) == 2
 
     def test__load_trials_json_dir(self):
         self._reset(do_reset_trials=True)
@@ -83,7 +83,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          trial='tests/data/integration_trials/',
                          upsert_fields='')
         load(args)
-        assert len(list(self.me.db_ro.trial.find({}))) == 13
+        assert len(list(self.db_ro.trial.find({}))) == 13
 
     def test__load_trial_single_yaml(self):
         self._reset(do_reset_trials=True)
@@ -94,7 +94,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          trial='tests/data/yaml/11-111.yaml',
                          upsert_fields='')
         load(args)
-        assert len(list(self.me.db_ro.trial.find({}))) == 1
+        assert len(list(self.db_ro.trial.find({}))) == 1
 
     def test__load_trial_yaml_dir(self):
         self._reset(do_reset_trials=True)
@@ -106,7 +106,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          trial='tests/data/yaml/',
                          upsert_fields='')
         load(args)
-        assert len(list(self.me.db_ro.trial.find({}))) == 2
+        assert len(list(self.db_ro.trial.find({}))) == 2
 
     def test__load_clinical_single_json_file(self):
         self._reset(do_reset_patient=True)
@@ -118,7 +118,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          clinical='tests/data/clinical_json/test_patient_1.json',
                          upsert_fields='')
         load(args)
-        assert len(list(self.me.db_ro.clinical.find({}))) == 1
+        assert len(list(self.db_ro.clinical.find({}))) == 1
 
     def test__load_clinical_json_dir(self):
         self._reset(do_reset_patient=True)
@@ -130,7 +130,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          clinical='tests/data/clinical_json/',
                          upsert_fields='')
         load(args)
-        assert len(list(self.me.db_ro.clinical.find({}))) == 2
+        assert len(list(self.db_ro.clinical.find({}))) == 2
 
     def test__load_clinical_single_csv_file(self):
         self._reset(do_reset_patient=True)
@@ -142,7 +142,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          clinical='tests/data/clinical_csv/test_patients.csv',
                          upsert_fields='')
         load(args)
-        assert len(list(self.me.db_ro.clinical.find({}))) == 2
+        assert len(list(self.db_ro.clinical.find({}))) == 2
 
     def test__load_genomic_single_json_file(self):
         self._reset(do_reset_patient=True)
@@ -166,8 +166,8 @@ class IntegrationTestMatchengineLoading(TestCase):
                          clinical=None,
                          upsert_fields='')
         load(args)
-        clinical = list(self.me.db_ro.clinical.find({}))
-        genomic = list(self.me.db_ro.genomic.find({}))
+        clinical = list(self.db_ro.clinical.find({}))
+        genomic = list(self.db_ro.genomic.find({}))
         assert len(clinical) == 1
         assert len(genomic) == 1
         assert genomic[0]['CLINICAL_ID'] == clinical[0]['_id']
@@ -193,8 +193,8 @@ class IntegrationTestMatchengineLoading(TestCase):
                          clinical=None,
                          upsert_fields='')
         load(args)
-        clinical = list(self.me.db_ro.clinical.find({}))
-        genomic = list(self.me.db_ro.genomic.find({}))
+        clinical = list(self.db_ro.clinical.find({}))
+        genomic = list(self.db_ro.genomic.find({}))
         assert len(clinical) == 2
         assert len(genomic) == 2
         assert genomic[0]['CLINICAL_ID'] == clinical[0]['_id']
@@ -222,12 +222,12 @@ class IntegrationTestMatchengineLoading(TestCase):
                          clinical=None,
                          upsert_fields='')
         load(args)
-        clinical = list(self.me.db_ro.clinical.find({}))
-        genomic = list(self.me.db_ro.genomic.find({}))
+        clinical = list(self.db_ro.clinical.find({}))
+        genomic = list(self.db_ro.genomic.find({}))
         assert len(clinical) == 2
         assert len(genomic) == 2
         assert genomic[0]['CLINICAL_ID'] == clinical[0]['_id']
         assert genomic[1]['CLINICAL_ID'] == clinical[1]['_id']
 
     def tearDown(self) -> None:
-        self.me.__exit__(None, None, None)
+        self._db_exit()
