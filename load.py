@@ -76,23 +76,23 @@ def load_trials_json(args: Namespace, me: MatchEngine):
             load_file(me, 'json', args.trial, 'trial')
 
         else:
-            file = open(args.trial)
-            json_raw = file.read()
-            try:
-                # mongoexport by default exports each object on a new line
-                json_array = json_raw.split('\n')
-                for doc in json_array:
-                    data = json.loads(doc)
-                    me.db_rw.trial.insert(data)
-            except Exception:
-                # mongoexport also allows an export as a json array
-                json_array = json.loads(json_raw)
-                for doc in json_array:
-                    me.db_rw.trial.insert(doc)
-            except Exception("Unknown JSON format"):
-                log.warning(
-                    'Cannot read json format. JSON documents must be either newline separated, '
-                    'in an array, or loaded as separate documents ')
+            with open(args.trial) as file:
+                json_raw = file.read()
+                try:
+                    # mongoexport by default exports each object on a new line
+                    json_array = json_raw.split('\n')
+                    for doc in json_array:
+                        data = json.loads(doc)
+                        me.db_rw.trial.insert(data)
+                except Exception:
+                    # mongoexport also allows an export as a json array
+                    json_array = json.loads(json_raw)
+                    for doc in json_array:
+                        me.db_rw.trial.insert(doc)
+                except Exception("Unknown JSON format"):
+                    log.warning(
+                        'Cannot read json format. JSON documents must be either newline separated, '
+                        'in an array, or loaded as separate documents ')
 
 
 ########################
@@ -151,23 +151,23 @@ def load_dir(args: Namespace, me: MatchEngine, filetype: str, path: str, collect
 
 
 def load_file(me: MatchEngine, filetype: str, path: str, collection: str):
-    file = open(path)
-    if filetype == 'yaml':
-        data = yaml.safe_load_all(file.read())
-        me.db_rw[collection].insert(data)
-    elif filetype == 'json':
-        file = open(path)
-        if is_valid_single_json(path):
-            data = json_util.loads(file.read())
+    with open(path) as file:
+        if filetype == 'yaml':
+            data = yaml.safe_load_all(file.read())
             me.db_rw[collection].insert(data)
-    elif filetype == 'csv':
-        with open(path) as fh:
-            file = csv.DictReader(fh, delimiter=',')
-            for row in file:
-                doc = {}
-                for key in row:
-                    doc[key] = row[key]
-                me.db_rw[collection].insert(doc)
+        elif filetype == 'json':
+            file = open(path)
+            if is_valid_single_json(path):
+                data = json_util.loads(file.read())
+                me.db_rw[collection].insert(data)
+        elif filetype == 'csv':
+            with open(path) as fh:
+                file = csv.DictReader(fh, delimiter=',')
+                for row in file:
+                    doc = {}
+                    for key in row:
+                        doc[key] = row[key]
+                    me.db_rw[collection].insert(doc)
 
 
 def is_valid_single_json(path: str):
