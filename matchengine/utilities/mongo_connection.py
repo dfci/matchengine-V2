@@ -2,9 +2,16 @@ from __future__ import annotations
 import motor.motor_asyncio
 import pymongo.database
 
-from matchengine.plugin_stub import DBSecrets
-from typing import Union, Dict
 from matchengine.utilities.matchengine_types import Secrets
+from matchengine.plugin_stub import DBSecrets
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import (
+        Union,
+        Dict
+    )
 
 
 class DefaultDBSecrets(DBSecrets):
@@ -44,7 +51,7 @@ class MongoDBConnection(object):
     read_only: bool
     secrets: Secrets
     db: Union[pymongo.database.Database, motor.motor_asyncio.AsyncIOMotorDatabase]
-    client = Union[pymongo.MongoClient, motor.motor_asyncio.AsyncIOMotorClient]
+    client: Union[pymongo.MongoClient, motor.motor_asyncio.AsyncIOMotorClient]
 
     def __init__(self, read_only=True, db=None, async_init=True):
         """
