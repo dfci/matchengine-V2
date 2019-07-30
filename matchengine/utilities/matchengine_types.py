@@ -36,6 +36,39 @@ class PoisonPill(object):
     pass
 
 
+class CheckIndicesTask(object):
+    pass
+
+
+@dataclass
+class IndexUpdateTask(object):
+    collection: str
+    index: str
+
+
+@dataclass
+class QueryTask:
+    trial: Trial
+    match_clause_data: MatchClauseData
+    match_path: MatchCriterion
+    query: MultiCollectionQuery
+    clinical_ids: Set[ClinicalID]
+
+
+@dataclass
+class UpdateTask:
+    ops: List
+    protocol_no: str
+
+
+@dataclass
+class RunLogUpdateTask:
+    protocol_no: str
+
+
+Task = NewType("Task", Union[PoisonPill, CheckIndicesTask, IndexUpdateTask, QueryTask, UpdateTask])
+
+
 @dataclass
 class MatchCriteria:
     criteria: Dict
@@ -170,26 +203,6 @@ class Cache(object):
     def __init__(self):
         self.docs = dict()
         self.ids = dict()
-
-
-@dataclass
-class QueryTask:
-    trial: Trial
-    match_clause_data: MatchClauseData
-    match_path: MatchCriterion
-    query: MultiCollectionQuery
-    clinical_ids: Set[ClinicalID]
-
-
-@dataclass
-class UpdateTask:
-    ops: List
-    protocol_no: str
-
-
-@dataclass
-class RunLogUpdateTask:
-    protocol_no: str
 
 
 @dataclass

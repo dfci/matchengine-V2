@@ -32,6 +32,7 @@ class StaticDate(datetime.date):
 class UnknownReferenceTypeForOverrideException(Exception):
     pass
 
+
 def perform_override(override_class, base_class):
     for referrer in gc.get_referrers(base_class):
         # Check to see if the referrer is mutable (otherwise performing an override won't do anything -

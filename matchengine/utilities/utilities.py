@@ -24,22 +24,6 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
 
 
-def check_indices(me):
-    """
-    Ensure indexes exist on collections so queries are performant
-    """
-    for collection, desired_indices in me.config['indices'].items():
-        indices = me.db_ro[collection].list_indexes()
-        existing_indices = set()
-        for index in indices:
-            index_key = list(index['key'].to_dict().keys())[0]
-            existing_indices.add(index_key)
-        indices_to_create = set(desired_indices) - existing_indices
-        for index in indices_to_create:
-            log.info('Creating index %s' % index)
-            me.db_rw[collection].create_index(index)
-
-
 async def perform_db_call(matchengine: MatchEngine, collection: str, query: MongoQuery, projection: Dict) -> List:
     """
     Asynchronously executes a find query on the database, with specified query and projection and a collection

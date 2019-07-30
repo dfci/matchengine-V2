@@ -66,7 +66,8 @@ if __name__ == "__main__":
     subp_p.add_argument('-g', dest='genomic', default=None, help=param_genomic_help)
     subp_p.add_argument('--trial-format', dest='trial_format', default='json', action='store', choices=['yml', 'json'],
                         help=param_trial_format_help)
-    subp_p.add_argument('--patient-format', dest='patient_format', default='json', action='store', choices=['csv', 'json'],
+    subp_p.add_argument('--patient-format', dest='patient_format', default='json', action='store',
+                        choices=['csv', 'json'],
                         help=param_patient_format_help)
     subp_p.add_argument('--upsert-fields', dest='upsert_fields', default='', required=False, help=upsert_help)
     subp_p.add_argument('--db', dest='db_name', default='', required=False, help=db_name_help)
@@ -76,7 +77,8 @@ if __name__ == "__main__":
     subp_p = subp.add_parser('match', help='Match patients to trials.')
     subp_p.add_argument("-trials", nargs="*", type=str, default=None)
     subp_p.add_argument("-samples", nargs="*", type=str, default=None)
-    subp_p.add_argument("--match-on-closed", dest="match_on_closed", action="store_true", default=False, help=closed_help)
+    subp_p.add_argument("--match-on-closed", dest="match_on_closed", action="store_true", default=False,
+                        help=closed_help)
     subp_p.add_argument("--force", dest="ignore_run_log", action="store_true", default=False, help=run_log_help)
     subp_p.add_argument("--visualize-match-paths", dest="visualize_match_paths", action="store_true", default=False,
                         help="Enable to render images of all match paths")
@@ -84,12 +86,15 @@ if __name__ == "__main__":
     subp_p.add_argument("--dry-run", dest="dry", action="store_true", default=False, help=dry_help)
     subp_p.add_argument("--debug", dest="debug", action="store_true", default=False, help=debug_help)
     subp_p.add_argument("--config-path", dest="config_path", default="config/dfci_config.json", help=config_help)
-    subp_p.add_argument("--override-plugin-dir", dest="plugin_dir", default="plugins", help="Location of plugin directory")
-    subp_p.add_argument("--match-document-creator", dest="match_document_creator_class", default="DFCITrialMatchDocumentCreator",
+    subp_p.add_argument("--override-plugin-dir", dest="plugin_dir", default="plugins",
+                        help="Location of plugin directory")
+    subp_p.add_argument("--match-document-creator", dest="match_document_creator_class",
+                        default="DFCITrialMatchDocumentCreator",
                         help="Name of class for creating match documents. Should be located in the plugin directory")
     subp_p.add_argument("--db-secrets-class", dest="db_secrets_class", default="DFCIDBSecrets",
                         help="Name of class for obtaining the DB Secrets. Should be located in the plugin directory")
-    subp_p.add_argument("--match-on-deceased-patients", dest="match_on_deceased", action="store_true", help=deceased_help)
+    subp_p.add_argument("--match-on-deceased-patients", dest="match_on_deceased", action="store_true",
+                        help=deceased_help)
     subp_p.add_argument("--report-clinical-reasons", dest="report_clinical_reasons", action="store_true", default=False,
                         help=deceased_help)
     subp_p.add_argument("--workers", nargs=1, type=int, default=[cpu_count() * 5])

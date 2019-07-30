@@ -5,7 +5,7 @@ import json
 import sys
 
 from matchengine.engine import MatchEngine
-from matchengine.utilities.utilities import check_indices
+from matchengine.utilities.mongo_connection import MongoDBConnection
 
 from tests.timetravel_and_override import set_static_date_time
 
@@ -20,36 +20,29 @@ class IntegrationTestMatchengine(TestCase):
     def _reset(self, **kwargs):
         if not self.first_run_done:
             set_static_date_time()
-            self.me = MatchEngine(
-                config={'trial_key_mappings': {},
-                        'match_criteria': {'clinical': [],
-                                           'genomic': [],
-                                           'trial': ["protocol_no", "status"]},
-                        'indices': {}},
-                plugin_dir='tests/plugins'
-            )
-            assert self.me.db_rw.name == 'integration'
             self.first_run_done = True
+        with MongoDBConnection(read_only=False, db='integration', async_init=False) as setup_db:
+            assert setup_db.name == 'integration'
 
-        if kwargs.get('do_reset_trial_matches', False):
-            self.me.db_rw.trial_match.drop()
-            check_indices(self.me)
+            if kwargs.get('do_reset_trial_matches', False):
+                setup_db.trial_match.drop()
 
-        if kwargs.get('reset_run_log', False):
-            self.me.db_rw.run_log.drop()
+            if kwargs.get('reset_run_log', False):
+                setup_db.run_log.drop()
 
-        if kwargs.get('do_reset_trials', False):
-            self.me.db_rw.trial.drop()
-            trials_to_load = map(lambda x: os.path.join('tests', 'data', 'integration_trials', x + '.json'),
-                                 kwargs.get('trials_to_load', list()))
-            for trial_path in trials_to_load:
-                with open(trial_path) as trial_file_handle:
-                    trial = json.load(trial_file_handle)
-                self.me.db_rw.trial.insert(trial)
-        if kwargs.get('do_rm_clinical_run_history', False):
-            self.me.db_rw.clinical.update({}, {"$unset": {"run_history": 1}}, multi=True)
+            if kwargs.get('do_reset_trials', False):
+                setup_db.trial.drop()
+                trials_to_load = map(lambda x: os.path.join('tests', 'data', 'integration_trials', x + '.json'),
+                                     kwargs.get('trials_to_load', list()))
+                for trial_path in trials_to_load:
+                    with open(trial_path) as trial_file_handle:
+                        trial = json.load(trial_file_handle)
+                    setup_db.trial.insert(trial)
+            if kwargs.get('do_rm_clinical_run_history', False):
+                setup_db.clinical.update({}, {"$unset": {"run_history": 1}}, multi=True)
 
-        self.me.__exit__(None, None, None)
+        if hasattr(self, 'me'):
+            self.me.__exit__(None, None, None)
 
         self.me = MatchEngine(
             match_on_deceased=kwargs.get('match_on_deceased', True),

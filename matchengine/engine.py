@@ -14,15 +14,14 @@ from matchengine.utilities.mongo_connection import MongoDBConnection
 from matchengine.match_criteria_transform import MatchCriteriaTransform
 from matchengine.utilities.update_match_utils import async_update_matches_by_protocol_no
 from matchengine.utilities.utilities import (
-    check_indices,
     find_plugins
 )
 from matchengine.utilities.task_utils import (
     run_query_task,
     run_poison_pill,
     run_update_task,
-    run_run_log_update_task
-)
+    run_run_log_update_task,
+    run_check_indices_task, run_index_update_task)
 from matchengine.match_translator import (
     extract_match_clauses_from_trial,
     create_match_tree,
@@ -42,9 +41,10 @@ from matchengine.utilities.matchengine_types import (
     Cache,
     QueryTask,
     UpdateTask,
-    RunLogUpdateTask
+    RunLogUpdateTask,
+    CheckIndicesTask,
+    IndexUpdateTask
 )
-
 
 if TYPE_CHECKING:
     from typing import NoReturn
@@ -59,7 +59,8 @@ if TYPE_CHECKING:
         ObjectId,
         Trial,
         QueryNode,
-        TrialMatch
+        TrialMatch,
+        Task
     )
 
 logging.basicConfig(level=logging.INFO)
@@ -156,7 +157,6 @@ class MatchEngine(object):
         self.db_rw = self._db_rw.__enter__() if self.db_init else None
         log.info(f"Connected to database {self.db_ro.name}")
 
-        check_indices(self)
         # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
         self.sample_ids = sample_ids
@@ -205,6 +205,8 @@ class MatchEngine(object):
             worker_id: self._loop.create_task(self._queue_worker(worker_id))
             for worker_id in range(0, self.num_workers)
         }
+        await self._task_q.put(CheckIndicesTask())
+        await self._task_q.join()
 
     async def run_query(self,
                         multi_collection_query: MultiCollectionQuery,
@@ -249,19 +251,26 @@ class MatchEngine(object):
         """
         while True:
             # Execute update task
-            task: Union[QueryTask, UpdateTask, PoisonPill] = await self._task_q.get()
+            task: Task = await self._task_q.get()
+            args = (self, task, worker_id)
             if isinstance(task, PoisonPill):
-                await run_poison_pill(self, worker_id)
+                await run_poison_pill(*args)
                 break
 
             elif isinstance(task, QueryTask):
-                await run_query_task(self, task, worker_id)
+                await run_query_task(*args)
 
             elif isinstance(task, UpdateTask):
-                await run_update_task(self, task, worker_id)
+                await run_update_task(*args)
 
             elif isinstance(task, RunLogUpdateTask):
-                await run_run_log_update_task(self, task, worker_id)
+                await run_run_log_update_task(*args)
+
+            elif isinstance(task, CheckIndicesTask):
+                await run_check_indices_task(*args)
+
+            elif isinstance(task, IndexUpdateTask):
+                await run_index_update_task(*args)
 
     def query_node_transform(self, query_node: QueryNode) -> NoReturn:
         """Stub function to be overriden by plugin"""
