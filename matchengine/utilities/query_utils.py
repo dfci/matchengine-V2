@@ -5,7 +5,7 @@ import logging
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from matchengine.utilities.frozendict import ComparableDict
+from matchengine.utilities.frozendict import nested_object_hash
 from matchengine.utilities.matchengine_types import (
     ClinicalMatchReason,
     GenomicMatchReason,
@@ -117,7 +117,7 @@ async def execute_genomic_queries(me,
 
         # Create a nested id_cache where the key is the clinical ID being queried and the vals
         # are the genomic IDs returned
-        query_hash = ComparableDict(query).hash()
+        query_hash = nested_object_hash(query)
         if query_hash not in me.cache.ids:
             me.cache.ids[query_hash] = dict()
         id_cache = me.cache.ids[query_hash]
