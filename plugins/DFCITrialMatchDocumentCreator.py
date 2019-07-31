@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 from matchengine.plugin_helpers.plugin_stub import TrialMatchDocumentCreator
 from matchengine.utilities.object_comparison import nested_object_hash
+
 if TYPE_CHECKING:
     from matchengine.typing.matchengine_types import TrialMatch
     from typing import Dict
@@ -52,12 +53,29 @@ def get_genomic_details(genomic_doc, query):
         alteration += ' %s' % genomic_doc[variant_classification]
 
     # add structural variation
-    elif variant_category in genomic_doc and genomic_doc[variant_category] == 'SV':
+    elif (variant_category in genomic_doc
+          and genomic_doc[variant_category] == 'SV'
+          and genomic_doc.get(sv_comment) is not None):
         pattern = query[sv_comment].pattern.split("|")[0]
         gene = pattern.replace("(.*\\W", "").replace("\\W.*)", "")
         alteration += f'{gene} Structural Variation'
 
-    # add mutational signtature
+    elif (variant_category in genomic_doc
+          and genomic_doc[variant_category] == 'SV'
+          and genomic_doc.get(sv_comment) is None):
+        left = genomic_doc.get("LEFT_PARTNER_GENE", None)
+        right = genomic_doc.get("RIGHT_PARTNER_GENE", None)
+        if left is None:
+            left = "intergenic"
+        if right is None:
+            right = "intergenic"
+
+        alteration += (f'{left}'
+                       '-'
+                       f'{right}'
+                       ' Structural Variation')
+
+    # add mutational signature
     elif variant_category in genomic_doc \
             and genomic_doc[variant_category] == 'SIGNATURE' \
             and genomic_doc[mmr_status] is not None \
@@ -212,8 +230,8 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         new_trial_match.update(
             {'match_path': '.'.join([str(item) for item in trial_match.match_clause_data.parent_path])})
         new_trial_match['combo_coord'] = nested_object_hash({'query_hash': new_trial_match['query_hash'],
-                                                         'match_path': new_trial_match['match_path'],
-                                                         'protocol_no': new_trial_match['protocol_no']})
+                                                             'match_path': new_trial_match['match_path'],
+                                                             'protocol_no': new_trial_match['protocol_no']})
         new_trial_match.pop("_updated", None)
         new_trial_match.pop("last_updated", None)
         return new_trial_match
