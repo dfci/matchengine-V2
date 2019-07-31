@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from matchengine.plugin_stub import TrialMatchDocumentCreator
-from matchengine.utilities.frozendict import ComparableDict
+from matchengine.utilities.frozendict import nested_object_hash
 if TYPE_CHECKING:
     from matchengine.utilities.matchengine_types import TrialMatch
     from typing import Dict
@@ -207,13 +207,13 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         sort_order = get_sort_order(self.config['trial_match_sorting'], new_trial_match)
         new_trial_match['sort_order'] = sort_order
         new_trial_match['query_hash'] = trial_match.match_criterion.hash()
-        new_trial_match['hash'] = ComparableDict(new_trial_match).hash()
+        new_trial_match['hash'] = nested_object_hash(new_trial_match)
         new_trial_match["is_disabled"] = False
         new_trial_match.update(
             {'match_path': '.'.join([str(item) for item in trial_match.match_clause_data.parent_path])})
-        new_trial_match['combo_coord'] = ComparableDict({'query_hash': new_trial_match['query_hash'],
+        new_trial_match['combo_coord'] = nested_object_hash({'query_hash': new_trial_match['query_hash'],
                                                          'match_path': new_trial_match['match_path'],
-                                                         'protocol_no': new_trial_match['protocol_no']}).hash()
+                                                         'protocol_no': new_trial_match['protocol_no']})
         new_trial_match.pop("_updated", None)
         new_trial_match.pop("last_updated", None)
         return new_trial_match
