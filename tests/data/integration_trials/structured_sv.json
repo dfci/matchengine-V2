@@ -40,10 +40,43 @@
                       },
                       {
                         "genomic": {
-                          "hugo_symbol": "CLIP4",
+                          "hugo_symbol": "BRCA",
+                          "variant_category": "Structural Variation"
+                        }
+                      },
+                      {
+                        "genomic": {
                           "variant_category": "Structural Variation",
-                          "fusion_partner_hugo_symbol": "ALK",
-                          "display_name": "CLIP4-ALK"
+                          "fusion_partner_hugo_symbol": "BRCA"
+                        }
+                      },
+                      {
+                        "genomic": {
+                          "hugo_symbol": "EML4",
+                          "variant_category": "Structural Variation",
+                          "fusion_partner_hugo_symbol": "EML4",
+                          "display_name": "EML4-EML4"
+                        }
+                      },
+                      {
+                        "genomic": {
+                          "hugo_symbol": "KRAS",
+                          "variant_category": "Structural Variation",
+                          "fusion_partner_hugo_symbol": "any_gene"
+                        }
+                      },
+                      {
+                        "genomic": {
+                          "hugo_symbol": "any_gene",
+                          "variant_category": "Structural Variation",
+                          "fusion_partner_hugo_symbol": "KRAS"
+                        }
+                      },
+                      {
+                        "genomic": {
+                          "hugo_symbol": "any_gene",
+                          "variant_category": "Structural Variation",
+                          "fusion_partner_hugo_symbol": "any_gene"
                         }
                       },
                       {
@@ -110,7 +143,8 @@
                   {
                     "clinical": {
                       "age_numerical": ">=18",
-                      "oncotree_primary_diagnosis": "Lung"
+                      "oncotree_primary_diagnosis": "Lung",
+                      "gender": "Male"
                     }
                   },
                   {

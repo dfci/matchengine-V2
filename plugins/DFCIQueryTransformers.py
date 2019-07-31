@@ -85,7 +85,8 @@ class DFCITransformers(QueryTransformerContainer):
         sample_key = kwargs['sample_key']
         variant_category_map = {
             "Copy Number Variation".lower(): "CNV",
-            "Any Variation".lower(): {"$in": ["MUTATION", "CNV"]}
+            "Any Variation".lower(): {"$in": ["MUTATION", "CNV"]},
+            "Structural Variation".lower(): "SV"
         }
 
         trial_value, negate = self.transform.is_negate(trial_value)
@@ -93,8 +94,11 @@ class DFCITransformers(QueryTransformerContainer):
         # if a curation calls for a Structural Variant, search the free text in the genomic document under
         # STRUCTURAL_VARIANT_COMMENT for mention of the TRUE_HUGO_SYMBOL
         if trial_value == 'Structural Variation':
+            sample_value = variant_category_map.get(trial_value.lower())
             results = QueryTransformerResult()
             results.add_result({'STRUCTURAL_VARIANT_COMMENT': None}, negate)
+            results.add_result({'STRUCTURED_SV': 'LEFT-RIGHT', sample_key: sample_value}, negate)
+            results.add_result({'STRUCTURED_SV': 'RIGHT-LEFT', sample_key: sample_value}, negate)
             return results
         elif trial_value.lower() in variant_category_map:
             return QueryTransformerResult({sample_key: variant_category_map[trial_value.lower()]}, negate)

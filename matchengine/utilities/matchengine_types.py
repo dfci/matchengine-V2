@@ -126,6 +126,11 @@ class QueryNode:
                            if key in query_part.query),
                           iter([None])))
 
+    def get_query_part_value_by_key(self, key: str, default: Any = None) -> Any:
+        query_part = self.get_query_part_by_key(key)
+        if query_part is not None:
+            return query_part.query.get(key, default)
+
     def __copy__(self):
         return QueryNode(self.query_level,
                          self.query_depth,
