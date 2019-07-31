@@ -16,7 +16,7 @@ from typing import (
 from bson import ObjectId
 from networkx import DiGraph
 
-from matchengine.utilities.frozendict import nested_object_hash
+from matchengine.utilities.object_comparison import nested_object_hash
 
 Trial = NewType("Trial", dict)
 ParentPath = NewType("ParentPath", Tuple[Union[str, int]])

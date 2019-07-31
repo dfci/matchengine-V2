@@ -8,7 +8,7 @@ from pymongo.errors import (
     CursorNotFound
 )
 
-from matchengine.utilities.matchengine_types import TrialMatch, IndexUpdateTask
+from matchengine.typing.matchengine_types import TrialMatch, IndexUpdateTask
 
 if TYPE_CHECKING:
     from matchengine.engine import MatchEngine

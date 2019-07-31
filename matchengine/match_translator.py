@@ -4,7 +4,7 @@ from collections import deque
 from typing import TYPE_CHECKING
 import networkx as nx
 
-from matchengine.utilities.matchengine_types import (
+from matchengine.typing.matchengine_types import (
     MatchClauseData,
     ParentPath,
     MatchClauseLevel,

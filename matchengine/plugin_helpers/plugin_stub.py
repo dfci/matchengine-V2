@@ -6,7 +6,7 @@ if TYPE_CHECKING:
         MatchCriteriaTransform,
         TransformFunctions
     )
-    from matchengine.utilities.matchengine_types import (
+    from matchengine.typing.matchengine_types import (
         Secrets,
         QueryNode,
         TrialMatch,

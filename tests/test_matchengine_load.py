@@ -2,7 +2,7 @@ from __future__ import annotations
 from argparse import Namespace
 from unittest import TestCase
 from load import load
-from matchengine.utilities.mongo_connection import MongoDBConnection
+from matchengine.database_connectivity.mongo_connection import MongoDBConnection
 
 
 class IntegrationTestMatchengineLoading(TestCase):
