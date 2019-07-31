@@ -188,19 +188,7 @@ async def execute_genomic_queries(me,
     return all_results, potential_reasons
 
 
-def get_needed_ids(all_results, cache):
-    needed_clinical = list()
-    needed_genomic = list()
-    for clinical_id, genomic_ids in all_results.items():
-        if clinical_id not in cache:
-            needed_clinical.append(clinical_id)
-        for genomic_id in genomic_ids:
-            if genomic_id not in cache:
-                needed_genomic.append(genomic_id)
-    return needed_clinical, needed_genomic
-
-
-async def get_query_results(matchengine: MatchEngine, needed_clinical, needed_genomic):
+async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_genomic):
     """
     Matching criteria for clinical and genomic values can be set/extended in config.json
     :param matchengine:

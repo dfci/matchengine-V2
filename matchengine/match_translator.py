@@ -313,8 +313,8 @@ def translate_match_path(matchengine,
                 # add queries to mcq to return
                 query_nodes_to_add = list()
                 for query_node in query_nodes:
+                    matchengine.query_node_transform(query_node)
                     if query_node.exclusion is not None:
-                        matchengine.query_node_transform(query_node)
                         if query_node.hash() not in query_cache:
                             query_cache.add(query_node.hash())
                             query_nodes_to_add.append(query_node)

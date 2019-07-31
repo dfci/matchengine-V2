@@ -88,6 +88,7 @@ class QueryPart:
     query: Dict
     negate: bool
     render: bool
+    mcq_invalidating: bool
 
     def hash(self) -> str:
         return nested_object_hash(self.query)
@@ -95,7 +96,8 @@ class QueryPart:
     def __copy__(self):
         return QueryPart(self.query,
                          self.negate,
-                         self.render)
+                         self.render,
+                         self.mcq_invalidating)
 
 
 @dataclass
@@ -131,6 +133,10 @@ class QueryNode:
         if query_part is not None:
             return query_part.query.get(key, default)
 
+    @property
+    def mcq_invalidating(self):
+        return True if any([query_part.mcq_invalidating for query_part in self.query_parts]) else False
+
     def __copy__(self):
         return QueryNode(self.query_level,
                          self.query_depth,
@@ -152,8 +158,14 @@ class MultiCollectionQuery:
              in self.genomic],
             [query_node.__copy__()
              for query_node
-             in self.clinical]
+             in self.clinical],
         )
+
+    @property
+    def valid(self):
+        return False if any([query_node.mcq_invalidating
+                             for query_node
+                             in chain(self.genomic, self.clinical)]) else True
 
 
 @dataclass
@@ -227,14 +239,20 @@ class Secrets:
 class QueryTransformerResult:
     results: List[QueryPart]
 
-    def __init__(self, query_clause: Dict = None, negate: bool = None, render: bool = True):
+    def __init__(
+            self,
+            query_clause: Dict = None,
+            negate: bool = None,
+            render: bool = True,
+            mcq_invalidating: bool = False
+    ):
         self.results = list()
         if query_clause is not None:
             if negate is not None:
-                self.results.append(QueryPart(query_clause, negate, render))
+                self.results.append(QueryPart(query_clause, negate, render, mcq_invalidating))
             else:
                 raise Exception("If adding query result directly to results container, "
                                 "both Negate and Query must be specified")
 
-    def add_result(self, query_clause: Dict, negate: bool, render: bool = True):
-        self.results.append(QueryPart(query_clause, negate, render))
+    def add_result(self, query_clause: Dict, negate: bool, render: bool = True, mcq_invalidating: bool = False):
+        self.results.append(QueryPart(query_clause, negate, render, mcq_invalidating))
