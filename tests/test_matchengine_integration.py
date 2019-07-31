@@ -4,6 +4,7 @@ import os
 import json
 import sys
 
+from contextlib import redirect_stderr
 from matchengine.engine import MatchEngine
 from matchengine.utilities.mongo_connection import MongoDBConnection
 
@@ -331,11 +332,12 @@ class IntegrationTestMatchengine(TestCase):
             me.get_matches_for_trial('10-001')
             assert not me._loop.is_closed()
         assert me._loop.is_closed()
-        try:
-            me.get_matches_for_trial('10-001')
-            raise AssertionError("MatchEngine should have failed")
-        except RuntimeError as e:
-            print(f"Found expected RuntimeError {e}")
+        with open(os.devnull, 'w') as _f, redirect_stderr(_f):
+            try:
+                me.get_matches_for_trial('10-001')
+                raise AssertionError("MatchEngine should have failed")
+            except RuntimeError as e:
+                print(f"Found expected RuntimeError {e}")
 
     def test_signatures(self):
         self._reset(do_reset_trials=True,
