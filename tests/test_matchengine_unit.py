@@ -4,7 +4,7 @@ import os
 from unittest import TestCase
 
 from matchengine.engine import MatchEngine
-from matchengine.utilities.frozendict import ComparableDict
+from matchengine.utilities.frozendict import nested_object_hash
 from matchengine.utilities.utilities import find_plugins
 from matchengine.match_criteria_transform import MatchCriteriaTransform
 from matchengine.match_translator import create_match_tree, get_match_paths, extract_match_clauses_from_trial, \
@@ -130,7 +130,7 @@ class TestMatchEngine(TestCase):
                     for node_id, node_attrs in test_case[test_case_key].items():
                         graph_node = match_tree.nodes[int(node_id)]
                         assert len(node_attrs) == len(graph_node)
-                        assert ComparableDict(node_attrs).hash() == ComparableDict(graph_node).hash()
+                        assert nested_object_hash(node_attrs)== nested_object_hash(graph_node)
                 else:
                     for test_item, graph_item in zip(test_case[test_case_key], getattr(match_tree, test_case_key)):
                         for idx, test_item_part in enumerate(test_item):
@@ -160,14 +160,13 @@ class TestMatchEngine(TestCase):
                                                                     protocol_no='12-345'))
             match_paths = list(get_match_paths(match_tree))
             for test_case, match_path in zip(test_cases[filename], match_paths):
-                assert match_path.hash() == test_case["hash"]
                 for test_case_criteria_idx, test_case_criteria in enumerate(test_case["criteria_list"]):
                     match_path_criteria = match_path.criteria_list[test_case_criteria_idx]
                     assert test_case_criteria["depth"] == match_path_criteria.depth
                     for inner_test_case_criteria, inner_match_path_criteria in zip(test_case_criteria["criteria"],
                                                                                    match_path_criteria.criteria):
-                        assert ComparableDict(inner_test_case_criteria).hash() == ComparableDict(
-                            inner_match_path_criteria).hash()
+                        assert nested_object_hash(inner_test_case_criteria)== nested_object_hash(
+                            inner_match_path_criteria)
 
     def test_translate_match_path(self):
         self.me.trials = dict()
@@ -189,17 +188,17 @@ class TestMatchEngine(TestCase):
         assert len(match_paths[0].genomic) == 0
 
     def test_comparable_dict(self):
-        assert ComparableDict({}).hash() == ComparableDict({}).hash()
-        assert ComparableDict({"1": "1",
-                               "2": "2"}).hash() == ComparableDict({"2": "2",
-                                                                    "1": "1"}).hash()
-        assert ComparableDict({"1": [{}, {2: 3}],
-                               "2": "2"}).hash() == ComparableDict({"2": "2",
-                                                                    "1": [{2: 3}, {}]}).hash()
-        assert ComparableDict({"1": [{'set': {1, 2, 3}}, {2: 3}],
-                               "2": "2"}).hash() == ComparableDict({"2": "2",
-                                                                    "1": [{2: 3}, {'set': {3, 1, 2}}]}).hash()
-        assert ComparableDict({
+        assert nested_object_hash({})== nested_object_hash({})
+        assert nested_object_hash({"1": "1",
+                               "2": "2"})== nested_object_hash({"2": "2",
+                                                                    "1": "1"})
+        assert nested_object_hash({"1": [{}, {2: 3}],
+                               "2": "2"})== nested_object_hash({"2": "2",
+                                                                    "1": [{2: 3}, {}]})
+        assert nested_object_hash({"1": [{'set': {1, 2, 3}}, {2: 3}],
+                               "2": "2"})== nested_object_hash({"2": "2",
+                                                                    "1": [{2: 3}, {'set': {3, 1, 2}}]})
+        assert nested_object_hash({
             1: {
                 2: [
                     {
@@ -209,7 +208,7 @@ class TestMatchEngine(TestCase):
                 ]
             },
             "4": [9, 8]
-        }) != ComparableDict({
+        }) != nested_object_hash({
             1: {
                 2: [
                     {
