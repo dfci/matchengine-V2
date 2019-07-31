@@ -101,6 +101,6 @@ if __name__ == "__main__":
     subp_p.add_argument('--db', dest='db_name', default=None, required=False, help=db_name_help)
     subp_p.add_argument('-o', dest="csv_output", action="store_true", default=False, required=False,
                         help=csv_output_help)
-    args = parser.parse_args()
     subp_p.set_defaults(func=main)
+    args = parser.parse_args()
     args.func(args)

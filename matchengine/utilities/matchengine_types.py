@@ -16,7 +16,7 @@ from typing import (
 from bson import ObjectId
 from networkx import DiGraph
 
-from matchengine.utilities.frozendict import ComparableDict
+from matchengine.utilities.frozendict import nested_object_hash
 
 Trial = NewType("Trial", dict)
 ParentPath = NewType("ParentPath", Tuple[Union[str, int]])
@@ -80,7 +80,7 @@ class MatchCriterion:
     criteria_list: List[MatchCriteria]
 
     def hash(self) -> str:
-        return ComparableDict({"query": [criteria.criteria for criteria in self.criteria_list]}).hash()
+        return nested_object_hash({"query": [criteria.criteria for criteria in self.criteria_list]})
 
 
 @dataclass
@@ -90,7 +90,7 @@ class QueryPart:
     render: bool
 
     def hash(self) -> str:
-        return ComparableDict(self.query).hash()
+        return nested_object_hash(self.query)
 
     def __copy__(self):
         return QueryPart(self.query,
@@ -106,11 +106,11 @@ class QueryNode:
     exclusion: Union[None, bool]
 
     def hash(self) -> str:
-        return ComparableDict({
+        return nested_object_hash({
             "_tmp1": [query_part.hash()
                       for query_part in self.query_parts],
             '_tmp2': self.exclusion
-        }).hash()
+        })
 
     def extract_raw_query(self):
         return {
