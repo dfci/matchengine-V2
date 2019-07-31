@@ -33,13 +33,13 @@ def main(run_args):
 
 
 if __name__ == "__main__":
-    param_trials_help = 'Path to your trial data file or a directory containing a file for each trial.' \
-                        'Default expected format is YML.'
-    param_mongo_uri_help = 'Your MongoDB URI. If you do not supply one, for matching, it will default to whatever' \
-                           ' is set to "MONGO_URI" in your SECRETS.JSON file. This file must be set as an ' \
-                           'environmental variable. For data loading you must specify a URI with a database ' \
-                           'ex: mongodb://localhost:27017/matchminer. ' \
-                           'See https://docs.mongodb.com/manual/reference/connection-string/ for more information.'
+    param_trials_help = ('Path to your trial data file or a directory containing a file for each trial.'
+                         'Default expected format is YML.')
+    param_mongo_uri_help = ('Your MongoDB URI. If you do not supply one, for matching, it will default to whatever'
+                            ' is set to "MONGO_URI" in your SECRETS.JSON file. This file must be set as an '
+                            'environmental variable. For data loading you must specify a URI with a database '
+                            'ex: mongodb://localhost:27017/matchminer. '
+                            'See https://docs.mongodb.com/manual/reference/connection-string/ for more information.')
     param_clinical_help = 'Path to your clinical file. Default expected format is CSV.'
     param_genomic_help = 'Path to your genomic file. Default expected format is CSV'
     csv_output_help = 'Export a csv file of all trial match results'
@@ -49,14 +49,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     closed_help = 'Match on all closed trials and all suspended steps, arms and doses. Default is to skip.'
     deceased_help = 'Match on deceased patients. Default is to match only on alive patients.'
-    upsert_help = 'When loading clinical or trial data, specify a field other than _id to use as a unique key. ' \
-                  'Must be comma separated values if using more than one field e.g. name,age,gender'
+    upsert_help = ('When loading clinical or trial data, specify a field other than _id to use as a unique key. '
+                   'Must be comma separated values if using more than one field e.g. name,age,gender')
     dry_help = "Execute a full matching run but do not insert any matches into the DB"
     debug_help = "Enable debug logging"
-    config_help = "Path to the config file. By default will look in config/config.json, but if this class is " \
-                  "imported, will need to be specified explicitly "
-    db_name_help = "Specify a custom db name to load trials and/or patient data into. If no value is passed, " \
-                   "db name will be take from SECRETS_JSON file."
+    config_help = ("Path to the config file. By default will look in config/config.json, but if this class is "
+                   "imported, will need to be specified explicitly ")
+    db_name_help = ("Specify a custom db name to load trials and/or patient data into. If no value is passed, "
+                    "db name will be take from SECRETS_JSON file.")
     run_log_help = "Ignore the run log and run on all specified sample IDs/protocol nos"
 
     subp = parser.add_subparsers(help='sub-command help')
