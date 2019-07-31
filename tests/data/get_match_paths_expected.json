@@ -1,7 +1,6 @@
 {
   "and_and_or.json": [
     {
-      "hash": "3367605eab53ec352192393b01dc0f38c24c0063",
       "criteria_list": [
         {
           "depth": 0,
@@ -41,7 +40,6 @@
       ]
     },
     {
-      "hash": "143f471b882b746a6dc58b6aa1875696b2c66c76",
       "criteria_list": [
         {
           "depth": 0,
@@ -83,7 +81,6 @@
   ],
   "or_or_or.json": [
     {
-      "hash": "bf835225d2ea2ebd673ca437128e9170a13dda0e",
       "criteria_list": [
         {
           "depth": 4,
@@ -98,7 +95,6 @@
       ]
     },
     {
-      "hash": "f3bc1248f545e8a77ab2f94603b88f526f8964a6",
       "criteria_list": [
         {
           "depth": 4,
@@ -113,7 +109,6 @@
       ]
     },
     {
-      "hash": "09a075f92571203279af36f422b97f91d274cdc6",
       "criteria_list": [
         {
           "depth": 3,
@@ -128,7 +123,6 @@
       ]
     },
     {
-      "hash": "664eb92cc89b63f42232035997402f30dce86d74",
       "criteria_list": [
         {
           "depth": 3,
@@ -143,7 +137,6 @@
       ]
     },
     {
-      "hash": "9ffe9e3341d41ece8ab6ea7f4cf3745bb364fafb",
       "criteria_list": [
         {
           "depth": 2,
@@ -161,7 +154,6 @@
       ]
     },
     {
-      "hash": "9ffe9e3341d41ece8ab6ea7f4cf3745bb364fafb",
       "criteria_list": [
         {
           "depth": 2,
@@ -181,7 +173,6 @@
   ],
   "and_or_or.json": [
     {
-      "hash": "bc5cb5988943d7c0ce7f0e554cd4fdc2767569e6",
       "criteria_list": [
         {
           "depth": 0,
@@ -211,7 +202,6 @@
       ]
     },
     {
-      "hash": "772ccc0b6e30833a72561046f19d6df120a95bec",
       "criteria_list": [
         {
           "depth": 0,
@@ -241,7 +231,6 @@
       ]
     },
     {
-      "hash": "3deb8bb058ea7a982f85da562bdf72458f66b3dc",
       "criteria_list": [
         {
           "depth": 0,
@@ -271,7 +260,6 @@
       ]
     },
     {
-      "hash": "f2fea0768590b7e7f952197c32e71030b80092a6",
       "criteria_list": [
         {
           "depth": 0,
@@ -303,7 +291,6 @@
   ],
   "or_and_or.json": [
     {
-      "hash": "9ffe9e3341d41ece8ab6ea7f4cf3745bb364fafb",
       "criteria_list": [
         {
           "depth": 2,
@@ -321,7 +308,6 @@
       ]
     },
     {
-      "hash": "9ffe9e3341d41ece8ab6ea7f4cf3745bb364fafb",
       "criteria_list": [
         {
           "depth": 2,
@@ -339,7 +325,6 @@
       ]
     },
     {
-      "hash": "049094233dadb4819f2447d9858ade789a85ffe5",
       "criteria_list": [
         {
           "depth": 2,
@@ -369,7 +354,6 @@
       ]
     },
     {
-      "hash": "b655e7c4be7a11832eaa50a81ed801306a1e2074",
       "criteria_list": [
         {
           "depth": 2,
@@ -401,7 +385,6 @@
   ],
   "and_and_and.json": [
     {
-      "hash": "2d6c55c27a27b8b254803f76261b68e5940a301d",
       "criteria_list": [
         {
           "depth": 0,
@@ -443,7 +426,6 @@
   ],
   "or_and_and.json": [
     {
-      "hash": "88a67c7fa9b56745b4ba4df79c6aea42ff43ae8b",
       "criteria_list": [
         {
           "depth": 2,
@@ -473,7 +455,6 @@
       ]
     },
     {
-      "hash": "c676b2b0aa7749cd19551b995a85481d58c14b96",
       "criteria_list": [
         {
           "depth": 2,
@@ -491,7 +472,6 @@
       ]
     },
     {
-      "hash": "c676b2b0aa7749cd19551b995a85481d58c14b96",
       "criteria_list": [
         {
           "depth": 2,
@@ -511,7 +491,6 @@
   ],
   "and_or_and.json": [
     {
-      "hash": "cf0ac98522a2908d22b1208d9f9eae97bb9307f6",
       "criteria_list": [
         {
           "depth": 0,
@@ -546,7 +525,6 @@
       ]
     },
     {
-      "hash": "599096819ef1d8b4cbdceb79b83c4ae0cf06d2f5",
       "criteria_list": [
         {
           "depth": 0,
@@ -576,7 +554,6 @@
       ]
     },
     {
-      "hash": "f2fea0768590b7e7f952197c32e71030b80092a6",
       "criteria_list": [
         {
           "depth": 0,
@@ -608,7 +585,6 @@
   ],
   "all_cases.json": [
     {
-      "hash": "8562f5ca70333e93ea158948727c7ce449037388",
       "criteria_list": [
         {
           "depth": 0,
@@ -698,7 +674,6 @@
       ]
     },
     {
-      "hash": "6c05a86d835fcad28ffea16d4fcb0582f22af2a7",
       "criteria_list": [
         {
           "depth": 0,
@@ -788,7 +763,6 @@
       ]
     },
     {
-      "hash": "c00de6e30b2ff3796d6002116a986f1a9d758ec7",
       "criteria_list": [
         {
           "depth": 0,
@@ -878,7 +852,6 @@
       ]
     },
     {
-      "hash": "07f9f9f365596a701c966355def68cd1e6d76024",
       "criteria_list": [
         {
           "depth": 0,
@@ -968,7 +941,6 @@
       ]
     },
     {
-      "hash": "d793772a377e3f74815c8349f554a52323da6449",
       "criteria_list": [
         {
           "depth": 0,
@@ -1053,7 +1025,6 @@
       ]
     },
     {
-      "hash": "89e9ca7d6f3156d9655d8dac7d237c3659eb8382",
       "criteria_list": [
         {
           "depth": 0,
@@ -1138,7 +1109,6 @@
       ]
     },
     {
-      "hash": "15ea0b6bbcb014b2a3f31ea0130f87c937788b0d",
       "criteria_list": [
         {
           "depth": 0,
@@ -1223,7 +1193,6 @@
       ]
     },
     {
-      "hash": "648b0d3095e943266af722adc1cd186b01a8bf80",
       "criteria_list": [
         {
           "depth": 0,
@@ -1308,7 +1277,6 @@
       ]
     },
     {
-      "hash": "1013530fe4b83c7cc958f76ac7c7c91e43ae4d33",
       "criteria_list": [
         {
           "depth": 0,
@@ -1393,7 +1361,6 @@
       ]
     },
     {
-      "hash": "88f30679a9a07a007daf6ac24a83bfeeef99227c",
       "criteria_list": [
         {
           "depth": 0,
@@ -1478,7 +1445,6 @@
       ]
     },
     {
-      "hash": "f2125393091a45a4a94eaef9487e2a3eede11960",
       "criteria_list": [
         {
           "depth": 0,
@@ -1563,7 +1529,6 @@
       ]
     },
     {
-      "hash": "bb3811d84fb947cc21ca6780246dc0f88f14e5e5",
       "criteria_list": [
         {
           "depth": 0,
@@ -1648,7 +1613,6 @@
       ]
     },
     {
-      "hash": "8b6b93f8b8e582a7a68d8e4f3516cd8f0578d460",
       "criteria_list": [
         {
           "depth": 0,
@@ -1733,7 +1697,6 @@
       ]
     },
     {
-      "hash": "d9903f224fd22b138e141b35d638766af3157da2",
       "criteria_list": [
         {
           "depth": 0,
@@ -1818,7 +1781,6 @@
       ]
     },
     {
-      "hash": "1130a8a5a5d8c632384d561cd93404b3698583c2",
       "criteria_list": [
         {
           "depth": 0,
@@ -1903,7 +1865,6 @@
       ]
     },
     {
-      "hash": "5645aa24279c9795eb65f53f6d5874485d1c555d",
       "criteria_list": [
         {
           "depth": 0,
@@ -1988,7 +1949,6 @@
       ]
     },
     {
-      "hash": "d427152fc3d1c2fdc3b6ad13323eb0fcd38331b4",
       "criteria_list": [
         {
           "depth": 0,
@@ -2068,7 +2028,6 @@
       ]
     },
     {
-      "hash": "e56446ac10ca4d091cbe2592cd2e25534e6f5322",
       "criteria_list": [
         {
           "depth": 0,
@@ -2148,7 +2107,6 @@
       ]
     },
     {
-      "hash": "4e159940154fecb43c41c83a4448936e4fc08fe1",
       "criteria_list": [
         {
           "depth": 0,
@@ -2228,7 +2186,6 @@
       ]
     },
     {
-      "hash": "909ff6d0fb8f83ac78da4297b7b484b70fd9d3b0",
       "criteria_list": [
         {
           "depth": 0,
@@ -2308,7 +2265,6 @@
       ]
     },
     {
-      "hash": "c22029a3c55e6753af54f2bc4e94229844b52f72",
       "criteria_list": [
         {
           "depth": 0,
@@ -2388,7 +2344,6 @@
       ]
     },
     {
-      "hash": "355f16a115657f8a3e00015d3b4a700e54a673ae",
       "criteria_list": [
         {
           "depth": 0,
@@ -2468,7 +2423,6 @@
       ]
     },
     {
-      "hash": "f7fa34a6ecb52bf835e32a8839e8d71538cb1dbc",
       "criteria_list": [
         {
           "depth": 0,
@@ -2548,7 +2502,6 @@
       ]
     },
     {
-      "hash": "d02da579d62f4d8e3659fe34c3b76613b213e0b5",
       "criteria_list": [
         {
           "depth": 0,
@@ -2628,7 +2581,6 @@
       ]
     },
     {
-      "hash": "81e5b9b3d62edd58f30c5c021842faaf1a029d80",
       "criteria_list": [
         {
           "depth": 0,
@@ -2713,7 +2665,6 @@
       ]
     },
     {
-      "hash": "c8932e6a49dda2f83a7b2618a3b8d7962ede7877",
       "criteria_list": [
         {
           "depth": 0,
@@ -2798,7 +2749,6 @@
       ]
     },
     {
-      "hash": "9fa0ce12632393690c1f8cfa40329003b5ffda7f",
       "criteria_list": [
         {
           "depth": 0,
@@ -2883,7 +2833,6 @@
       ]
     },
     {
-      "hash": "c8d52c8ea23d036f58adad89e08dab2febc9121a",
       "criteria_list": [
         {
           "depth": 0,
@@ -2968,7 +2917,6 @@
       ]
     },
     {
-      "hash": "6d35e31e161009dc145eca3c29d3dedcf4d0c448",
       "criteria_list": [
         {
           "depth": 0,
@@ -3048,7 +2996,6 @@
       ]
     },
     {
-      "hash": "2116af74a2b1dbf4e17322a66794dddb7e18d4b0",
       "criteria_list": [
         {
           "depth": 0,
@@ -3128,7 +3075,6 @@
       ]
     },
     {
-      "hash": "a86b45b081fac59768691ddf2fa5f0def55fb322",
       "criteria_list": [
         {
           "depth": 0,
@@ -3208,7 +3154,6 @@
       ]
     },
     {
-      "hash": "45661207212d1a76abdb910aed940d115a1322cb",
       "criteria_list": [
         {
           "depth": 0,
@@ -3288,7 +3233,6 @@
       ]
     },
     {
-      "hash": "28df37e2a104adcb130b648fe8ad24b2747ffbc1",
       "criteria_list": [
         {
           "depth": 0,
@@ -3368,7 +3312,6 @@
       ]
     },
     {
-      "hash": "b870423e81ca266d8f4d28e4124df5d7cc34214f",
       "criteria_list": [
         {
           "depth": 0,
@@ -3448,7 +3391,6 @@
       ]
     },
     {
-      "hash": "662cfc188ab7431c135030419582efccbcca0d1e",
       "criteria_list": [
         {
           "depth": 0,
@@ -3528,7 +3470,6 @@
       ]
     },
     {
-      "hash": "d951f5da9a32f1bc049b526c1d2cac726e53141a",
       "criteria_list": [
         {
           "depth": 0,
@@ -3608,7 +3549,6 @@
       ]
     },
     {
-      "hash": "5528aa1c7405241755c0445988d022a0afecb68b",
       "criteria_list": [
         {
           "depth": 0,
@@ -3693,7 +3633,6 @@
       ]
     },
     {
-      "hash": "f291c7d13caf73e7e7c1b40207675e239b4944f4",
       "criteria_list": [
         {
           "depth": 0,
@@ -3778,7 +3717,6 @@
       ]
     },
     {
-      "hash": "3e79fd69b67527cc75538444809099add8c2dd45",
       "criteria_list": [
         {
           "depth": 0,
@@ -3863,7 +3801,6 @@
       ]
     },
     {
-      "hash": "b740062a546efeb6944702efd8447d2f2bd1f6ed",
       "criteria_list": [
         {
           "depth": 0,
@@ -3948,7 +3885,6 @@
       ]
     },
     {
-      "hash": "aaba20ba8afa43b839275bcb1bf1895681460bd2",
       "criteria_list": [
         {
           "depth": 0,
@@ -4028,7 +3964,6 @@
       ]
     },
     {
-      "hash": "a4d22d85b2f64f1da2f4f7cc2562e173c1e67075",
       "criteria_list": [
         {
           "depth": 0,
@@ -4108,7 +4043,6 @@
       ]
     },
     {
-      "hash": "3445add2d8d86cfc64b622b46e85cfbed90fbdb7",
       "criteria_list": [
         {
           "depth": 0,
@@ -4188,7 +4122,6 @@
       ]
     },
     {
-      "hash": "c509fd1a91d517663ffa6847cdff0eae0bc09070",
       "criteria_list": [
         {
           "depth": 0,
@@ -4268,7 +4201,6 @@
       ]
     },
     {
-      "hash": "c5f99792c967b0fc093d8a217b56cd63b24d4624",
       "criteria_list": [
         {
           "depth": 0,
@@ -4348,7 +4280,6 @@
       ]
     },
     {
-      "hash": "c912f2667733704161604514560b58b2004bc16f",
       "criteria_list": [
         {
           "depth": 0,
@@ -4428,7 +4359,6 @@
       ]
     },
     {
-      "hash": "35d84f7590dce012ba5dc169fdb17b1f6fd02b29",
       "criteria_list": [
         {
           "depth": 0,
@@ -4508,7 +4438,6 @@
       ]
     },
     {
-      "hash": "1a667048702c76e1ebd020b720cfc7aef4f52942",
       "criteria_list": [
         {
           "depth": 0,
@@ -4588,7 +4517,6 @@
       ]
     },
     {
-      "hash": "2261e4f87ef1da9b9e0b84b24ef6adbde5f91fd5",
       "criteria_list": [
         {
           "depth": 0,
@@ -4673,7 +4601,6 @@
       ]
     },
     {
-      "hash": "174ad42ae24139c32676129b7a349e35aef445bb",
       "criteria_list": [
         {
           "depth": 0,
@@ -4758,7 +4685,6 @@
       ]
     },
     {
-      "hash": "270ccbe6428d5e1ecdaaaf864e09442477978a9d",
       "criteria_list": [
         {
           "depth": 0,
@@ -4843,7 +4769,6 @@
       ]
     },
     {
-      "hash": "36c7eddf5c314ec130e8f8616dcbb1d38c2dce7f",
       "criteria_list": [
         {
           "depth": 0,
@@ -4928,7 +4853,6 @@
       ]
     },
     {
-      "hash": "6e07a34baae09c26c129ce6d21996b170c4cdab5",
       "criteria_list": [
         {
           "depth": 0,
@@ -5008,7 +4932,6 @@
       ]
     },
     {
-      "hash": "7670765e340fea420444b0c86c6856efcb5a0da6",
       "criteria_list": [
         {
           "depth": 0,
@@ -5088,7 +5011,6 @@
       ]
     },
     {
-      "hash": "dc64c59930018bcb38244520120263dbdc30dd4e",
       "criteria_list": [
         {
           "depth": 0,
@@ -5168,7 +5090,6 @@
       ]
     },
     {
-      "hash": "84f9f8714b9bc249f2c09e7defea04f90ef57d4b",
       "criteria_list": [
         {
           "depth": 0,
@@ -5248,7 +5169,6 @@
       ]
     },
     {
-      "hash": "3a50aff1c163d187e95a9af2d453c89f880e86d2",
       "criteria_list": [
         {
           "depth": 0,
@@ -5328,7 +5248,6 @@
       ]
     },
     {
-      "hash": "21a5c39d6bc18a137dcea44203af766851634ba7",
       "criteria_list": [
         {
           "depth": 0,
@@ -5408,7 +5327,6 @@
       ]
     },
     {
-      "hash": "33473f2ab6669a73c9489a6fb432fd977f66b4d4",
       "criteria_list": [
         {
           "depth": 0,
@@ -5488,7 +5406,6 @@
       ]
     },
     {
-      "hash": "202383d89ee672c4bad3f6e5fd41c8d0fbac1906",
       "criteria_list": [
         {
           "depth": 0,
@@ -5568,7 +5485,6 @@
       ]
     },
     {
-      "hash": "fdccedbe8c88ab8d828a77ed115c6a6749259ba5",
       "criteria_list": [
         {
           "depth": 0,
@@ -5668,7 +5584,6 @@
       ]
     },
     {
-      "hash": "cbbdc8f46f52906f0e1d4e331137f9098c94f393",
       "criteria_list": [
         {
           "depth": 0,
@@ -5768,7 +5683,6 @@
       ]
     },
     {
-      "hash": "80949cfcc095a2ab980b9146c125c126960b0000",
       "criteria_list": [
         {
           "depth": 0,
@@ -5868,7 +5782,6 @@
       ]
     },
     {
-      "hash": "97f310a38305283b8ce49092a7e19d4362a21774",
       "criteria_list": [
         {
           "depth": 0,
@@ -5968,7 +5881,6 @@
       ]
     },
     {
-      "hash": "ff3d0dc4d3001cdb41cff6d5bc9eed71e561a4ee",
       "criteria_list": [
         {
           "depth": 0,
@@ -6063,7 +5975,6 @@
       ]
     },
     {
-      "hash": "409a5ef2fb4dfcb29a15c651f57f63b0108d02f1",
       "criteria_list": [
         {
           "depth": 0,
@@ -6158,7 +6069,6 @@
       ]
     },
     {
-      "hash": "b9f79119c9f5ff88c93d3bdc8d7617a6d82a9c22",
       "criteria_list": [
         {
           "depth": 0,
@@ -6253,7 +6163,6 @@
       ]
     },
     {
-      "hash": "169c37271ea097f7eb96d160d0ddcae97ef6da01",
       "criteria_list": [
         {
           "depth": 0,
@@ -6348,7 +6257,6 @@
       ]
     },
     {
-      "hash": "383f17e31aa0338d7539b574dd377714b17ad67d",
       "criteria_list": [
         {
           "depth": 0,
@@ -6443,7 +6351,6 @@
       ]
     },
     {
-      "hash": "ded821b8a2e585f9de75d90344b8ea7a62044fe7",
       "criteria_list": [
         {
           "depth": 0,
@@ -6538,7 +6445,6 @@
       ]
     },
     {
-      "hash": "0658fd7779203807578d0ae71b05c883611f2023",
       "criteria_list": [
         {
           "depth": 0,
@@ -6633,7 +6539,6 @@
       ]
     },
     {
-      "hash": "59326a20087de0e06d8d69654456a5e08ed5610c",
       "criteria_list": [
         {
           "depth": 0,
@@ -6728,7 +6633,6 @@
       ]
     },
     {
-      "hash": "157021641abaad762b59f49b5625068ad5e5d436",
       "criteria_list": [
         {
           "depth": 0,
@@ -6816,7 +6720,6 @@
       ]
     },
     {
-      "hash": "b3795c4b2fbdfb9d5663977b25bcc87387a5cfba",
       "criteria_list": [
         {
           "depth": 0,
@@ -6904,7 +6807,6 @@
       ]
     },
     {
-      "hash": "9e9c253829849fd86c3cb336b4ec31334c353841",
       "criteria_list": [
         {
           "depth": 0,
@@ -6992,7 +6894,6 @@
       ]
     },
     {
-      "hash": "75f0d423e05832ba32a4efb0d11472798dc714ce",
       "criteria_list": [
         {
           "depth": 0,
@@ -7080,7 +6981,6 @@
       ]
     },
     {
-      "hash": "f054cfd63bf5304abc1cbea70194ec337db035e9",
       "criteria_list": [
         {
           "depth": 0,
@@ -7163,7 +7063,6 @@
       ]
     },
     {
-      "hash": "54294651de50e6d300f4daa95a9d3d51e7c83c18",
       "criteria_list": [
         {
           "depth": 0,
@@ -7246,7 +7145,6 @@
       ]
     },
     {
-      "hash": "d46099a062f62239700ffb551518f416c7a0c589",
       "criteria_list": [
         {
           "depth": 0,
@@ -7329,7 +7227,6 @@
       ]
     },
     {
-      "hash": "ed609082c418119de018f8061e1522417b636ca7",
       "criteria_list": [
         {
           "depth": 0,
@@ -7412,7 +7309,6 @@
       ]
     },
     {
-      "hash": "db27ce089c72225bde98acb31894874ffbd98228",
       "criteria_list": [
         {
           "depth": 0,
@@ -7495,7 +7391,6 @@
       ]
     },
     {
-      "hash": "78fe99e795989060838d6c9e16d4575da3fd680f",
       "criteria_list": [
         {
           "depth": 0,
@@ -7578,7 +7473,6 @@
       ]
     },
     {
-      "hash": "d75cfe5bc4082707fa3262f7e8a5d3871c7767c4",
       "criteria_list": [
         {
           "depth": 0,
@@ -7661,7 +7555,6 @@
       ]
     },
     {
-      "hash": "f5c5d277458ee8565e03dd152b5afc6106ddf402",
       "criteria_list": [
         {
           "depth": 0,
@@ -7744,7 +7637,6 @@
       ]
     },
     {
-      "hash": "157021641abaad762b59f49b5625068ad5e5d436",
       "criteria_list": [
         {
           "depth": 0,
@@ -7832,7 +7724,6 @@
       ]
     },
     {
-      "hash": "b3795c4b2fbdfb9d5663977b25bcc87387a5cfba",
       "criteria_list": [
         {
           "depth": 0,
@@ -7920,7 +7811,6 @@
       ]
     },
     {
-      "hash": "9e9c253829849fd86c3cb336b4ec31334c353841",
       "criteria_list": [
         {
           "depth": 0,
@@ -8008,7 +7898,6 @@
       ]
     },
     {
-      "hash": "75f0d423e05832ba32a4efb0d11472798dc714ce",
       "criteria_list": [
         {
           "depth": 0,
@@ -8096,7 +7985,6 @@
       ]
     },
     {
-      "hash": "f054cfd63bf5304abc1cbea70194ec337db035e9",
       "criteria_list": [
         {
           "depth": 0,
@@ -8179,7 +8067,6 @@
       ]
     },
     {
-      "hash": "54294651de50e6d300f4daa95a9d3d51e7c83c18",
       "criteria_list": [
         {
           "depth": 0,
@@ -8262,7 +8149,6 @@
       ]
     },
     {
-      "hash": "d46099a062f62239700ffb551518f416c7a0c589",
       "criteria_list": [
         {
           "depth": 0,
@@ -8345,7 +8231,6 @@
       ]
     },
     {
-      "hash": "ed609082c418119de018f8061e1522417b636ca7",
       "criteria_list": [
         {
           "depth": 0,
@@ -8428,7 +8313,6 @@
       ]
     },
     {
-      "hash": "db27ce089c72225bde98acb31894874ffbd98228",
       "criteria_list": [
         {
           "depth": 0,
@@ -8511,7 +8395,6 @@
       ]
     },
     {
-      "hash": "78fe99e795989060838d6c9e16d4575da3fd680f",
       "criteria_list": [
         {
           "depth": 0,
@@ -8594,7 +8477,6 @@
       ]
     },
     {
-      "hash": "d75cfe5bc4082707fa3262f7e8a5d3871c7767c4",
       "criteria_list": [
         {
           "depth": 0,
@@ -8677,7 +8559,6 @@
       ]
     },
     {
-      "hash": "f5c5d277458ee8565e03dd152b5afc6106ddf402",
       "criteria_list": [
         {
           "depth": 0,
@@ -8760,7 +8641,6 @@
       ]
     },
     {
-      "hash": "ff520cf7afc710894a780beb81301cafe03552f0",
       "criteria_list": [
         {
           "depth": 0,
@@ -8850,7 +8730,6 @@
       ]
     },
     {
-      "hash": "b17dfb93c43d186e5ecf46171f5687a69bef22b0",
       "criteria_list": [
         {
           "depth": 0,
@@ -8940,7 +8819,6 @@
       ]
     },
     {
-      "hash": "0b55831fcdd4f2a1c3b871ceef7210033df90ab1",
       "criteria_list": [
         {
           "depth": 0,
@@ -9030,7 +8908,6 @@
       ]
     },
     {
-      "hash": "f3f9b9696fec9e18d75856e430bd2caea1522579",
       "criteria_list": [
         {
           "depth": 0,
@@ -9120,7 +8997,6 @@
       ]
     },
     {
-      "hash": "d93e309fce50736dbfcc417c81ddb2a43e6ca211",
       "criteria_list": [
         {
           "depth": 0,
@@ -9205,7 +9081,6 @@
       ]
     },
     {
-      "hash": "d653840e629c8419ac60e50f7c7d8f8057fe3511",
       "criteria_list": [
         {
           "depth": 0,
@@ -9290,7 +9165,6 @@
       ]
     },
     {
-      "hash": "8c63a2edba9bd653a007b3b76bc9dec02a2082e5",
       "criteria_list": [
         {
           "depth": 0,
@@ -9375,7 +9249,6 @@
       ]
     },
     {
-      "hash": "cca87f8e9e33494177bdb8ea044ed61e20f8a40d",
       "criteria_list": [
         {
           "depth": 0,
@@ -9460,7 +9333,6 @@
       ]
     },
     {
-      "hash": "1dc30211f9b9380ee45f594de4ed903ec81c6e96",
       "criteria_list": [
         {
           "depth": 0,
@@ -9545,7 +9417,6 @@
       ]
     },
     {
-      "hash": "c47e169c960e72085772e4640e6add24f538b7bc",
       "criteria_list": [
         {
           "depth": 0,
@@ -9630,7 +9501,6 @@
       ]
     },
     {
-      "hash": "7a5da5d87f39ad73a272d2d506380f45112481d6",
       "criteria_list": [
         {
           "depth": 0,
@@ -9715,7 +9585,6 @@
       ]
     },
     {
-      "hash": "5714b0bfdf4dee0445f2c8d435f04ad8cdf6e79f",
       "criteria_list": [
         {
           "depth": 0,
@@ -9800,7 +9669,6 @@
       ]
     },
     {
-      "hash": "123040e655e0aef93189a2682f4ac9ef10bfd060",
       "criteria_list": [
         {
           "depth": 0,
@@ -9885,7 +9753,6 @@
       ]
     },
     {
-      "hash": "cfe52d8a02666113d482d487b71c85fedd7d6580",
       "criteria_list": [
         {
           "depth": 0,
@@ -9970,7 +9837,6 @@
       ]
     },
     {
-      "hash": "e7d1dc9e715bafb9ed2aeb08bffb59d4103535a2",
       "criteria_list": [
         {
           "depth": 0,
@@ -10055,7 +9921,6 @@
       ]
     },
     {
-      "hash": "a55bc6f61b09d63a40f0a1a6402908720036d800",
       "criteria_list": [
         {
           "depth": 0,
@@ -10140,7 +10005,6 @@
       ]
     },
     {
-      "hash": "0320fef9fe886b1ad51af66831e61493797b7626",
       "criteria_list": [
         {
           "depth": 0,
@@ -10220,7 +10084,6 @@
       ]
     },
     {
-      "hash": "067a446157cb6f58fcf89d4ea06adf33acfd5f50",
       "criteria_list": [
         {
           "depth": 0,
@@ -10300,7 +10163,6 @@
       ]
     },
     {
-      "hash": "26054e7c7140f8996ea4a46e2e76c0c0ad12fced",
       "criteria_list": [
         {
           "depth": 0,
@@ -10380,7 +10242,6 @@
       ]
     },
     {
-      "hash": "83a72a440f55623c3e58dec9a1e3287d68ffab9f",
       "criteria_list": [
         {
           "depth": 0,
@@ -10460,7 +10321,6 @@
       ]
     },
     {
-      "hash": "cf2c250c6a8948c0ee95cc0fb6da91a004128a7a",
       "criteria_list": [
         {
           "depth": 0,
@@ -10540,7 +10400,6 @@
       ]
     },
     {
-      "hash": "70d0b045d89e79a1948832ea14fdcf4791084a1e",
       "criteria_list": [
         {
           "depth": 0,
@@ -10620,7 +10479,6 @@
       ]
     },
     {
-      "hash": "99a8af069ba6ad1f7e4e0bad6f2a018d8775ff63",
       "criteria_list": [
         {
           "depth": 0,
@@ -10700,7 +10558,6 @@
       ]
     },
     {
-      "hash": "a112291fc2cfe7ba9e24e3efd048a5d9fa45789a",
       "criteria_list": [
         {
           "depth": 0,
@@ -10780,7 +10637,6 @@
       ]
     },
     {
-      "hash": "f277364f4be0276843c8aa8c5b238b944f33ea28",
       "criteria_list": [
         {
           "depth": 0,
@@ -10865,7 +10721,6 @@
       ]
     },
     {
-      "hash": "03733dcf478d2fb0d3e11cda935f6a51cc0a3a97",
       "criteria_list": [
         {
           "depth": 0,
@@ -10950,7 +10805,6 @@
       ]
     },
     {
-      "hash": "e5ed85478c3790a6e6fe480a8723adc3428e7d02",
       "criteria_list": [
         {
           "depth": 0,
@@ -11035,7 +10889,6 @@
       ]
     },
     {
-      "hash": "9b0143e65e7afeecee97e84ef1b63889d33b3d1b",
       "criteria_list": [
         {
           "depth": 0,
@@ -11120,7 +10973,6 @@
       ]
     },
     {
-      "hash": "c3eedfc191b150dd1ea49823470b738f8a7e4e55",
       "criteria_list": [
         {
           "depth": 0,
@@ -11200,7 +11052,6 @@
       ]
     },
     {
-      "hash": "b1dd424fb4574a0588ffbda4dfdd32e6399e7674",
       "criteria_list": [
         {
           "depth": 0,
@@ -11280,7 +11131,6 @@
       ]
     },
     {
-      "hash": "c63a0f585495c19bb5e9c57e260e2e85ea3e5717",
       "criteria_list": [
         {
           "depth": 0,
@@ -11360,7 +11210,6 @@
       ]
     },
     {
-      "hash": "2d96c9f1b1530d5bbc8e580e2ee5a75bbe75fb19",
       "criteria_list": [
         {
           "depth": 0,
@@ -11440,7 +11289,6 @@
       ]
     },
     {
-      "hash": "742a41514efde84f5bf164f813ccfa6f7006a454",
       "criteria_list": [
         {
           "depth": 0,
@@ -11520,7 +11368,6 @@
       ]
     },
     {
-      "hash": "3141f1443fc62ef32c51dbb6926979d7a3c52974",
       "criteria_list": [
         {
           "depth": 0,
@@ -11600,7 +11447,6 @@
       ]
     },
     {
-      "hash": "e3d86c2614f9150206da296384afe75a47658dfb",
       "criteria_list": [
         {
           "depth": 0,
@@ -11680,7 +11526,6 @@
       ]
     },
     {
-      "hash": "9a6f9937eceb9dc63db5c5086e10bec523049cd1",
       "criteria_list": [
         {
           "depth": 0,
@@ -11760,7 +11605,6 @@
       ]
     },
     {
-      "hash": "7399dc1ea13bb62a48221eb684f6a73d98483499",
       "criteria_list": [
         {
           "depth": 0,
@@ -11845,7 +11689,6 @@
       ]
     },
     {
-      "hash": "cdfec4ee0f4ede9462d09ce067d8289457ec379e",
       "criteria_list": [
         {
           "depth": 0,
@@ -11930,7 +11773,6 @@
       ]
     },
     {
-      "hash": "92599d074fd7ca84e1769e5a7afac65b741912e3",
       "criteria_list": [
         {
           "depth": 0,
@@ -12015,7 +11857,6 @@
       ]
     },
     {
-      "hash": "bd5926c79c0221081c9ce80cac10e4ef8e863542",
       "criteria_list": [
         {
           "depth": 0,
@@ -12100,7 +11941,6 @@
       ]
     },
     {
-      "hash": "59d42ed419e0ed8bc15961644dec9b06100f3f66",
       "criteria_list": [
         {
           "depth": 0,
@@ -12180,7 +12020,6 @@
       ]
     },
     {
-      "hash": "c46d812cc2335ff94e184c9508a3b2fe20adf9b9",
       "criteria_list": [
         {
           "depth": 0,
@@ -12260,7 +12099,6 @@
       ]
     },
     {
-      "hash": "4c1447ef3f9480dc81de435037dd93bb432c75b9",
       "criteria_list": [
         {
           "depth": 0,
@@ -12340,7 +12178,6 @@
       ]
     },
     {
-      "hash": "fc22182ac092ea58d8b24ae42d56e8143406c4ed",
       "criteria_list": [
         {
           "depth": 0,
@@ -12420,7 +12257,6 @@
       ]
     },
     {
-      "hash": "e0b7d596e6f8ce8840cb6f8058524a9e3a2a9baf",
       "criteria_list": [
         {
           "depth": 0,
@@ -12500,7 +12336,6 @@
       ]
     },
     {
-      "hash": "5ca39e72d48daaa515d418239e73b49849e6a4c0",
       "criteria_list": [
         {
           "depth": 0,
@@ -12580,7 +12415,6 @@
       ]
     },
     {
-      "hash": "b36fe2fb29326ea1f63d89e9708bd846d7d3d120",
       "criteria_list": [
         {
           "depth": 0,
@@ -12660,7 +12494,6 @@
       ]
     },
     {
-      "hash": "9e168ba3b365d2ad2ec2bd9cb4283ced0764bd35",
       "criteria_list": [
         {
           "depth": 0,
@@ -12740,7 +12573,6 @@
       ]
     },
     {
-      "hash": "ba3eb95a4d4bb7b03fa54aae37f0e9e2acfc5351",
       "criteria_list": [
         {
           "depth": 0,
@@ -12825,7 +12657,6 @@
       ]
     },
     {
-      "hash": "cbf009ae4be3a0b38b4b11c517376b6c98d410f0",
       "criteria_list": [
         {
           "depth": 0,
@@ -12910,7 +12741,6 @@
       ]
     },
     {
-      "hash": "0ea16729b1a9b91b5334c1c1b71f3163c7b86d1a",
       "criteria_list": [
         {
           "depth": 0,
@@ -12995,7 +12825,6 @@
       ]
     },
     {
-      "hash": "de683bf81d133825fafce81d2780619ae8a77954",
       "criteria_list": [
         {
           "depth": 0,
@@ -13080,7 +12909,6 @@
       ]
     },
     {
-      "hash": "f99ce201d3143ff50116171d0474463ebfc922f0",
       "criteria_list": [
         {
           "depth": 0,
@@ -13160,7 +12988,6 @@
       ]
     },
     {
-      "hash": "aadccbb810bf47b208f922af540c235a911b629c",
       "criteria_list": [
         {
           "depth": 0,
@@ -13240,7 +13067,6 @@
       ]
     },
     {
-      "hash": "3374454c1be590dbfd7762fea22c3bcca5725130",
       "criteria_list": [
         {
           "depth": 0,
@@ -13320,7 +13146,6 @@
       ]
     },
     {
-      "hash": "0fcd7f53c8f2a1b520d6c7944edcb7809bfc76cc",
       "criteria_list": [
         {
           "depth": 0,
@@ -13400,7 +13225,6 @@
       ]
     },
     {
-      "hash": "e73125c8755b69efbd90d1fbd8bf405bd363f2a6",
       "criteria_list": [
         {
           "depth": 0,
@@ -13480,7 +13304,6 @@
       ]
     },
     {
-      "hash": "2dcfa3a3e4b49bf8b92051be81a23a02820be29e",
       "criteria_list": [
         {
           "depth": 0,
@@ -13560,7 +13383,6 @@
       ]
     },
     {
-      "hash": "34e43fbf8d1dcd94f329a0708b8ac2746606e286",
       "criteria_list": [
         {
           "depth": 0,
@@ -13640,7 +13462,6 @@
       ]
     },
     {
-      "hash": "54cc608cd28a79bc99deae23104d4260026b9324",
       "criteria_list": [
         {
           "depth": 0,
@@ -13720,7 +13541,6 @@
       ]
     },
     {
-      "hash": "dbb112b9dfe66f0b5dbe176abc0a37f76caaf88f",
       "criteria_list": [
         {
           "depth": 0,
@@ -13820,7 +13640,6 @@
       ]
     },
     {
-      "hash": "e31a7a5039a341d37542499e726ee05f4ae9f659",
       "criteria_list": [
         {
           "depth": 0,
@@ -13920,7 +13739,6 @@
       ]
     },
     {
-      "hash": "7dd58198f113d1c7aba0b93b01dd1a62177ef210",
       "criteria_list": [
         {
           "depth": 0,
@@ -14020,7 +13838,6 @@
       ]
     },
     {
-      "hash": "d7d0928d04a5a5f169cfa50d9ed74c345ac26747",
       "criteria_list": [
         {
           "depth": 0,
@@ -14120,7 +13937,6 @@
       ]
     },
     {
-      "hash": "a626ca3d8b0792b5697f5cac935f8ebdc5068dc3",
       "criteria_list": [
         {
           "depth": 0,
@@ -14215,7 +14031,6 @@
       ]
     },
     {
-      "hash": "fc4e3cdc16c75643f33b9248dce8f7b98663de48",
       "criteria_list": [
         {
           "depth": 0,
@@ -14310,7 +14125,6 @@
       ]
     },
     {
-      "hash": "c4ba62353a52f59ac7c166261311be42753c1ad8",
       "criteria_list": [
         {
           "depth": 0,
@@ -14405,7 +14219,6 @@
       ]
     },
     {
-      "hash": "6314b494c65e0d817067d35ed5b7fb3f45baccd1",
       "criteria_list": [
         {
           "depth": 0,
@@ -14500,7 +14313,6 @@
       ]
     },
     {
-      "hash": "8335a3d7efac21d059a5a548eb5267a335b493bb",
       "criteria_list": [
         {
           "depth": 0,
@@ -14595,7 +14407,6 @@
       ]
     },
     {
-      "hash": "da296da5c783aef5e7f0c4b8e26bcbc896bb2684",
       "criteria_list": [
         {
           "depth": 0,
@@ -14690,7 +14501,6 @@
       ]
     },
     {
-      "hash": "c18fed22008d1b1880ecdf87a5440f30958da4b3",
       "criteria_list": [
         {
           "depth": 0,
@@ -14785,7 +14595,6 @@
       ]
     },
     {
-      "hash": "8c3a19bb8cc6094cb81d84e3be5cab3c36433f7d",
       "criteria_list": [
         {
           "depth": 0,
@@ -14880,7 +14689,6 @@
       ]
     },
     {
-      "hash": "fb8a65bf54a3c34bd3441518d1bd76aab9e4b5f3",
       "criteria_list": [
         {
           "depth": 0,
@@ -14968,7 +14776,6 @@
       ]
     },
     {
-      "hash": "7c517ecbb68df5756607e8714c95b98569e81807",
       "criteria_list": [
         {
           "depth": 0,
@@ -15056,7 +14863,6 @@
       ]
     },
     {
-      "hash": "b0a9f8e86cf5e6da002a1a185c85dd8d1a9f99f5",
       "criteria_list": [
         {
           "depth": 0,
@@ -15144,7 +14950,6 @@
       ]
     },
     {
-      "hash": "a6fde31cfd1d09d355c3457bfc32281c6777258f",
       "criteria_list": [
         {
           "depth": 0,
@@ -15232,7 +15037,6 @@
       ]
     },
     {
-      "hash": "43b2366cad8a214b0ce56d15b61a342288cf3e29",
       "criteria_list": [
         {
           "depth": 0,
@@ -15315,7 +15119,6 @@
       ]
     },
     {
-      "hash": "7791a7ae28ae537ea8428e3d8a9d0157fa079a0d",
       "criteria_list": [
         {
           "depth": 0,
@@ -15398,7 +15201,6 @@
       ]
     },
     {
-      "hash": "6444633f89fa608b043156735e2689e2c622654c",
       "criteria_list": [
         {
           "depth": 0,
@@ -15481,7 +15283,6 @@
       ]
     },
     {
-      "hash": "179eafd8814c1856ca356c6154ac7a011957111b",
       "criteria_list": [
         {
           "depth": 0,
@@ -15564,7 +15365,6 @@
       ]
     },
     {
-      "hash": "9cb2508225980dbabaea3737144205f2340efd6f",
       "criteria_list": [
         {
           "depth": 0,
@@ -15647,7 +15447,6 @@
       ]
     },
     {
-      "hash": "1a75caa52eb8f52ec820d5ef2543549ba4369260",
       "criteria_list": [
         {
           "depth": 0,
@@ -15730,7 +15529,6 @@
       ]
     },
     {
-      "hash": "369c238cb5b5aa3a9b10eccd66e366fb5ef4cdc7",
       "criteria_list": [
         {
           "depth": 0,
@@ -15813,7 +15611,6 @@
       ]
     },
     {
-      "hash": "2f34741bdbccadbe7b75827a27dbd127f23571e9",
       "criteria_list": [
         {
           "depth": 0,
@@ -15896,7 +15693,6 @@
       ]
     },
     {
-      "hash": "fb8a65bf54a3c34bd3441518d1bd76aab9e4b5f3",
       "criteria_list": [
         {
           "depth": 0,
@@ -15984,7 +15780,6 @@
       ]
     },
     {
-      "hash": "7c517ecbb68df5756607e8714c95b98569e81807",
       "criteria_list": [
         {
           "depth": 0,
@@ -16072,7 +15867,6 @@
       ]
     },
     {
-      "hash": "b0a9f8e86cf5e6da002a1a185c85dd8d1a9f99f5",
       "criteria_list": [
         {
           "depth": 0,
@@ -16160,7 +15954,6 @@
       ]
     },
     {
-      "hash": "a6fde31cfd1d09d355c3457bfc32281c6777258f",
       "criteria_list": [
         {
           "depth": 0,
@@ -16248,7 +16041,6 @@
       ]
     },
     {
-      "hash": "43b2366cad8a214b0ce56d15b61a342288cf3e29",
       "criteria_list": [
         {
           "depth": 0,
@@ -16331,7 +16123,6 @@
       ]
     },
     {
-      "hash": "7791a7ae28ae537ea8428e3d8a9d0157fa079a0d",
       "criteria_list": [
         {
           "depth": 0,
@@ -16414,7 +16205,6 @@
       ]
     },
     {
-      "hash": "6444633f89fa608b043156735e2689e2c622654c",
       "criteria_list": [
         {
           "depth": 0,
@@ -16497,7 +16287,6 @@
       ]
     },
     {
-      "hash": "179eafd8814c1856ca356c6154ac7a011957111b",
       "criteria_list": [
         {
           "depth": 0,
@@ -16580,7 +16369,6 @@
       ]
     },
     {
-      "hash": "9cb2508225980dbabaea3737144205f2340efd6f",
       "criteria_list": [
         {
           "depth": 0,
@@ -16663,7 +16451,6 @@
       ]
     },
     {
-      "hash": "1a75caa52eb8f52ec820d5ef2543549ba4369260",
       "criteria_list": [
         {
           "depth": 0,
@@ -16746,7 +16533,6 @@
       ]
     },
     {
-      "hash": "369c238cb5b5aa3a9b10eccd66e366fb5ef4cdc7",
       "criteria_list": [
         {
           "depth": 0,
@@ -16829,7 +16615,6 @@
       ]
     },
     {
-      "hash": "2f34741bdbccadbe7b75827a27dbd127f23571e9",
       "criteria_list": [
         {
           "depth": 0,
@@ -16912,7 +16697,6 @@
       ]
     },
     {
-      "hash": "4889a58069e22048fb4f062623f66c690acdee63",
       "criteria_list": [
         {
           "depth": 0,
@@ -16987,7 +16771,6 @@
       ]
     },
     {
-      "hash": "bf3454fee445bb1aaafe9a07e223bcaa2542304e",
       "criteria_list": [
         {
           "depth": 0,
@@ -17064,7 +16847,6 @@
   ],
   "or_or_and.json": [
     {
-      "hash": "4e366133ef4d39d9805a3460768191e299ec0897",
       "criteria_list": [
         {
           "depth": 3,
@@ -17084,7 +16866,6 @@
       ]
     },
     {
-      "hash": "32f5eff501f06b07346d4eac1152be51275734e7",
       "criteria_list": [
         {
           "depth": 3,
@@ -17099,7 +16880,6 @@
       ]
     },
     {
-      "hash": "664eb92cc89b63f42232035997402f30dce86d74",
       "criteria_list": [
         {
           "depth": 3,
@@ -17114,7 +16894,6 @@
       ]
     },
     {
-      "hash": "9ffe9e3341d41ece8ab6ea7f4cf3745bb364fafb",
       "criteria_list": [
         {
           "depth": 2,
@@ -17132,7 +16911,6 @@
       ]
     },
     {
-      "hash": "9ffe9e3341d41ece8ab6ea7f4cf3745bb364fafb",
       "criteria_list": [
         {
           "depth": 2,
