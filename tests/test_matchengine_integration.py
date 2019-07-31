@@ -6,7 +6,7 @@ import sys
 
 from contextlib import redirect_stderr
 from matchengine.engine import MatchEngine
-from matchengine.utilities.mongo_connection import MongoDBConnection
+from matchengine.database_connectivity.mongo_connection import MongoDBConnection
 
 from tests.timetravel_and_override import set_static_date_time
 

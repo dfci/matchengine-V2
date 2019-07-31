@@ -2,12 +2,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Tuple, List, Union
 import re
 
-from matchengine.utilities.matchengine_types import QueryPart, MongoQuery
-from matchengine.plugin_stub import QueryNodeTransformer
+from matchengine.typing.matchengine_types import QueryPart, MongoQuery
+from matchengine.plugin_helpers.plugin_stub import QueryNodeTransformer
 
 if TYPE_CHECKING:
     from typing import NoReturn
-    from matchengine.utilities.matchengine_types import QueryNode
+    from matchengine.typing.matchengine_types import QueryNode
 
 
 def get_sv_query_value_and_field_name(left_side: Union[str, None],

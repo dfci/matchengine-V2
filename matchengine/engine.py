@@ -10,7 +10,7 @@ import datetime
 from typing import TYPE_CHECKING
 from collections import defaultdict
 from multiprocessing import cpu_count
-from matchengine.utilities.mongo_connection import MongoDBConnection
+from matchengine.database_connectivity.mongo_connection import MongoDBConnection
 from matchengine.match_criteria_transform import MatchCriteriaTransform
 from matchengine.utilities.update_match_utils import async_update_matches_by_protocol_no
 from matchengine.utilities.utilities import (
@@ -21,14 +21,15 @@ from matchengine.utilities.task_utils import (
     run_poison_pill,
     run_update_task,
     run_run_log_update_task,
-    run_check_indices_task, run_index_update_task)
+    run_check_indices_task, run_index_update_task
+)
 from matchengine.match_translator import (
     extract_match_clauses_from_trial,
     create_match_tree,
     get_match_paths,
     translate_match_path
 )
-from matchengine.utilities.query_utils import (
+from matchengine.utilities.query import (
     execute_clinical_queries,
     execute_genomic_queries,
     get_needed_ids,
@@ -36,7 +37,7 @@ from matchengine.utilities.query_utils import (
     get_valid_genomic_reasons,
     get_valid_clinical_reasons
 )
-from matchengine.utilities.matchengine_types import (
+from matchengine.typing.matchengine_types import (
     PoisonPill,
     Cache,
     QueryTask,
@@ -48,7 +49,7 @@ from matchengine.utilities.matchengine_types import (
 
 if TYPE_CHECKING:
     from typing import NoReturn
-    from matchengine.utilities.matchengine_types import (
+    from matchengine.typing.matchengine_types import (
         Dict,
         Union,
         List,

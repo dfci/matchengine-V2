@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from pymongo import UpdateMany, InsertOne
 
-from matchengine.utilities.matchengine_types import RunLogUpdateTask, UpdateTask, MongoQuery
+from matchengine.typing.matchengine_types import RunLogUpdateTask, UpdateTask, MongoQuery
 from matchengine.utilities.utilities import perform_db_call
 
 logging.basicConfig(level=logging.INFO)

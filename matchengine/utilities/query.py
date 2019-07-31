@@ -5,8 +5,8 @@ import logging
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from matchengine.utilities.frozendict import nested_object_hash
-from matchengine.utilities.matchengine_types import (
+from matchengine.utilities.object_comparison import nested_object_hash
+from matchengine.typing.matchengine_types import (
     ClinicalMatchReason,
     GenomicMatchReason,
     MongoQuery
@@ -16,7 +16,7 @@ from matchengine.utilities.utilities import perform_db_call
 if TYPE_CHECKING:
     from bson import ObjectId
     from matchengine.engine import MatchEngine
-    from matchengine.utilities.matchengine_types import (
+    from matchengine.typing.matchengine_types import (
         ClinicalID,
         MultiCollectionQuery
     )

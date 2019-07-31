@@ -7,8 +7,8 @@ from types import MethodType
 from typing import TYPE_CHECKING
 
 from matchengine import query_transform
-from matchengine.utilities.mongo_connection import MongoDBConnection
-from matchengine.plugin_stub import (
+from matchengine.database_connectivity.mongo_connection import MongoDBConnection
+from matchengine.plugin_helpers.plugin_stub import (
     QueryTransformerContainer,
     TrialMatchDocumentCreator,
     DBSecrets,
@@ -18,7 +18,7 @@ from matchengine.plugin_stub import (
 if TYPE_CHECKING:
     from typing import Dict, List
     from matchengine.engine import MatchEngine
-    from matchengine.utilities.matchengine_types import MongoQuery
+    from matchengine.typing.matchengine_types import MongoQuery
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')

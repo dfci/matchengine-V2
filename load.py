@@ -7,7 +7,7 @@ import yaml
 import logging
 from bson import json_util
 from argparse import Namespace
-from matchengine.utilities.mongo_connection import MongoDBConnection
+from matchengine.database_connectivity.mongo_connection import MongoDBConnection
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
