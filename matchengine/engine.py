@@ -32,8 +32,7 @@ from matchengine.match_translator import (
 from matchengine.utilities.query import (
     execute_clinical_queries,
     execute_genomic_queries,
-    get_needed_ids,
-    get_query_results,
+    get_docs_results,
     get_valid_genomic_reasons,
     get_valid_clinical_reasons
 )
@@ -232,8 +231,16 @@ class MatchEngine(object):
                                                                            if clinical_ids
                                                                            else set(initial_clinical_ids))
 
-        needed_clinical, needed_genomic = get_needed_ids(all_results, self.cache.docs)
-        results = await get_query_results(self, needed_clinical, needed_genomic)
+        needed_clinical = list()
+        needed_genomic = list()
+        for clinical_id, genomic_ids in all_results.items():
+            if clinical_id not in self.cache.docs:
+                needed_clinical.append(clinical_id)
+            for genomic_id in genomic_ids:
+                if genomic_id not in self.cache.docs:
+                    needed_genomic.append(genomic_id)
+
+        results = await get_docs_results(self, needed_clinical, needed_genomic)
 
         # asyncio.gather returns [[],[]]. Save the resulting values on the cache for use when creating trial matches
         for outer_result in results:
@@ -333,7 +340,7 @@ class MatchEngine(object):
                 for query in queries:
                     if self.debug:
                         log.info(f"Query: {query}")
-                    if query:
+                    if query.valid:
                         # put the query onto the task queue for execution
                         await self._task_q.put(QueryTask(trial,
                                                          match_clause,

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from unittest import TestCase
 import csv
 import os
@@ -369,10 +370,50 @@ class IntegrationTestMatchengine(TestCase):
                     trials_to_load=['structured_sv'])
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
-        print()
-        # matches = self.me.matches['10-005']['1d2799df4446699a8ddeeee']
-        # assert matches[0]['genomic_alteration'] == 'EGFR Structural Variation'
-        # assert len(matches) == 1
+        assert '5d2799df6756630d8dd068c6' in self.me.matches['99-9999']
+        assert len(self.me.matches['99-9999']['5d2799df6756630d8dd068c6']) == 78
+        caught_matches = defaultdict(int)
+        for match in self.me.matches['99-9999']['5d2799df6756630d8dd068c6']:
+            alteration = match.get('genomic_alteration')
+            if match['reason_type'] == 'genomic':
+                if match['internal_id'] == 1234566:
+                    assert (alteration
+                            not in
+                            {
+                                "CLIP4-ALK Structural Variation",
+                                "ALK-CLIP4 Structural Variation",
+                                "EML4-EML4 Structural Variation"
+                            })
+                else:
+                    caught_matches[alteration] += 1
+
+        check_against = {
+            'TFG Structural Variation': 1,
+            'TFG-ALK Structural Variation': 3,
+            'ALK-TFG Structural Variation': 3,
+            'STRN Structural Variation': 1,
+            'STRN-intergenic Structural Variation': 1,
+            'intergenic-STRN Structural Variation': 1,
+            'RANDB2 Structural Variation': 1,
+            'RANDB2-ALK Structural Variation': 3,
+            'ALK-RANDB2 Structural Variation': 3,
+            'NPM1-intergenic Structural Variation': 1,
+            'intergenic-NPM1 Structural Variation': 1,
+            'KIF5B Structural Variation': 1,
+            'KIF5B-ALK Structural Variation': 3,
+            'ALK-KIF5B Structural Variation': 3,
+            'this should only match to any_gene-KRAS Structural Variation': 4,
+            'ALK-CLIP4 Structural Variation': 2,
+            'KRAS-this should only match to any_gene Structural Variation': 4,
+            'this should only match to any_gene-this should only match to any gene Structural Variation': 2,
+            'CLIP4-ALK Structural Variation': 2,
+            'EML4-EML4 Structural Variation': 6,
+            'KRAS Structural Variation': 1,
+            'EML4 Structural Variation': 2,
+            'BRCA Structural Variation': 1
+        }
+        for alteration, count in caught_matches.items():
+            assert check_against[alteration] == count
 
     def tearDown(self) -> None:
         if hasattr(self, 'me'):

@@ -61,8 +61,13 @@ class DFCIQueryNodeTransformer(QueryNodeTransformer):
                     do_not_render_part.render = False
             gene = whole_query.get('TRUE_HUGO_SYMBOL')
             sv_part = query_node.get_query_part_by_key('STRUCTURAL_VARIANT_COMMENT')
-            sv_part.query['STRUCTURAL_VARIANT_COMMENT'] = re.compile(rf"(.*\W{gene}\W.*)|(^{gene}\W.*)|(.*\W{gene}$)",
-                                                                     re.IGNORECASE)
+            if gene is not None and gene.lower() == 'any_gene':
+                sv_part.mcq_invalidating = True
+                sv_part.render = False
+            else:
+                sv_part.query['STRUCTURAL_VARIANT_COMMENT'] = re.compile(
+                    rf"(.*\W{gene}\W.*)|(^{gene}\W.*)|(.*\W{gene}$)",
+                    re.IGNORECASE)
         # blank-GENE -> Intergenic
         # GENE-blank -> Intergenic
         # GENE1-GENE1 -> GENE1-GENE1 # Intragenic
@@ -79,8 +84,8 @@ class DFCIQueryNodeTransformer(QueryNodeTransformer):
                     do_not_render_part.render = False
             query_node.query_parts.append(QueryPart(build_structured_sv_query(left, right, sv_query_type),
                                                     sv_info_part.negate,
-                                                    True))
-            print()
+                                                    True,
+                                                    False))
 
         # if signature curation is passed, do not query TRUE_HUGO_SYMBOL
         if {
