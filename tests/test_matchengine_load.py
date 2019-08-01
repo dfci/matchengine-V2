@@ -1,5 +1,6 @@
 from __future__ import annotations
 from argparse import Namespace
+from collections import defaultdict
 from unittest import TestCase
 from load import load
 from matchengine.database_connectivity.mongo_connection import MongoDBConnection
@@ -226,8 +227,12 @@ class IntegrationTestMatchengineLoading(TestCase):
         genomic = list(self.db_ro.genomic.find({}))
         assert len(clinical) == 2
         assert len(genomic) == 2
-        assert genomic[0]['CLINICAL_ID'] == clinical[0]['_id']
-        assert genomic[1]['CLINICAL_ID'] == clinical[1]['_id']
+
+        track = defaultdict(lambda: 1)
+        for clinical_doc in clinical:
+            track[clinical_doc['_id']] -= 1
+        for genomic_doc in genomic:
+            assert track[genomic_doc['CLINICAL_ID']] == 0
 
     def tearDown(self) -> None:
         self._db_exit()
