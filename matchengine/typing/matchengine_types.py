@@ -79,8 +79,17 @@ class MatchCriteria:
 class MatchCriterion:
     criteria_list: List[MatchCriteria]
 
+    def add_criteria(self, criteria: MatchCriteria):
+        if hasattr(self, '_hash'):
+            delattr(self, '_hash')
+        self.criteria_list.append(criteria)
+
     def hash(self) -> str:
-        return nested_object_hash({"query": [criteria.criteria for criteria in self.criteria_list]})
+        if not hasattr(self, '_hash'):
+            setattr(self,
+                    '_hash',
+                    nested_object_hash({"query": [criteria.criteria for criteria in self.criteria_list]}))
+        return getattr(self, '_hash')
 
 
 @dataclass
@@ -91,7 +100,9 @@ class QueryPart:
     mcq_invalidating: bool
 
     def hash(self) -> str:
-        return nested_object_hash(self.query)
+        if not hasattr(self, '_hash'):
+            setattr(self, '_hash', nested_object_hash(self.query))
+        return getattr(self, '_hash')
 
     def __copy__(self):
         return QueryPart(self.query,
@@ -100,27 +111,56 @@ class QueryPart:
                          self.mcq_invalidating)
 
 
-@dataclass
 class QueryNode:
     query_level: str
     query_depth: int
     query_parts: List[QueryPart]
     exclusion: Union[None, bool]
+    is_finalized: bool
+
+    def __init__(self, query_level, query_depth, query_parts, exclusion=None, is_finalized=False):
+
+        self.is_finalized = is_finalized
+        self.query_level = query_level
+        self.query_depth = query_depth
+        self.query_parts = query_parts
+        self.exclusion = exclusion
 
     def hash(self) -> str:
-        return nested_object_hash({
-            "_tmp1": [query_part.hash()
-                      for query_part in self.query_parts],
-            '_tmp2': self.exclusion
-        })
+        if not hasattr(self, '_hash'):
+            setattr(self, '_hash', nested_object_hash({
+                "_tmp1": [query_part.hash()
+                          for query_part in self.query_parts],
+                '_tmp2': self.exclusion
+            }))
+        return getattr(self, '_hash')
+
+    def add_query_part(self, query_part: QueryPart):
+        if hasattr(self, '_hash'):
+            delattr(self, '_hash')
+        self.query_parts.append(query_part)
 
     def extract_raw_query(self):
-        return {
+        raw_query = {
             key: value
             for query_part in self.query_parts
             for key, value in query_part.query.items()
             if query_part.render
         }
+        if self.is_finalized:
+            setattr(self, '_raw_query', raw_query)
+        return raw_query
+
+    def raw_query_hash(self):
+        if not hasattr(self, '_raw_query_hash'):
+            if not self.is_finalized:
+                raise Exception("Query node is not finalized")
+            else:
+                setattr(self, '_raw_query_hash', nested_object_hash(self.extract_raw_query()))
+        return getattr(self, '_raw_query_hash')
+
+    def finalize(self):
+        self.is_finalized = True
 
     def get_query_part_by_key(self, key: str) -> QueryPart:
         return next(chain((query_part
@@ -143,7 +183,8 @@ class QueryNode:
                          [query_part.__copy__()
                           for query_part
                           in self.query_parts],
-                         self.exclusion)
+                         self.exclusion,
+                         self.is_finalized)
 
 
 @dataclass

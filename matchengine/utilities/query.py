@@ -117,7 +117,7 @@ async def execute_genomic_queries(me,
 
         # Create a nested id_cache where the key is the clinical ID being queried and the vals
         # are the genomic IDs returned
-        query_hash = nested_object_hash(query)
+        query_hash = genomic_query_node.raw_query_hash()
         if query_hash not in me.cache.ids:
             me.cache.ids[query_hash] = dict()
         id_cache = me.cache.ids[query_hash]

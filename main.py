@@ -22,7 +22,8 @@ def main(run_args):
             match_document_creator_class=args.match_document_creator_class,
             db_secrets_class=args.db_secrets_class,
             report_clinical_reasons=args.report_clinical_reasons,
-            ignore_run_log=args.ignore_run_log
+            ignore_run_log=args.ignore_run_log,
+            skip_run_log_entry=args.skip_run_log_entry
     ) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
@@ -80,6 +81,11 @@ if __name__ == "__main__":
     subp_p.add_argument("--match-on-closed", dest="match_on_closed", action="store_true", default=False,
                         help=closed_help)
     subp_p.add_argument("--force", dest="ignore_run_log", action="store_true", default=False, help=run_log_help)
+    subp_p.add_argument("--skip-run-log-entry",
+                        dest="skip_run_log_entry",
+                        action="store_true",
+                        default=False,
+                        help="Skip creating any run log entries for this run.")
     subp_p.add_argument("--visualize-match-paths", dest="visualize_match_paths", action="store_true", default=False,
                         help="Enable to render images of all match paths")
     subp_p.add_argument("--fig-dir", dest="fig_dir", default='img', help="Directory to store match path images")
