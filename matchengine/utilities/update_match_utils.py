@@ -88,5 +88,6 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
                               update={'$set': {'is_disabled': False}}))
         await matchengine.task_q.put(UpdateTask(ops, protocol_no))
 
-    await matchengine.task_q.put(RunLogUpdateTask(protocol_no))
+    if not matchengine.skip_run_log_entry:
+        await matchengine.task_q.put(RunLogUpdateTask(protocol_no))
     await matchengine.task_q.join()

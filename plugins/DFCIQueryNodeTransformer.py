@@ -82,10 +82,10 @@ class DFCIQueryNodeTransformer(QueryNodeTransformer):
                 do_not_render_part = query_node.get_query_part_by_key(do_not_render_part_name)
                 if do_not_render_part is not None:
                     do_not_render_part.render = False
-            query_node.query_parts.append(QueryPart(build_structured_sv_query(left, right, sv_query_type),
-                                                    sv_info_part.negate,
-                                                    True,
-                                                    False))
+            query_node.add_query_part(QueryPart(build_structured_sv_query(left, right, sv_query_type),
+                                                sv_info_part.negate,
+                                                True,
+                                                False))
 
         # if signature curation is passed, do not query TRUE_HUGO_SYMBOL
         if {

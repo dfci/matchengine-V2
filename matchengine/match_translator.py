@@ -238,7 +238,7 @@ def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion]:
             match_path = MatchCriterion(list())
             for depth, node in enumerate(path):
                 if match_tree.nodes[node]['criteria_list']:
-                    match_path.criteria_list.append(MatchCriteria(match_tree.nodes[node]['criteria_list'], depth))
+                    match_path.add_criteria(MatchCriteria(match_tree.nodes[node]['criteria_list'], depth))
             if match_path:
                 yield match_path
 
@@ -283,7 +283,7 @@ def translate_match_path(matchengine,
                         if trial_key_settings.get('ignore', False):
                             query_part.render = False
                         if len(translated_node_part.results) == 1:
-                            primary_query_node.query_parts.append(query_part)
+                            primary_query_node.add_query_part(query_part)
                             primary_query_node.exclusion = (True
                                                             if query_part.negate or primary_query_node.exclusion
                                                             else False)
@@ -307,13 +307,14 @@ def translate_match_path(matchengine,
                     for or_query_part in or_query_part_options:
                         for _ in range(0, existing_query_nodes_len):
                             query_node = next(query_nodes_iter)
-                            query_node.query_parts.append(or_query_part)
+                            query_node.add_query_part(or_query_part)
                             query_node.exclusion = True if or_query_part.negate or query_node.exclusion else False
 
                 # add queries to mcq to return
                 query_nodes_to_add = list()
                 for query_node in query_nodes:
                     matchengine.query_node_transform(query_node)
+                    query_node.finalize()
                     if query_node.exclusion is not None:
                         if query_node.hash() not in query_cache:
                             query_cache.add(query_node.hash())
