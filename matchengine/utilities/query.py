@@ -5,7 +5,6 @@ import logging
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from matchengine.utilities.object_comparison import nested_object_hash
 from matchengine.typing.matchengine_types import (
     ClinicalMatchReason,
     GenomicMatchReason,
