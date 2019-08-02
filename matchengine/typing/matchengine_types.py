@@ -30,19 +30,15 @@ ClinicalID = NewType("ClinicalID", ObjectId)
 Collection = NewType("Collection", str)
 
 
-class Task(object):
+class PoisonPill(object):
     __slots__ = ()
 
 
-class PoisonPill(Task):
+class CheckIndicesTask(object):
     __slots__ = ()
 
 
-class CheckIndicesTask(Task):
-    __slots__ = ()
-
-
-class IndexUpdateTask(Task):
+class IndexUpdateTask(object):
     __slots__ = (
         "collection", "index"
     )
@@ -56,7 +52,7 @@ class IndexUpdateTask(Task):
         self.collection = collection
 
 
-class QueryTask(Task):
+class QueryTask(object):
     __slots__ = (
         "trial", "match_clause_data", "match_path",
         "query", "clinical_ids"
@@ -77,7 +73,7 @@ class QueryTask(Task):
         self.trial = trial
 
 
-class UpdateTask(Task):
+class UpdateTask(object):
     __slots__ = (
         "ops", "protocol_no"
     )
@@ -91,7 +87,7 @@ class UpdateTask(Task):
         self.protocol_no = protocol_no
 
 
-class RunLogUpdateTask(Task):
+class RunLogUpdateTask(object):
     __slots__ = (
         "protocol_no"
     )
@@ -101,6 +97,9 @@ class RunLogUpdateTask(Task):
             protocol_no: str
     ):
         self.protocol_no = protocol_no
+
+
+Task = NewType("Task", Union[PoisonPill, CheckIndicesTask, IndexUpdateTask, QueryTask, UpdateTask, RunLogUpdateTask])
 
 
 class MatchCriteria(object):
@@ -223,11 +222,11 @@ class QueryNode(object):
 
     def _extract_raw_query(self):
         return {
-                    key: value
-                    for query_part in self.query_parts
-                    for key, value in query_part.query.items()
-                    if query_part.render
-                }
+            key: value
+            for query_part in self.query_parts
+            for key, value in query_part.query.items()
+            if query_part.render
+        }
 
     def extract_raw_query(self):
         if self.is_finalized:
@@ -339,12 +338,7 @@ class MatchClauseData(object):
         self.match_clause = match_clause
 
 
-class MatchReason(object):
-    __slots__ = ()
-    reason_name = "none"
-
-
-class GenomicMatchReason(MatchReason):
+class GenomicMatchReason(object):
     __slots__ = (
         "query_node", "width", "clinical_id",
         "genomic_id"
@@ -364,7 +358,7 @@ class GenomicMatchReason(MatchReason):
         self.query_node = query_node
 
 
-class ClinicalMatchReason(MatchReason):
+class ClinicalMatchReason(object):
     __slots__ = (
         "query_node", "clinical_id"
     )
@@ -377,6 +371,9 @@ class ClinicalMatchReason(MatchReason):
     ):
         self.clinical_id = clinical_id
         self.query_node = query_node
+
+
+MatchReason = NewType("MatchReason", Union[GenomicMatchReason, ClinicalMatchReason])
 
 
 class TrialMatch(object):
@@ -448,7 +445,7 @@ class Secrets(object):
         self.HOST = HOST
 
 
-class QueryTransformerResult:
+class QueryTransformerResult(object):
     __slots__ = (
         "results"
     )
