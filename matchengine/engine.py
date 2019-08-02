@@ -126,13 +126,15 @@ class MatchEngine(object):
             query_node_transformer_class: str = "DFCIQueryNodeTransformer",
             db_secrets_class: str = None,
             report_clinical_reasons: bool = True,
-            ignore_run_log: bool = False
+            ignore_run_log: bool = False,
+            skip_run_log_entry: bool = False
     ):
 
         self.starttime = datetime.datetime.now()
         self.run_id = uuid.uuid4()
         self.run_log_entries = dict()
         self.ignore_run_log = ignore_run_log
+        self.skip_run_log_entry = skip_run_log_entry
         self.clinical_run_log_entries = dict()
         self._protocol_nos_param = protocol_nos
         self._sample_ids_param = sample_ids
@@ -178,8 +180,10 @@ class MatchEngine(object):
 
         self._clinical_data = self._get_clinical_data()
         self.clinical_mapping = self.get_clinical_ids_from_sample_ids()
-        self.clinical_update_mapping = self.get_clinical_updated_mapping()
-        self.clinical_run_log_mapping = self.get_clinical_run_log_mapping()
+        self.clinical_update_mapping = dict() if self.ignore_run_log else self.get_clinical_updated_mapping()
+        self.clinical_run_log_mapping = (dict()
+                                         if self.get_clinical_ids_from_sample_ids()
+                                         else self.get_clinical_run_log_mapping())
         self.sample_mapping = {sample_id: clinical_id for clinical_id, sample_id in self.clinical_mapping.items()}
         self.clinical_ids = set(self.clinical_mapping.keys())
         if self.sample_ids is None:
@@ -327,7 +331,8 @@ class MatchEngine(object):
         match_clauses = extract_match_clauses_from_trial(self, protocol_no)
 
         clinical_ids_to_run = self.get_clinical_ids_for_protocol(protocol_no)
-        self.create_run_log_entry(protocol_no, clinical_ids_to_run)
+        if not self.skip_run_log_entry:
+            self.create_run_log_entry(protocol_no, clinical_ids_to_run)
 
         # for each match clause, create the match tree, and extract each possible match path from the tree
         for match_clause in match_clauses:
@@ -356,9 +361,12 @@ class MatchEngine(object):
         query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
         if self.sample_ids is not None:
             query.update({"SAMPLE_ID": {"$in": list(self.sample_ids)}})
+        projection = {'_id': 1, 'SAMPLE_ID': 1}
+        if not self.ignore_run_log:
+            projection.update({'_updated': 1, 'run_history': 1})
         return {result['_id']: result
                 for result in
-                self.db_ro.clinical.find(query, {'_id': 1, 'SAMPLE_ID': 1, '_updated': 1, 'run_history': 1})}
+                self.db_ro.clinical.find(query, projection)}
 
     def get_clinical_updated_mapping(self) -> Dict[ObjectId: datetime.datetime]:
         return {clinical_id: clinical_data.get('_updated', None) for clinical_id, clinical_data in
