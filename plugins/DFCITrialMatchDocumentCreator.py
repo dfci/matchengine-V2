@@ -229,6 +229,8 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         new_trial_match["is_disabled"] = False
         new_trial_match.update(
             {'match_path': '.'.join([str(item) for item in trial_match.match_clause_data.parent_path])})
+        new_trial_match.update({"match_criterion_hash": trial_match.match_criterion.hash()})
+
         new_trial_match['combo_coord'] = nested_object_hash({'query_hash': new_trial_match['query_hash'],
                                                              'match_path': new_trial_match['match_path'],
                                                              'protocol_no': new_trial_match['protocol_no']})

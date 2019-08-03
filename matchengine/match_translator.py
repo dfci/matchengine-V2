@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections import deque
+from itertools import cycle
 
 from typing import TYPE_CHECKING
 import networkx as nx
@@ -14,8 +15,8 @@ from matchengine.typing.matchengine_types import (
     MatchCriterion,
     MultiCollectionQuery,
     QueryNode,
-    QueryTransformerResult
-)
+    QueryTransformerResult,
+    QueryNodeContainer)
 
 if TYPE_CHECKING:
     from typing import (
@@ -245,26 +246,28 @@ def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion]:
 
 def translate_match_path(matchengine,
                          match_clause_data: MatchClauseData,
-                         match_criterion: MatchCriterion) -> List[MultiCollectionQuery]:
+                         match_criterion: MatchCriterion) -> MultiCollectionQuery:
     """
     Translate the keys/values from the trial curation into keys/values used in a genomic/clinical document.
     Uses an external config file ./config/config.json
 
     """
-    mcq_list = [MultiCollectionQuery(list(), list())]
+    multi_collection_query = MultiCollectionQuery(list(), list())
     query_cache = set()
     for node in match_criterion.criteria_list:
         for criteria in node.criteria:
             for genomic_or_clinical, values in criteria.items():
-                primary_query_node = QueryNode(genomic_or_clinical, node.depth, list(), None)
-                or_query_parts = list()
-
-                # iterate over individual keys/vals in curation
+                initial_query_node = QueryNode(genomic_or_clinical, node.depth, list(), None)
+                query_nodes = list()
+                query_nodes.append(initial_query_node)
                 for trial_key, trial_value in values.items():
                     trial_key_settings = matchengine.match_criteria_transform.trial_key_mappings[
                         genomic_or_clinical].get(
                         trial_key.upper(),
                         dict())
+
+                    if trial_key_settings.get('ignore', False):
+                        continue
 
                     sample_value_function_name = trial_key_settings.get('sample_value', 'nomap')
                     sample_function = getattr(matchengine.match_criteria_transform.query_transformers,
@@ -275,60 +278,34 @@ def translate_match_path(matchengine,
                                                 trial_path=genomic_or_clinical,
                                                 trial_key=trial_key)
                     sample_function_args.update(trial_key_settings)
-                    translated_node_part: QueryTransformerResult = sample_function(**sample_function_args)
-
-                    # if results returned from DFCIQueryTransformer function > 1, save extra queries for splitting later
-                    result_list_or_query_parts = list()
-                    for query_part in translated_node_part.results:
-                        if trial_key_settings.get('ignore', False):
-                            query_part.render = False
-                        if len(translated_node_part.results) == 1:
-                            primary_query_node.add_query_part(query_part)
-                            primary_query_node.exclusion = (True
-                                                            if query_part.negate or primary_query_node.exclusion
-                                                            else False)
-                        else:
-                            result_list_or_query_parts.append(query_part)
-                    if result_list_or_query_parts:
-                        or_query_parts.append(result_list_or_query_parts)
-
-                # finished iteration over genomic/clinical node
-                query_nodes = list()
-                query_nodes.append(primary_query_node)
-                for or_query_part_options in or_query_parts:
-                    existing_query_nodes_len = len(query_nodes)
-                    additional_query_nodes = [query_node.__copy__()
-                                              for _
-                                              in range(1, len(or_query_part_options))
-                                              for query_node
-                                              in query_nodes]
-                    query_nodes.extend(additional_query_nodes)
-                    query_nodes_iter = iter(query_nodes)
-                    for or_query_part in or_query_part_options:
-                        for _ in range(0, existing_query_nodes_len):
-                            query_node = next(query_nodes_iter)
-                            query_node.add_query_part(or_query_part)
-                            query_node.exclusion = True if or_query_part.negate or query_node.exclusion else False
-
-                # add queries to mcq to return
-                query_nodes_to_add = list()
+                    result: QueryTransformerResult = sample_function(**sample_function_args)
+                    to_create = len(result.results) - 1
+                    created_nodes = [query_node.__copy__()
+                                     for _
+                                     in range(0, to_create)
+                                     for query_node
+                                     in query_nodes]
+                    for initial_query_node in query_nodes:
+                        query_part = result.results[0]
+                        initial_query_node.add_query_part(query_part)
+                    for new_query_node, query_part in zip(created_nodes, cycle(result.results[1::])):
+                        new_query_node.add_query_part(query_part)
+                        query_nodes.append(new_query_node)
+                    for query_node in query_nodes:
+                        query_node.exclusion = (True
+                                                if (query_node.query_parts[-1].negate
+                                                    or query_node.exclusion)
+                                                else False)
+                query_node_container = QueryNodeContainer(list())
+                sibling_nodes = len(query_nodes)
                 for query_node in query_nodes:
-                    matchengine.query_node_transform(query_node)
-                    query_node.finalize()
                     if query_node.exclusion is not None:
-                        if query_node.hash() not in query_cache:
-                            query_cache.add(query_node.hash())
-                            query_nodes_to_add.append(query_node)
-                mcq_count_to_add = len(query_nodes_to_add) - 1
-                existing_mcq_list_len = len(mcq_list)
-                for _ in range(0, mcq_count_to_add):
-                    mcq_list.extend([mcq.__copy__() for mcq in mcq_list[0:existing_mcq_list_len]])
-                if query_nodes_to_add:
-                    for mcq_idx, mcq in enumerate(mcq_list):
-                        if existing_mcq_list_len == 1:
-                            qn = query_nodes_to_add[mcq_idx]
-                        else:
-                            qn = query_nodes_to_add[mcq_idx % len(query_nodes_to_add)]
-                        getattr(mcq, genomic_or_clinical).append(qn)
-
-    return mcq_list
+                        query_node.sibling_nodes = sibling_nodes
+                        matchengine.query_node_transform(query_node)
+                        query_node.finalize()
+                        query_node_hash = query_node.hash()
+                        if query_node_hash not in query_cache:
+                            query_cache.add(query_node_hash)
+                            query_node_container.query_nodes.append(query_node)
+                getattr(multi_collection_query, genomic_or_clinical).append(query_node_container)
+    return multi_collection_query

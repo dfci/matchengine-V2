@@ -229,21 +229,22 @@ class MatchEngine(object):
         if not clinical_ids:
             return list()
 
-        all_results, genomic_match_reasons = await execute_genomic_queries(self,
-                                                                           multi_collection_query,
-                                                                           clinical_ids
-                                                                           if clinical_ids
-                                                                           else set(initial_clinical_ids))
+        if multi_collection_query.genomic:
+            new_clinical_ids, genomic_ids, genomic_match_reasons = await (
+                execute_genomic_queries(self,
+                                        multi_collection_query,
+                                        clinical_ids
+                                        if clinical_ids
+                                        else set(
+                                            initial_clinical_ids))
+            )
+            clinical_ids = new_clinical_ids
+        else:
+            genomic_ids = set()
+            genomic_match_reasons = list()
 
-        needed_clinical = list()
-        needed_genomic = list()
-        for clinical_id, genomic_ids in all_results.items():
-            if clinical_id not in self.cache.docs:
-                needed_clinical.append(clinical_id)
-            for genomic_id in genomic_ids:
-                if genomic_id not in self.cache.docs:
-                    needed_genomic.append(genomic_id)
-
+        needed_clinical = list(clinical_ids)
+        needed_genomic = list(genomic_ids)
         results = await get_docs_results(self, needed_clinical, needed_genomic)
 
         # asyncio.gather returns [[],[]]. Save the resulting values on the cache for use when creating trial matches
@@ -251,11 +252,11 @@ class MatchEngine(object):
             for result in outer_result:
                 self.cache.docs[result["_id"]] = result
 
-        valid_genomic_reasons: List[MatchReason] = get_valid_genomic_reasons(genomic_match_reasons, all_results)
-        valid_clinical_reasons: List[MatchReason] = get_valid_clinical_reasons(self, clinical_match_reasons,
-                                                                               all_results)
+        valid_reasons = get_valid_genomic_reasons(genomic_match_reasons, clinical_ids, genomic_ids)
+        if self.report_clinical_reasons:
+            valid_reasons.extend(get_valid_clinical_reasons(clinical_match_reasons, clinical_ids))
 
-        return valid_genomic_reasons + valid_clinical_reasons
+        return valid_reasons
 
     async def _queue_worker(self, worker_id: int) -> None:
         """
@@ -341,17 +342,15 @@ class MatchEngine(object):
 
             # for each match path, translate the path into valid mongo queries
             for match_path in match_paths:
-                queries = translate_match_path(self, match_clause, match_path)
-                for query in queries:
-                    if self.debug:
-                        log.info(f"Query: {query}")
-                    if query.valid:
-                        # put the query onto the task queue for execution
-                        await self._task_q.put(QueryTask(trial,
-                                                         match_clause,
-                                                         match_path,
-                                                         query,
-                                                         clinical_ids_to_run))
+                query = translate_match_path(self, match_clause, match_path)
+                if self.debug:
+                    log.info(f"Query: {query}")
+                # put the query onto the task queue for execution
+                await self._task_q.put(QueryTask(trial,
+                                                 match_clause,
+                                                 match_path,
+                                                 query,
+                                                 clinical_ids_to_run))
         await self._task_q.join()
         logging.info(f"Total results: {len(self._matches[protocol_no])}")
         return self._matches[protocol_no]

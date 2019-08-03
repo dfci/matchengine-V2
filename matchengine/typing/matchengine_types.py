@@ -181,7 +181,7 @@ class QueryNode(object):
     __slots__ = (
         "query_level", "query_depth", "query_parts",
         "exclusion", "is_finalized", "_hash",
-        "_raw_query", "_raw_query_hash"
+        "_raw_query", "_raw_query_hash", "sibling_nodes"
     )
 
     def __init__(
@@ -204,6 +204,7 @@ class QueryNode(object):
         self._hash = _hash
         self._raw_query = _raw_query
         self._raw_query_hash = _raw_query_hash
+        self.sibling_nodes = None
 
     def hash(self) -> str:
         if self._hash is None:
@@ -277,6 +278,25 @@ class QueryNode(object):
         )
 
 
+class QueryNodeContainer(object):
+    __slots__ = (
+        "query_nodes"
+    )
+
+    def __init__(
+            self,
+            query_nodes: List[QueryNode]
+    ):
+        self.query_nodes = query_nodes
+
+    def __copy__(self):
+        return QueryNodeContainer(
+            [query_node.__copy__()
+             for query_node
+             in self.query_nodes]
+        )
+
+
 class MultiCollectionQuery(object):
     __slots__ = (
         "genomic", "clinical"
@@ -284,27 +304,22 @@ class MultiCollectionQuery(object):
 
     def __init__(
             self,
-            genomic: List[QueryNode],
-            clinical=List[QueryNode]
+            genomic: List[QueryNodeContainer],
+            clinical=List[QueryNodeContainer]
     ):
         self.genomic = genomic
         self.clinical = clinical
 
     def __copy__(self):
         return MultiCollectionQuery(
-            [query_node.__copy__()
-             for query_node
+            [query_node_container.__copy__()
+             for query_node_container
              in self.genomic],
-            [query_node.__copy__()
-             for query_node
+            [query_node_container.__copy__()
+             for query_node_container
              in self.clinical],
         )
 
-    @property
-    def valid(self):
-        return False if any([query_node.mcq_invalidating
-                             for query_node
-                             in chain(self.genomic, self.clinical)]) else True
 
 
 class MatchClauseData(object):
