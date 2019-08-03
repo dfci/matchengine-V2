@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import datetime
 from itertools import chain
 from typing import (
@@ -141,12 +142,8 @@ class MatchCriterion(object):
 class QueryPart(object):
     __slots__ = (
         "mcq_invalidating", "render", "negate",
-        "query", "_hash"
+        "_query", "_hash"
     )
-    query: Dict
-    negate: bool
-    render: bool
-    mcq_invalidating: bool
 
     def __init__(
             self,
@@ -159,13 +156,20 @@ class QueryPart(object):
         self.mcq_invalidating = mcq_invalidating
         self.render = render
         self.negate = negate
-        self.query = query
+        self._query = query
         self._hash = _hash
 
     def hash(self) -> str:
         if self._hash is None:
             self._hash = nested_object_hash(self.query)
         return self._hash
+
+    def set_query_attr(
+            self,
+            key,
+            value
+    ):
+        self._query[key] = value
 
     def __copy__(self):
         return QueryPart(
@@ -175,6 +179,10 @@ class QueryPart(object):
             self.mcq_invalidating,
             self._hash
         )
+
+    @property
+    def query(self):
+        return copy.deepcopy(self._query)
 
 
 class QueryNode(object):
@@ -233,7 +241,7 @@ class QueryNode(object):
         if self.is_finalized:
             if self._raw_query is None:
                 self._raw_query = self._extract_raw_query()
-            return self._raw_query
+            return copy.deepcopy(self._raw_query)
         else:
             return self._extract_raw_query()
 
@@ -319,7 +327,6 @@ class MultiCollectionQuery(object):
              for query_node_container
              in self.clinical],
         )
-
 
 
 class MatchClauseData(object):
