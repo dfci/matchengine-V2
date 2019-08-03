@@ -76,9 +76,8 @@ async def run_index_update_task(matchengine: MatchEngine, task: IndexUpdateTask,
 
 
 async def run_query_task(matchengine: MatchEngine, task, worker_id):
-    if matchengine.debug:
-        log.info(
-            f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask")
+    log.info(f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask")
+    log.info(f"{matchengine._task_q.qsize()} tasks left in queue")
     try:
         results: List[MatchReason] = await matchengine.run_query(task.query, task.clinical_ids)
     except Exception as e:
