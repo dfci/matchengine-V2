@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
-from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from matchengine.typing.matchengine_types import (
@@ -23,7 +23,6 @@ if TYPE_CHECKING:
         Tuple,
         Set,
         List,
-        Dict
     )
 
 logging.basicConfig(level=logging.INFO)
@@ -42,10 +41,9 @@ async def execute_clinical_queries(me,
     Match Reasons are not used by default, but are composed of QueryNode objects and a clinical ID.
     """
     collection = me.match_criteria_transform.CLINICAL
-    all_potential_match_reasons = list()
-    node_clinical_ids = {clinical_id for clinical_id in clinical_ids}
-    for query_node_container in multi_collection_query.clinical:
-        for query_node in query_node_container.query_nodes:
+    reasons = list()
+    for _clinical in multi_collection_query.clinical:
+        for query_node in _clinical.query_nodes:
             for query_part in query_node.query_parts:
                 if not query_part.render:
                     continue
@@ -59,7 +57,7 @@ async def execute_clinical_queries(me,
                 # are the clinical IDs returned
                 id_cache = me.cache.ids[query_hash]
                 queried_ids = id_cache.keys()
-                need_new = node_clinical_ids - set(queried_ids)
+                need_new = clinical_ids - set(queried_ids)
 
                 if need_new:
                     new_query = {'$and': [{'_id': {'$in': list(need_new)}}, query_part.query]}
@@ -75,11 +73,11 @@ async def execute_clinical_queries(me,
                     for unfound in need_new - set(id_cache.keys()):
                         id_cache[unfound] = None
 
-                for clinical_id in list(node_clinical_ids):
+                for clinical_id in list(clinical_ids):
 
                     # an exclusion criteria returned a clinical document hence doc is not a match
                     if id_cache[clinical_id] is not None and query_part.negate:
-                        node_clinical_ids.remove(clinical_id)
+                        clinical_ids.remove(clinical_id)
 
                     # clinical doc fulfills exclusion criteria
                     elif id_cache[clinical_id] is None and query_part.negate:
@@ -91,15 +89,16 @@ async def execute_clinical_queries(me,
 
                     # no clinical doc returned for an inclusion criteria query, so remove _id from future queries
                     elif id_cache[clinical_id] is None and not query_part.negate:
-                        node_clinical_ids.remove(clinical_id)
-    all_potential_match_reasons.extend([
-        ClinicalMatchReason(query_node, clinical_id)
-        for clinical_id
-        in node_clinical_ids
-        for query_node
-        in multi_collection_query.clinical.results
-    ])
-    return node_clinical_ids, all_potential_match_reasons
+                        clinical_ids.remove(clinical_id)
+
+    reasons_cache = set()
+    for clinical_id in clinical_ids:
+        for _query_node_container in multi_collection_query.clinical:
+            for query_node in _query_node_container.query_nodes:
+                if (query_node.hash(), clinical_id) not in reasons_cache:
+                    reasons_cache.add((query_node.hash(), clinical_id))
+                    reasons.append(ClinicalMatchReason(query_node, clinical_id))
+    return clinical_ids, reasons
 
 
 async def execute_genomic_queries(me,
@@ -111,15 +110,27 @@ async def execute_genomic_queries(me,
     Return an object e.g.
     { Clinical_ID : { GenomicID1, GenomicID2 etc } }
     """
-    clinical_results = set()
-    genomic_results = set()
+    clinical_results_results = [set()]
+    genomic_results_results = [set()]
     all_potential_reasons = list()
     for genomic_query_node_container in multi_collection_query.genomic:
-        for genomic_query_node in genomic_query_node_container.query_nodes:
-            node_clinical_results = set()
-            node_genomic_results = set()
-            node_clinical_ids = {clinical_id for clinical_id in clinical_ids}
-            node_potential_reasons = list()
+        container_node_clinical_results = [set() for _ in range(0, len(genomic_query_node_container.query_nodes))]
+        container_node_genomic_results = [set() for _ in range(0, len(genomic_query_node_container.query_nodes))]
+        container_node_clinical_ids = [{clinical_id for clinical_id in clinical_ids}
+                                       for _ in range(0, len(genomic_query_node_container.query_nodes))]
+        for _idx, genomic_query_node in enumerate(genomic_query_node_container.query_nodes):
+            clinical_results_results_slice_by = len(clinical_results_results) - 1
+            genomic_results_results_slice_by = len(genomic_results_results) - 1
+            for to_extend in [copy.deepcopy(clinical_results_results) for _ in range(1, _idx)]:
+                clinical_results_results.extend(to_extend)
+            for to_extend in [copy.deepcopy(genomic_results_results) for _ in range(1, _idx)]:
+                genomic_results_results.extend(to_extend)
+            local_clinical_results_results = clinical_results_results[clinical_results_results_slice_by::]
+            local_genomic_results_results = genomic_results_results[genomic_results_results_slice_by::]
+            node_clinical_results = container_node_clinical_results[_idx]
+            node_genomic_results = container_node_genomic_results[_idx]
+            node_clinical_ids = container_node_clinical_ids[_idx]
+            node_potential_reasons = set()
             if genomic_query_node.mcq_invalidating:
                 continue
             join_field = me.match_criteria_transform.collection_mappings['genomic']['join_field']
@@ -165,10 +176,9 @@ async def execute_genomic_queries(me,
                         # If an inclusion match...
                         if not genomic_query_node.exclusion:
                             node_genomic_results.add(genomic_id)
-                            node_potential_reasons.append(GenomicMatchReason(genomic_query_node,
-                                                                             len(genomic_ids),
-                                                                             clinical_id,
-                                                                             genomic_id))
+                            node_potential_reasons.add((len(genomic_ids),
+                                                        clinical_id,
+                                                        genomic_id))
 
                         # If an exclusion criteria returns a genomic doc, that means that clinical ID is not a match.
                         elif genomic_query_node.exclusion and clinical_id in node_clinical_results:
@@ -177,18 +187,26 @@ async def execute_genomic_queries(me,
                 # If the genomic query returns nothing for an exclusion query, for a specific clinical ID, it is a match
                 elif id_cache[clinical_id] is None and genomic_query_node.exclusion:
                     node_clinical_results.add(clinical_id)
-                    node_potential_reasons.append(GenomicMatchReason(genomic_query_node, 1, clinical_id, None))
+                    node_potential_reasons.add((1, clinical_id, None))
 
             if not node_clinical_ids:
                 continue
             else:
                 # Remove everything from the output object which is not in the returned clinical IDs.
-                all_potential_reasons.extend(node_potential_reasons)
+                all_potential_reasons.extend([GenomicMatchReason(genomic_query_node, siblings, clinical_id, genomic_id)
+                                              for siblings, clinical_id, genomic_id
+                                              in node_potential_reasons
+                                              if clinical_id in node_clinical_results
+                                              and genomic_id in node_genomic_results])
                 for clinical_id_to_add in node_clinical_results & node_clinical_ids:
-                    clinical_results.add(clinical_id_to_add)
-                genomic_results |= node_genomic_results
+                    for clinical_results in local_clinical_results_results:
+                        clinical_results.add(clinical_id_to_add)
+                for genomic_results in local_genomic_results_results:
+                    genomic_results |= node_genomic_results
 
-    return clinical_results, genomic_results, all_potential_reasons
+    return ({clinical_id for clinical_ids in clinical_results_results for clinical_id in clinical_ids},
+            {genomic_id for genomic_ids in genomic_results_results for genomic_id in genomic_ids},
+            all_potential_reasons)
 
 
 async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_genomic):

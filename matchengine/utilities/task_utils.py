@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 import logging
 import traceback
 
@@ -8,7 +8,7 @@ from pymongo.errors import (
     CursorNotFound
 )
 
-from matchengine.typing.matchengine_types import TrialMatch, IndexUpdateTask
+from matchengine.typing.matchengine_types import TrialMatch, IndexUpdateTask, MatchReason
 
 if TYPE_CHECKING:
     from matchengine.engine import MatchEngine
@@ -80,7 +80,7 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
         log.info(
             f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask")
     try:
-        results = await matchengine.run_query(task.query, task.clinical_ids)
+        results: List[MatchReason] = await matchengine.run_query(task.query, task.clinical_ids)
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
