@@ -220,12 +220,15 @@ class MatchEngine(object):
         First execute the clinical query. If no records are returned short-circuit and return.
         """
         clinical_ids = set(initial_clinical_ids)
-        new_clinical_ids, clinical_match_reasons = await execute_clinical_queries(self,
-                                                                                  multi_collection_query,
-                                                                                  clinical_ids
-                                                                                  if clinical_ids
-                                                                                  else set(initial_clinical_ids))
-        clinical_ids = new_clinical_ids
+        if multi_collection_query.clinical:
+            new_clinical_ids, clinical_match_reasons = await execute_clinical_queries(self,
+                                                                                      multi_collection_query,
+                                                                                      clinical_ids
+                                                                                      if clinical_ids
+                                                                                      else set(initial_clinical_ids))
+            clinical_ids = new_clinical_ids
+        else:
+            clinical_match_reasons = list()
         if not clinical_ids:
             return list()
 
