@@ -47,7 +47,6 @@ async def execute_clinical_queries(me,
     for query_node_container in multi_collection_query.clinical:
         for query_node in query_node_container.query_nodes:
             node_clinical_ids = {clinical_id for clinical_id in clinical_ids}
-            node_potential_match_reasons = list()
             for query_part in query_node.query_parts:
                 if not query_part.render:
                     continue
@@ -85,19 +84,20 @@ async def execute_clinical_queries(me,
 
                     # clinical doc fulfills exclusion criteria
                     elif id_cache[clinical_id] is None and query_part.negate:
-                        node_potential_match_reasons.append(ClinicalMatchReason(query_node, clinical_id))
+                        pass
 
                     # doc meets inclusion criteria
                     elif id_cache[clinical_id] is not None and not query_part.negate:
-                        node_potential_match_reasons.append(ClinicalMatchReason(query_node, clinical_id))
+                        pass
 
                     # no clinical doc returned for an inclusion criteria query, so remove _id from future queries
                     elif id_cache[clinical_id] is None and not query_part.negate:
                         node_clinical_ids.remove(clinical_id)
-                all_potential_match_reasons.extend([reason
-                                                    for reason
-                                                    in node_potential_match_reasons
-                                                    if reason.clinical_id in node_clinical_ids])
+            all_potential_match_reasons.extend([
+                ClinicalMatchReason(query_node, clinical_id)
+                for clinical_id
+                in node_clinical_ids
+            ])
             return_clinical_ids |= node_clinical_ids
     return return_clinical_ids, all_potential_match_reasons
 
