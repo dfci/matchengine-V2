@@ -371,7 +371,7 @@ class IntegrationTestMatchengine(TestCase):
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert '5d2799df6756630d8dd068c6' in self.me.matches['99-9999']
-        assert len(self.me.matches['99-9999']['5d2799df6756630d8dd068c6']) == 83
+        assert len(self.me.matches['99-9999']['5d2799df6756630d8dd068c6']) == 61
         caught_matches = defaultdict(int)
         for match in self.me.matches['99-9999']['5d2799df6756630d8dd068c6']:
             alteration = match.get('genomic_alteration')
