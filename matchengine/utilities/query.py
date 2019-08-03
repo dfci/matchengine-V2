@@ -43,10 +43,9 @@ async def execute_clinical_queries(me,
     """
     collection = me.match_criteria_transform.CLINICAL
     all_potential_match_reasons = list()
-    return_clinical_ids = set()
+    node_clinical_ids = {clinical_id for clinical_id in clinical_ids}
     for query_node_container in multi_collection_query.clinical:
         for query_node in query_node_container.query_nodes:
-            node_clinical_ids = {clinical_id for clinical_id in clinical_ids}
             for query_part in query_node.query_parts:
                 if not query_part.render:
                     continue
@@ -93,13 +92,14 @@ async def execute_clinical_queries(me,
                     # no clinical doc returned for an inclusion criteria query, so remove _id from future queries
                     elif id_cache[clinical_id] is None and not query_part.negate:
                         node_clinical_ids.remove(clinical_id)
-            all_potential_match_reasons.extend([
-                ClinicalMatchReason(query_node, clinical_id)
-                for clinical_id
-                in node_clinical_ids
-            ])
-            return_clinical_ids |= node_clinical_ids
-    return return_clinical_ids, all_potential_match_reasons
+    all_potential_match_reasons.extend([
+        ClinicalMatchReason(query_node, clinical_id)
+        for clinical_id
+        in node_clinical_ids
+        for query_node
+        in multi_collection_query.clinical.results
+    ])
+    return node_clinical_ids, all_potential_match_reasons
 
 
 async def execute_genomic_queries(me,
