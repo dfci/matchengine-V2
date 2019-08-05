@@ -113,6 +113,7 @@ async def execute_genomic_queries(me,
     clinical_results_results = [set()]
     genomic_results_results = [set()]
     all_potential_reasons = list()
+    all_potential_exclusion_reasons = set()
     for genomic_query_node_container in multi_collection_query.genomic:
         container_node_clinical_results = [set() for _ in range(0, len(genomic_query_node_container.query_nodes))]
         container_node_genomic_results = [set() for _ in range(0, len(genomic_query_node_container.query_nodes))]
@@ -131,6 +132,7 @@ async def execute_genomic_queries(me,
             node_genomic_results = container_node_genomic_results[_idx]
             node_clinical_ids = container_node_clinical_ids[_idx]
             node_potential_reasons = set()
+            node_potential_exclusion_reasons = set()
             if genomic_query_node.mcq_invalidating:
                 continue
             join_field = me.match_criteria_transform.collection_mappings['genomic']['join_field']
@@ -187,18 +189,27 @@ async def execute_genomic_queries(me,
                 # If the genomic query returns nothing for an exclusion query, for a specific clinical ID, it is a match
                 elif id_cache[clinical_id] is None and genomic_query_node.exclusion:
                     node_clinical_results.add(clinical_id)
-                    node_potential_reasons.add((1, clinical_id, None))
+                    node_potential_exclusion_reasons.add((1, clinical_id))
 
             if not node_clinical_ids:
                 continue
             else:
                 # Remove everything from the output object which is not in the returned clinical IDs.
                 # TODO: add tests for cases when all genomic nodes are exclusion
-                all_potential_reasons.extend([GenomicMatchReason(genomic_query_node, siblings, clinical_id, genomic_id)
-                                              for siblings, clinical_id, genomic_id
-                                              in node_potential_reasons
-                                              if clinical_id in node_clinical_results
-                                              and (genomic_id is None or genomic_id in node_genomic_results)])
+                all_potential_reasons.extend([
+                    GenomicMatchReason(genomic_query_node, siblings, clinical_id, genomic_id)
+                    for siblings, clinical_id, genomic_id
+                    in node_potential_reasons
+                    if clinical_id in node_clinical_results and genomic_id in node_genomic_results
+                ])
+                # TODO: figure out how to convey that one exclusion criteria matched many times even though it shows up once per match path
+                all_potential_reasons.extend([
+                    GenomicMatchReason(genomic_query_node, siblings, clinical_id, None)
+                    for siblings, clinical_id
+                    in node_potential_exclusion_reasons
+                    if (siblings, clinical_id) not in all_potential_exclusion_reasons
+                ])
+                all_potential_exclusion_reasons |= node_potential_exclusion_reasons
                 for clinical_id_to_add in node_clinical_results & node_clinical_ids:
                     for clinical_results in local_clinical_results_results:
                         clinical_results.add(clinical_id_to_add)
