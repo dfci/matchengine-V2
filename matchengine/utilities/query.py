@@ -193,11 +193,12 @@ async def execute_genomic_queries(me,
                 continue
             else:
                 # Remove everything from the output object which is not in the returned clinical IDs.
+                # TODO: add tests for cases when all genomic nodes are exclusion
                 all_potential_reasons.extend([GenomicMatchReason(genomic_query_node, siblings, clinical_id, genomic_id)
                                               for siblings, clinical_id, genomic_id
                                               in node_potential_reasons
                                               if clinical_id in node_clinical_results
-                                              and genomic_id in node_genomic_results])
+                                              and (genomic_id is None or genomic_id in node_genomic_results)])
                 for clinical_id_to_add in node_clinical_results & node_clinical_ids:
                     for clinical_results in local_clinical_results_results:
                         clinical_results.add(clinical_id_to_add)
