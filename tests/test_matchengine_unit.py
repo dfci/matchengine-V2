@@ -182,7 +182,7 @@ class TestMatchEngine(TestCase):
                                             protocol_no='12-345',
                                             is_suspended=True)
         match_paths = translate_match_path(self.me, match_clause_data=match_clause_data,
-                                           match_criterion=MatchCriterion([MatchCriteria({}, 0)]))
+                                           match_criterion=MatchCriterion([MatchCriteria({}, 0, 0)]))
         assert len(match_paths.clinical) == 0
         assert len(match_paths.genomic) == 0
 

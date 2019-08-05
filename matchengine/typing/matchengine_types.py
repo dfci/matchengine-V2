@@ -105,16 +105,18 @@ Task = NewType("Task", Union[PoisonPill, CheckIndicesTask, IndexUpdateTask, Quer
 
 class MatchCriteria(object):
     __slots__ = (
-        "criteria", "depth"
+        "criteria", "depth", "node_id"
     )
 
     def __init__(
             self,
             criteria: Dict,
-            depth: int
+            depth: int,
+            node_id: int
     ):
         self.criteria = criteria
         self.depth = depth
+        self.node_id = node_id
 
 
 class MatchCriterion(object):
@@ -189,12 +191,15 @@ class QueryNode(object):
     __slots__ = (
         "query_level", "query_depth", "query_parts",
         "exclusion", "is_finalized", "_hash",
-        "_raw_query", "_raw_query_hash", "sibling_nodes"
+        "_raw_query", "_raw_query_hash", "sibling_nodes",
+        "node_id", "criterion_ancestor"
     )
 
     def __init__(
             self,
             query_level: str,
+            node_id: int,
+            criterion_ancestor: MatchCriteria,
             query_depth: int,
             query_parts: List[QueryPart],
             exclusion: Union[None, bool] = None,
@@ -204,6 +209,8 @@ class QueryNode(object):
             _raw_query_hash: str = None
     ):
 
+        self.node_id = node_id
+        self.criterion_ancestor = criterion_ancestor
         self.is_finalized = is_finalized
         self.query_level = query_level
         self.query_depth = query_depth
@@ -274,6 +281,8 @@ class QueryNode(object):
     def __copy__(self):
         return QueryNode(
             self.query_level,
+            self.node_id,
+            self.criterion_ancestor,
             self.query_depth,
             [query_part.__copy__()
              for query_part
@@ -363,7 +372,7 @@ class MatchClauseData(object):
 class GenomicMatchReason(object):
     __slots__ = (
         "query_node", "width", "clinical_id",
-        "genomic_id"
+        "genomic_id", "clinical_width"
     )
     reason_name = "genomic"
 
@@ -371,9 +380,11 @@ class GenomicMatchReason(object):
             self,
             query_node: QueryNode,
             width: int,
+            clinical_width: int,
             clinical_id: ClinicalID,
             genomic_id: Union[GenomicID, None]
     ):
+        self.clinical_width = clinical_width
         self.genomic_id = genomic_id
         self.clinical_id = clinical_id
         self.width = width

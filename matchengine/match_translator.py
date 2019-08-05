@@ -239,7 +239,7 @@ def get_match_paths(match_tree: MatchTree) -> Generator[MatchCriterion]:
             match_path = MatchCriterion(list())
             for depth, node in enumerate(path):
                 if match_tree.nodes[node]['criteria_list']:
-                    match_path.add_criteria(MatchCriteria(match_tree.nodes[node]['criteria_list'], depth))
+                    match_path.add_criteria(MatchCriteria(match_tree.nodes[node]['criteria_list'], depth, node))
             if match_path:
                 yield match_path
 
@@ -257,7 +257,7 @@ def translate_match_path(matchengine,
     for node in match_criterion.criteria_list:
         for criteria in node.criteria:
             for genomic_or_clinical, values in criteria.items():
-                initial_query_node = QueryNode(genomic_or_clinical, node.depth, list(), None)
+                initial_query_node = QueryNode(genomic_or_clinical, node.node_id, criteria, node.depth, list(), None)
                 query_nodes = list()
                 query_nodes.append(initial_query_node)
                 for trial_key, trial_value in values.items():
@@ -307,5 +307,6 @@ def translate_match_path(matchengine,
                         if query_node_hash not in query_cache:
                             query_cache.add(query_node_hash)
                             query_node_container.query_nodes.append(query_node)
+                matchengine.query_node_container_transform(query_node_container)
                 getattr(multi_collection_query, genomic_or_clinical).append(query_node_container)
     return multi_collection_query

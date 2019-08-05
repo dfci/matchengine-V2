@@ -371,7 +371,7 @@ class IntegrationTestMatchengine(TestCase):
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert '5d2799df6756630d8dd068c6' in self.me.matches['99-9999']
-        assert len(self.me.matches['99-9999']['5d2799df6756630d8dd068c6']) == 61
+        assert len(self.me.matches['99-9999']['5d2799df6756630d8dd068c6']) == 56
         caught_matches = defaultdict(int)
         for match in self.me.matches['99-9999']['5d2799df6756630d8dd068c6']:
             alteration = match.get('genomic_alteration')
@@ -388,29 +388,22 @@ class IntegrationTestMatchengine(TestCase):
                     caught_matches[alteration] += 1
 
         check_against = {
-            'TFG Structural Variation': 1,
-            'TFG-ALK Structural Variation': 3,
-            'ALK-TFG Structural Variation': 3,
-            'STRN Structural Variation': 1,
-            'STRN-intergenic Structural Variation': 1,
+            '!TP53-intergenic Structural Variation': 12,
+            'ALK-TFG Structural Variation': 2,
+            'TFG-ALK Structural Variation': 2,
             'intergenic-STRN Structural Variation': 1,
-            'RANDB2 Structural Variation': 1,
-            'RANDB2-ALK Structural Variation': 3,
-            'ALK-RANDB2 Structural Variation': 3,
-            'NPM1-intergenic Structural Variation': 1,
-            'intergenic-NPM1 Structural Variation': 1,
-            'KIF5B Structural Variation': 1,
-            'KIF5B-ALK Structural Variation': 3,
-            'ALK-KIF5B Structural Variation': 3,
-            'this should only match to any_gene-KRAS Structural Variation': 4,
-            'ALK-CLIP4 Structural Variation': 2,
-            'KRAS-this should only match to any_gene Structural Variation': 4,
-            'this should only match to any_gene-this should only match to any gene Structural Variation': 2,
-            'CLIP4-ALK Structural Variation': 2,
-            'EML4-EML4 Structural Variation': 6,
-            'KRAS Structural Variation': 1,
-            'EML4 Structural Variation': 2,
-            'BRCA Structural Variation': 1
+            'STRN-intergenic Structural Variation': 1,
+            'RANDB2-ALK Structural Variation': 2,
+            'ALK-RANDB2 Structural Variation': 2,
+            'intergenic-NPM1 Structural Variation': 3,
+            'NPM1-intergenic Structural Variation': 3,
+            'ALK-KIF5B Structural Variation': 2,
+            'KIF5B-ALK Structural Variation': 2,
+            'this should only match to any_gene-this should only match to any gene Structural Variation': 1,
+            'CLIP4-ALK Structural Variation': 1,
+            'KRAS-this should only match to any_gene Structural Variation': 3,
+            'this should only match to any_gene-KRAS Structural Variation': 3,
+            'EML4-EML4 Structural Variation': 3, 'ALK-CLIP4 Structural Variation': 1
         }
         for alteration, count in caught_matches.items():
             assert check_against[alteration] == count

@@ -1,13 +1,29 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Tuple, List, Union
 import re
 
-from matchengine.typing.matchengine_types import QueryPart, MongoQuery
-from matchengine.plugin_helpers.plugin_stub import QueryNodeTransformer
+from matchengine.typing.matchengine_types import (
+    QueryPart,
+    MongoQuery
+)
+from matchengine.plugin_helpers.plugin_stub import (
+    QueryNodeTransformer,
+    QueryNodeClinicalIDsSubsetter
+)
+from matchengine.utilities.object_comparison import nested_object_hash
 
 if TYPE_CHECKING:
-    from typing import NoReturn
-    from matchengine.typing.matchengine_types import QueryNode
+    from matchengine.engine import MatchEngine
+    from typing import (
+        NoReturn,
+        Set,
+        Iterable
+    )
+    from matchengine.typing.matchengine_types import (
+        QueryNode,
+        ClinicalID
+    )
 
 
 def get_sv_query_value_and_field_name(left_side: Union[str, None],
@@ -39,6 +55,33 @@ def build_structured_sv_query(left, right, sv_query_type) -> MongoQuery:
         if query:
             queries.append(query)
     return MongoQuery({'$and': queries})
+
+
+class DFCIQueryNodeClinicalIDSubsetter(QueryNodeClinicalIDsSubsetter):
+    def genomic_query_node_clinical_ids_subsetter(self: MatchEngine,
+                                                  query_node: QueryNode,
+                                                  clinical_ids: Iterable[ClinicalID]) -> Set[ClinicalID]:
+        if query_node.get_query_part_by_key('STRUCTURED_SV') is not None:
+            return {
+                clinical_id
+                for clinical_id
+                in clinical_ids
+                if clinical_id in self.clinical_extra_field_mapping.get('PANEL_VERSION', dict()).get(3, set())
+            }
+        elif query_node.get_query_part_by_key('STRUCTURAL_VARIANT_COMMENT') is not None:
+            return {
+                clinical_id
+                for clinical_id
+                in clinical_ids
+                if clinical_id not in self.clinical_extra_field_mapping.get('PANEL_VERSION', dict()).get(3, set())
+            }
+        else:
+            return {clinical_id for clinical_id in clinical_ids}
+
+    def clinical_query_node_clinical_ids_subsetter(self: MatchEngine,
+                                                   query_node: QueryNode,
+                                                   clinical_ids: Set[ClinicalID]) -> Set[ClinicalID]:
+        return clinical_ids
 
 
 class DFCIQueryNodeTransformer(QueryNodeTransformer):
@@ -75,14 +118,18 @@ class DFCIQueryNodeTransformer(QueryNodeTransformer):
         elif 'STRUCTURED_SV' in whole_query:
             sv_info_part = query_node.get_query_part_by_key('STRUCTURED_SV')
             sv_info_part.render = False
-            sv_query_type = sv_info_part.query.get('STRUCTURED_SV')
             left = query_node.get_query_part_value_by_key('TRUE_HUGO_SYMBOL', None)
             right = query_node.get_query_part_value_by_key('FUSION_PARTNER_HUGO_SYMBOL', None)
             for do_not_render_part_name in ['TRUE_HUGO_SYMBOL', 'FUSION_PARTNER_HUGO_SYMBOL']:
                 do_not_render_part = query_node.get_query_part_by_key(do_not_render_part_name)
                 if do_not_render_part is not None:
                     do_not_render_part.render = False
-            query_node.add_query_part(QueryPart(build_structured_sv_query(left, right, sv_query_type),
+            left_query = build_structured_sv_query(left, right, 'LEFT-RIGHT')
+            right_query = build_structured_sv_query(left, right, 'RIGHT-LEFT')
+            new_query = ({'$or': [left_query, right_query]}
+                         if nested_object_hash(left_query) != nested_object_hash(right_query)
+                         else left_query)
+            query_node.add_query_part(QueryPart(new_query,
                                                 sv_info_part.negate,
                                                 True,
                                                 False))
@@ -101,4 +148,4 @@ class DFCIQueryNodeTransformer(QueryNodeTransformer):
                 gene_part.render = False
 
 
-__export__ = ["DFCIQueryNodeTransformer"]
+__export__ = ["DFCIQueryNodeTransformer", "DFCIQueryNodeClinicalIDSubsetter"]

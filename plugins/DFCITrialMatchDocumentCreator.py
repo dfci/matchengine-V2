@@ -82,7 +82,6 @@ def get_genomic_details(genomic_doc, query):
             and genomic_doc[mmr_status] in mmr_map_rev \
             and mmr_status in genomic_doc:
         alteration += mmr_map_rev[genomic_doc[mmr_status]]
-
     return {
         'match_type': is_variant,
         'genomic_alteration': alteration,
@@ -91,8 +90,9 @@ def get_genomic_details(genomic_doc, query):
     }
 
 
-def format_exclusion_match(query):
+def format_exclusion_match(trial_match: TrialMatch):
     """Format the genomic alteration for genomic documents that matched a negative clause of a match tree"""
+    query = trial_match.match_reason.query_node.extract_raw_query()
 
     true_hugo = 'TRUE_HUGO_SYMBOL'
     protein_change_key = 'TRUE_PROTEIN_CHANGE'
@@ -125,6 +125,23 @@ def format_exclusion_match(query):
         pattern = query[sv_comment].pattern.split("|")[0]
         gene = pattern.replace("(.*\\W", "").replace("\\W.*)", "")
         alteration += f'{gene} Structural Variation'
+
+    else:
+        qn = trial_match.match_reason.query_node
+        criteria = qn.criterion_ancestor[qn.query_level]
+        if criteria.get('variant_category', str()).lower() == '!Structural Variation'.lower():
+            left = criteria.get("hugo_symbol", None)
+            right = criteria.get("fusion_partner_hugo_symbol", None)
+            if left is None:
+                left = "intergenic"
+            if right is None:
+                right = "intergenic"
+
+            alteration += (f'{left}'
+                           '-'
+                           f'{right}'
+                           ' Structural Variation')
+
 
     return {
         'match_type': is_variant,
@@ -218,7 +235,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         if trial_match.match_reason.reason_name == 'genomic':
             genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.genomic_id, None)
             if genomic_doc is None:
-                new_trial_match.update(format_trial_match_k_v(format_exclusion_match(query)))
+                new_trial_match.update(format_trial_match_k_v(format_exclusion_match(trial_match)))
             else:
                 new_trial_match.update(format_trial_match_k_v(get_genomic_details(genomic_doc, query)))
 

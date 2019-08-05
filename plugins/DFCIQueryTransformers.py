@@ -8,7 +8,7 @@ from matchengine.query_transform import QueryTransformerContainer
 from matchengine.typing.matchengine_types import QueryTransformerResult
 
 
-class DFCITransformers(QueryTransformerContainer):
+class DFCIQueryTransformers(QueryTransformerContainer):
     def age_range_to_date_query(self, **kwargs):
         sample_key = kwargs['sample_key']
         trial_value = kwargs['trial_value']
@@ -97,8 +97,7 @@ class DFCITransformers(QueryTransformerContainer):
             sample_value = variant_category_map.get(trial_value.lower())
             results = QueryTransformerResult()
             results.add_result({'STRUCTURAL_VARIANT_COMMENT': None}, negate)
-            results.add_result({'STRUCTURED_SV': 'LEFT-RIGHT', sample_key: sample_value}, negate)
-            results.add_result({'STRUCTURED_SV': 'RIGHT-LEFT', sample_key: sample_value}, negate)
+            results.add_result({'STRUCTURED_SV': None, sample_key: sample_value}, negate)
             return results
         elif trial_value.lower() in variant_category_map:
             return QueryTransformerResult({sample_key: variant_category_map[trial_value.lower()]}, negate)
@@ -146,4 +145,4 @@ class DFCITransformers(QueryTransformerContainer):
         return QueryTransformerResult({sample_key: sample_value}, negate)
 
 
-__export__ = ["DFCITransformers"]
+__export__ = ["DFCIQueryTransformers"]
