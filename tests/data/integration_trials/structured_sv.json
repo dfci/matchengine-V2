@@ -29,6 +29,12 @@
                     }
                   },
                   {
+                    "genomic": {
+                      "hugo_symbol": "TP53",
+                      "variant_category": "!Structural Variation"
+                    }
+                  },
+                  {
                     "or": [
                       {
                         "genomic": {
@@ -63,6 +69,26 @@
                           "hugo_symbol": "KRAS",
                           "variant_category": "Structural Variation",
                           "fusion_partner_hugo_symbol": "any_gene"
+                        }
+                      },
+                      {
+                        "genomic": {
+                          "hugo_symbol": "NPM1",
+                          "variant_category": "Structural Variation",
+                          "fusion_partner_hugo_symbol": "intergenic"
+                        }
+                      },
+                      {
+                        "genomic": {
+                          "hugo_symbol": "NPM1",
+                          "variant_category": "Structural Variation",
+                          "fusion_partner_hugo_symbol": "any_gene"
+                        }
+                      },
+                      {
+                        "genomic": {
+                          "hugo_symbol": "NPM1",
+                          "variant_category": "Structural Variation"
                         }
                       },
                       {

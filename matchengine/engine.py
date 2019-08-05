@@ -7,7 +7,7 @@ import logging
 import pymongo
 import datetime
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 from collections import defaultdict
 from multiprocessing import cpu_count
 from matchengine.database_connectivity.mongo_connection import MongoDBConnection
@@ -47,7 +47,10 @@ from matchengine.typing.matchengine_types import (
 )
 
 if TYPE_CHECKING:
-    from typing import NoReturn
+    from typing import (
+        NoReturn,
+        Any
+    )
     from matchengine.typing.matchengine_types import (
         Dict,
         Union,
@@ -60,7 +63,8 @@ if TYPE_CHECKING:
         Trial,
         QueryNode,
         TrialMatch,
-        Task
+        Task,
+        QueryNodeContainer
     )
 
 logging.basicConfig(level=logging.INFO)
@@ -124,6 +128,8 @@ class MatchEngine(object):
             db_name: str = None,
             match_document_creator_class: str = "DFCITrialMatchDocumentCreator",
             query_node_transformer_class: str = "DFCIQueryNodeTransformer",
+            query_node_subsetter_class: str = "DFCIQueryNodeClinicalIDSubsetter",
+            query_node_container_transformer_class: str = "DFCIQueryContainerTransformer",
             db_secrets_class: str = None,
             report_clinical_reasons: bool = True,
             ignore_run_log: bool = False,
@@ -150,8 +156,11 @@ class MatchEngine(object):
         self.plugin_dir = plugin_dir
         self.match_document_creator_class = match_document_creator_class
         self.query_node_transformer_class = query_node_transformer_class
+        self.query_node_container_transformer_class = query_node_container_transformer_class
+        self.query_node_subsetter_class = query_node_subsetter_class
         self.db_secrets_class = db_secrets_class
         find_plugins(self)
+
         self.db_init = db_init
         self._db_ro = MongoDBConnection(read_only=True, async_init=False, db=db_name) if self.db_init else None
         self.db_ro = self._db_ro.__enter__() if self.db_init else None
@@ -184,6 +193,7 @@ class MatchEngine(object):
         self.clinical_run_log_mapping = (dict()
                                          if self.get_clinical_ids_from_sample_ids()
                                          else self.get_clinical_run_log_mapping())
+        self.clinical_extra_field_mapping = self.get_extra_field_mapping(self._clinical_data, "clinical")
         self.sample_mapping = {sample_id: clinical_id for clinical_id, sample_id in self.clinical_mapping.items()}
         self.clinical_ids = set(self.clinical_mapping.keys())
         if self.sample_ids is None:
@@ -292,6 +302,22 @@ class MatchEngine(object):
         """Stub function to be overriden by plugin"""
         pass
 
+    def query_node_container_transform(self, query_node_container: QueryNodeContainer) -> NoReturn:
+        """Stub function to be overriden by plugin"""
+        pass
+
+    def genomic_query_node_clinical_ids_subsetter(self,
+                                                  query_node: QueryNode,
+                                                  clinical_ids: Iterable[ClinicalID]) -> Set[ClinicalID]:
+        """Stub function to be overriden by plugin"""
+        return {clinical_id for clinical_id in clinical_ids}
+
+    def clinical_query_node_clinical_ids_subsetter(self,
+                                                  query_node: QueryNode,
+                                                  clinical_ids: Iterable[ClinicalID]) -> Set[ClinicalID]:
+        """Stub function to be overriden by plugin"""
+        return {clinical_id for clinical_id in clinical_ids}
+
     def update_matches_for_protocol_number(self, protocol_no):
         """
         Updates all trial matches for a given protocol number
@@ -367,6 +393,10 @@ class MatchEngine(object):
         projection = {'_id': 1, 'SAMPLE_ID': 1}
         if not self.ignore_run_log:
             projection.update({'_updated': 1, 'run_history': 1})
+        projection.update({
+            item: 1
+            for item
+            in self.config.get("extra_initial_mapping_fields", dict()).get("clinical", list())})
         return {result['_id']: result
                 for result in
                 self.db_ro.clinical.find(query, projection)}
@@ -521,3 +551,11 @@ class MatchEngine(object):
     @property
     def matches(self):
         return self._matches
+
+    def get_extra_field_mapping(self, raw_mapping: Dict[ObjectId, Any], key: str) -> Dict[Any: Set[ObjectId]]:
+        fields = self.config.get("extra_initial_mapping_fields", dict()).get(key, list())
+        mapping = defaultdict(lambda: defaultdict(set))
+        for obj_id, raw_map in raw_mapping.items():
+            for field in fields:
+                mapping[field][raw_map.get(field)].add(obj_id)
+        return mapping

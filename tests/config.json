@@ -25,7 +25,9 @@
       "POLE_STATUS",
       "TABACCO_STATUS",
       "TEMOZOLOMIDE_STATUS",
-      "UVA_STATUS"
+      "UVA_STATUS",
+      "LEFT_PARTNER_GENE",
+      "RIGHT_PARTNER_GENE"
     ],
     "clinical": [
       "REPORT_DATE",
@@ -42,6 +44,11 @@
       "treatment_list",
       "status",
       "_summary"
+    ]
+  },
+  "extra_initial_mapping_fields": {
+    "clinical": [
+      "PANEL_VERSION"
     ]
   },
   "trial_key_mappings": {
@@ -110,7 +117,8 @@
         "ignore": true
       },
       "FUSION_PARTNER_HUGO_SYMBOL": {
-        "ignore": true
+        "sample_key": "FUSION_PARTNER_HUGO_SYMBOL",
+        "sample_value": "nomap"
       }
     },
     "clinical": {

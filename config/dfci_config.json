@@ -18,8 +18,6 @@
       "TRUE_VARIANT_CLASSIFICATION",
       "MMR_STATUS",
       "STRUCTURAL_VARIANT_COMMENT",
-      "LEFT_PARTNER_GENE",
-      "RIGHT_PARTNER_GENE",
       "CHROMOSOME",
       "ACTIONABILITY",
       "POSITION",
@@ -46,6 +44,11 @@
       "treatment_list",
       "status",
       "_summary"
+    ]
+  },
+  "extra_initial_mapping_fields": {
+    "clinical": [
+      "PANEL_VERSION"
     ]
   },
   "trial_key_mappings": {
@@ -110,12 +113,12 @@
         "sample_key": "UVA_STATUS",
         "sample_value": "nomap"
       },
+      "DISPLAY_NAME": {
+        "ignore": true
+      },
       "FUSION_PARTNER_HUGO_SYMBOL": {
         "sample_key": "FUSION_PARTNER_HUGO_SYMBOL",
         "sample_value": "nomap"
-      },
-      "DISPLAY_NAME": {
-        "ignore": true
       }
     },
     "clinical": {
@@ -155,12 +158,10 @@
       "trial_accrual_status": {
         "closed": -1,
         "open": 0
-      }
-    },
-    {
+      },
       "mmr_status": {
-        "Deficient (MMR-D / MSI-H)": 1,
-        "Proficient (MMR-P / MSS)": 2
+        "Deficient(MMR - D / MSI - H)": 1,
+        "Proficient(MMR - P / MSS)": 2
       },
       "tier": {
         "1": 3,
@@ -181,8 +182,8 @@
     },
     {
       "match_type": {
-        "variant": 13,
-        "gene": 14
+        "variant": 0,
+        "gene": 1
       }
     },
     {
@@ -211,9 +212,7 @@
       "POLE_STATUS",
       "TABACCO_STATUS",
       "TEMOZOLOMIDE_STATUS",
-      "UVA_STATUS",
-      "LEFT_PARTNER_GENE",
-      "RIGHT_PARTNER_GENE"
+      "UVA_STATUS"
     ],
     "clinical": [
       "GENDER",
