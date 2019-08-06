@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Tuple, List, Union
+from typing import TYPE_CHECKING, Tuple, List, Union, Dict
 import re
 
 from matchengine.typing.matchengine_types import (
@@ -40,8 +40,8 @@ def get_sv_query_value_and_field_name(left_side: Union[str, None],
     return [(side, field) for side, field in zip(sides, fields)]
 
 
-def build_structured_sv_query(left, right, sv_query_type) -> MongoQuery:
-    queries = list()
+def build_structured_sv_query(left, right, sv_query_type) -> Dict:
+    whole_query = dict()
     for side, field_name in get_sv_query_value_and_field_name(left, right, sv_query_type):
         query = dict()
         if side is None:
@@ -53,8 +53,8 @@ def build_structured_sv_query(left, right, sv_query_type) -> MongoQuery:
         else:
             query = {field_name: side}
         if query:
-            queries.append(query)
-    return MongoQuery({'$and': queries})
+            whole_query.update(query)
+    return whole_query
 
 
 class DFCIQueryNodeClinicalIDSubsetter(QueryNodeClinicalIDsSubsetter):

@@ -6,8 +6,12 @@ from collections import deque
 def nested_object_hash(item):
     output = list()
     q = deque()
-    for k, v in item.items():
-        q.append((tuple(), k, v))
+    if isinstance(item, dict):
+        for k, v in item.items():
+            q.append((tuple(), k, v))
+    elif isinstance(item, list) or isinstance(item, set):
+        for v in item:
+            q.append((tuple(), None, v))
     while q:
         path, k, v = q.pop()
         if isinstance(v, list):
