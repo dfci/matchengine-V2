@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Tuple, List, Union, Dict
 import re
+from typing import TYPE_CHECKING, Tuple, List, Union, Dict
 
-from matchengine.typing.matchengine_types import (
-    QueryPart,
-    MongoQuery
-)
 from matchengine.plugin_helpers.plugin_stub import (
     QueryNodeTransformer,
     QueryNodeClinicalIDsSubsetter
+)
+from matchengine.typing.matchengine_types import (
+    QueryPart
 )
 from matchengine.utilities.object_comparison import nested_object_hash
 

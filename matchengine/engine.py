@@ -179,7 +179,7 @@ class MatchEngine(object):
                       "\n\t"
                       f"{f'for samples: {sample_ids}' if sample_ids is not None else 'all samples'}"
                       "\n"
-                      f"{'and then exiting' if exit_after_drop else 'then continuing'}"))
+                      f"{'and then exiting' if exit_after_drop else 'and then continuing'}"))
             try:
                 assert drop_accept or input('Type "yes" without quotes in all caps to confirm: ') == "YES"
                 self.drop_existing_matches(protocol_nos, sample_ids)
