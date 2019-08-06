@@ -435,14 +435,16 @@ class TrialMatch(object):
 
 class Cache(object):
     __slots__ = (
-        "docs", "ids"
+        "docs", "ids", "in_process"
     )
     docs: Dict
-    ids: dict
+    ids: Dict
+    in_process: Dict
 
     def __init__(self):
         self.docs = dict()
         self.ids = dict()
+        self.in_process = dict()
 
 
 class Secrets(object):

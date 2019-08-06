@@ -62,8 +62,10 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                 # create a nested id_cache where the key is the clinical ID being queried and the vals
                 # are the clinical IDs returned
                 id_cache = matchengine.cache.ids[query_hash]
-                queried_ids = id_cache.keys()
-                need_new = clinical_ids - set(queried_ids)
+                queried_ids = set(id_cache.keys())
+                waiting_for = matchengine.cache.in_process.setdefault(query_hash, set())
+                need_new = clinical_ids - queried_ids - waiting_for
+                matchengine.cache.in_process.setdefault(query_hash, set()).update(need_new)
 
                 if need_new:
                     new_query = {'$and': [{'_id': {'$in': list(need_new)}}, query_part.query]}
@@ -78,7 +80,10 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                     # save IDs NOT returned as None so if a query is run in the future which is the same, it will skip
                     for unfound in need_new - set(id_cache.keys()):
                         id_cache[unfound] = None
+                    matchengine.cache.in_process[query_hash] -= need_new
 
+                while matchengine.cache.in_process[query_hash] & waiting_for:
+                    await asyncio.sleep(1)
                 for clinical_id in list(clinical_ids):
 
                     # an exclusion criteria returned a clinical document hence doc is not a match
@@ -131,7 +136,9 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                 matchengine.cache.ids[query_hash] = dict()
             id_cache = matchengine.cache.ids[query_hash]
             queried_ids = set(id_cache.keys())
-            need_new = working_clinical_ids - queried_ids
+            waiting_for = matchengine.cache.in_process.setdefault(query_hash, set())
+            need_new = working_clinical_ids - queried_ids - waiting_for
+            matchengine.cache.in_process.setdefault(query_hash, set()).update(need_new)
             query = genomic_query_node.extract_raw_query()
 
             if need_new:
@@ -153,6 +160,9 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                 # Clinical IDs which do not return genomic docs need to be recorded to cache exclusions
                 for unfound in need_new - set(id_cache.keys()):
                     id_cache[unfound] = None
+                matchengine.cache.in_process[query_hash] -= need_new
+            while matchengine.cache.in_process[query_hash] & waiting_for:
+                await asyncio.sleep(1)
             returned_clinical_ids = {clinical_id
                                      for clinical_id, genomic_docs
                                      in id_cache.items()
