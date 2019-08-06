@@ -1,14 +1,17 @@
 from __future__ import annotations
+
+import asyncio
 from typing import TYPE_CHECKING, List
 import logging
 import traceback
 
+from pymongo import InsertOne
 from pymongo.errors import (
     AutoReconnect,
     CursorNotFound
 )
 
-from matchengine.typing.matchengine_types import TrialMatch, IndexUpdateTask, MatchReason
+from matchengine.typing.matchengine_types import TrialMatch, IndexUpdateTask, MatchReason, UpdateTask, RunLogUpdateTask
 
 if TYPE_CHECKING:
     from matchengine.engine import MatchEngine
@@ -122,11 +125,11 @@ async def run_poison_pill(matchengine: MatchEngine, task, worker_id):
     matchengine.task_q.task_done()
 
 
-async def run_update_task(matchengine: MatchEngine, task, worker_id):
+async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id):
     try:
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new UpdateTask {task.protocol_no}")
-        await matchengine.async_db_rw.trial_match.bulk_write(task.ops, ordered=False)
+        await matchengine.async_db_rw[matchengine.trial_match_collection].bulk_write(task.ops, ordered=False)
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
@@ -139,13 +142,27 @@ async def run_update_task(matchengine: MatchEngine, task, worker_id):
         matchengine.task_q.task_done()
 
 
-async def run_run_log_update_task(matchengine: MatchEngine, task, worker_id):
+async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTask, worker_id):
+    clinical_run_history_collection = f"clinical_run_history_{matchengine.trial_match_collection}"
+    run_log_collection = f"run_log_{matchengine.trial_match_collection}"
     try:
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new RunLogUpdateTask {task.protocol_no}")
-        await matchengine.async_db_rw.run_log.insert_one(matchengine.run_log_entries[task.protocol_no])
-        await matchengine.async_db_rw.clinical.update_many(
-            {'_id': {"$in": list(matchengine.clinical_run_log_entries[task.protocol_no])}},
+        dont_need_insert, _ = await asyncio.gather(
+            matchengine.async_db_ro.get_collection(clinical_run_history_collection).distinct("clinical_id"),
+            matchengine.async_db_rw[run_log_collection].insert_one(matchengine.run_log_entries[task.protocol_no]))
+        new_clinical_run_log_docs = set(matchengine.clinical_run_log_entries[task.protocol_no]) - set(dont_need_insert)
+        clinical_update_ops = [
+            InsertOne({"clinical_id": clinical_id, "run_history": list()})
+            for clinical_id
+            in new_clinical_run_log_docs
+        ]
+        if clinical_update_ops:
+            await matchengine.async_db_rw.get_collection(
+                clinical_run_history_collection
+            ).bulk_write(clinical_update_ops, ordered=False)
+        await matchengine.async_db_rw.get_collection(clinical_run_history_collection).update_many(
+            {'clinical_id': {"$in": list(matchengine.clinical_run_log_entries[task.protocol_no])}},
             {'$push': {"run_history": matchengine.run_id.hex}}
         )
     except Exception as e:

@@ -23,7 +23,8 @@ def main(run_args):
             db_secrets_class=args.db_secrets_class,
             report_clinical_reasons=args.report_clinical_reasons,
             ignore_run_log=args.ignore_run_log,
-            skip_run_log_entry=args.skip_run_log_entry
+            skip_run_log_entry=args.skip_run_log_entry,
+            trial_match_collection=args.trial_match_collection
     ) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
@@ -99,6 +100,8 @@ if __name__ == "__main__":
                         help="Name of class for creating match documents. Should be located in the plugin directory")
     subp_p.add_argument("--db-secrets-class", dest="db_secrets_class", default="DFCIDBSecrets",
                         help="Name of class for obtaining the DB Secrets. Should be located in the plugin directory")
+    subp_p.add_argument("--trial-match-collection", dest="trial_match_collection", default="trial_match",
+                        help="Collection to store trial matches")
     subp_p.add_argument("--match-on-deceased-patients", dest="match_on_deceased", action="store_true",
                         help=deceased_help)
     subp_p.add_argument("--report-clinical-reasons", dest="report_clinical_reasons", action="store_true", default=False,

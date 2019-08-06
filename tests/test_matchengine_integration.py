@@ -30,7 +30,7 @@ class IntegrationTestMatchengine(TestCase):
                 setup_db.trial_match.drop()
 
             if kwargs.get('reset_run_log', False):
-                setup_db.run_log.drop()
+                setup_db.run_log_trial_match.drop()
 
             if kwargs.get('do_reset_trials', False):
                 setup_db.trial.drop()
@@ -41,7 +41,7 @@ class IntegrationTestMatchengine(TestCase):
                         trial = json.load(trial_file_handle)
                     setup_db.trial.insert(trial)
             if kwargs.get('do_rm_clinical_run_history', False):
-                setup_db.clinical.update({}, {"$unset": {"run_history": 1}}, multi=True)
+                setup_db.clinical_run_history_trial_match.drop()
 
         if hasattr(self, 'me'):
             self.me.__exit__(None, None, None)
@@ -182,6 +182,7 @@ class IntegrationTestMatchengine(TestCase):
             raise e
 
     def test_run_log(self):
+        # TODO: VERIFY THIS TEST IS ACCURATE
         # run 1 - create matches and run log row
         self._reset(
             do_reset_trial_matches=True,
@@ -196,7 +197,7 @@ class IntegrationTestMatchengine(TestCase):
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
         assert len(list(self.me.db_ro.trial_match.find())) == 5
-        assert len(list(self.me.db_ro.run_log.find())) == 1
+        assert len(list(self.me.db_ro.run_log_trial_match.find())) == 1
 
         # time travel to the future, of the current past. to the delorean we go...
         set_static_date_time(2001, 12, 9, 21)
@@ -221,7 +222,7 @@ class IntegrationTestMatchengine(TestCase):
         # check that run log has 2 rows, and number of trial matches has not changed
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
-        assert len(list(self.me.db_ro.run_log.find())) == 2
+        assert len(list(self.me.db_ro.run_log_trial_match.find())) == 2
         assert len(list(self.me.db_ro.trial_match.find())) == 5
 
         # simulate a trial update
@@ -243,16 +244,38 @@ class IntegrationTestMatchengine(TestCase):
 
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
-        assert len(list(self.me.db_ro.run_log.find())) == 3
-        the_chosen = list(self.me.db_ro.clinical.find({"SAMPLE_ID": {'$in': sample_ids}}))
+        assert len(list(self.me.db_ro.run_log_trial_match.find())) == 3
+        the_chosen_ids = list(self.me.db_ro.clinical.find({"SAMPLE_ID": {'$in': sample_ids}}, {"_id": 1}))
+        the_chosen = list(self.me.db_ro.clinical_run_history_trial_match.find(
+            {
+                'clinical_id': {
+                    '$in': [
+                        result['_id']
+                        for result
+                        in the_chosen_ids
+                    ]
+                }
+            }
+        ))
 
         # these two sample ids should have 3 runs and most everyone else should have 2
         assert len(the_chosen) == 2
         assert len(the_chosen[0]['run_history']) == 3
         assert len(the_chosen[1]['run_history']) == 3
 
-        the_others = list(
-            self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids}, 'VITAL_STATUS': 'alive'}))
+        the_others_ids = list(
+            self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids}, 'VITAL_STATUS': 'alive'}, {"_id": 1}))
+        the_others = list(self.me.db_ro.clinical_run_history_trial_match.find(
+            {
+                'clinical_id': {
+                    '$in': [
+                        result['_id']
+                        for result
+                        in the_others_ids
+                    ]
+                }
+            }
+        ))
         assert len(the_others[0]['run_history']) == 2
         assert len(the_others[1]['run_history']) == 2
         assert len(the_others[2]['run_history']) == 2
@@ -270,17 +293,40 @@ class IntegrationTestMatchengine(TestCase):
 
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
-        assert len(list(self.me.db_ro.run_log.find())) == 4
+        assert len(list(self.me.db_ro.run_log_trial_match.find())) == 4
 
         # now the chose should have 3, and the others should also have 3
-        the_chosen = list(self.me.db_ro.clinical.find({"SAMPLE_ID": {'$in': sample_ids}}))
+        the_chosen_ids = list(self.me.db_ro.clinical.find({"SAMPLE_ID": {'$in': sample_ids}}, {"_id": 1}))
+        the_chosen = list(self.me.db_ro.clinical_run_history_trial_match.find(
+            {
+                'clinical_id': {
+                    '$in': [
+                        result['_id']
+                        for result
+                        in the_chosen_ids
+                    ]
+                }
+            }
+        ))
         assert len(the_chosen[0]['run_history']) == 3
         assert len(the_chosen[1]['run_history']) == 3
 
-        the_others = list(
-            self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids}, 'VITAL_STATUS': 'alive'}).limit(3))
-        assert len(the_others[0]['run_history']) == 3
-        assert len(the_others[1]['run_history']) == 3
+        the_others_ids = list(
+            self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids},
+                                         'VITAL_STATUS': 'alive'}, {"_id: 1"}).limit(3))
+        the_others = list(self.me.db_ro.clinical_run_history_trial_match.find(
+            {
+                'clinical_id': {
+                    '$in': [
+                        result['_id']
+                        for result
+                        in the_others_ids
+                    ]
+                }
+            }
+        ))
+        assert len(the_others[0]['run_history']) == 2
+        assert len(the_others[1]['run_history']) == 2
 
     def test_visualize_match_paths(self):
         # pygraphviz doesn't install easily on macOS so skip in that case.

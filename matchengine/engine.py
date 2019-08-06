@@ -133,9 +133,11 @@ class MatchEngine(object):
             db_secrets_class: str = None,
             report_clinical_reasons: bool = True,
             ignore_run_log: bool = False,
-            skip_run_log_entry: bool = False
+            skip_run_log_entry: bool = False,
+            trial_match_collection: str = "trial_match"
     ):
 
+        self.trial_match_collection = trial_match_collection
         self.starttime = datetime.datetime.now()
         self.run_id = uuid.uuid4()
         self.run_log_entries = dict()
@@ -313,12 +315,12 @@ class MatchEngine(object):
         return {clinical_id for clinical_id in clinical_ids}
 
     def clinical_query_node_clinical_ids_subsetter(self,
-                                                  query_node: QueryNode,
-                                                  clinical_ids: Iterable[ClinicalID]) -> Set[ClinicalID]:
+                                                   query_node: QueryNode,
+                                                   clinical_ids: Iterable[ClinicalID]) -> Set[ClinicalID]:
         """Stub function to be overriden by plugin"""
         return {clinical_id for clinical_id in clinical_ids}
 
-    def update_matches_for_protocol_number(self, protocol_no):
+    def update_matches_for_protocol_number(self, protocol_no: str):
         """
         Updates all trial matches for a given protocol number
         """
@@ -406,8 +408,16 @@ class MatchEngine(object):
                 self._clinical_data.items()}
 
     def get_clinical_run_log_mapping(self) -> Dict[ObjectId: ObjectId]:
-        return {clinical_id: clinical_data.get('run_history', None) for clinical_id, clinical_data in
-                self._clinical_data.items()}
+        output = {
+            result['clinical_id']: result['run_history'] if result['run_history'] else None
+            for result
+            in self.db_ro.get_collection(
+                f"clinical_run_history_{self.trial_match_collection}"
+            ).find({'clinical_id': {"$in": list[self.clinical_ids]}})
+        }
+        for not_present in self.clinical_ids - set(output.keys()):
+            output[not_present] = None
+        return output
 
     def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
         """
@@ -486,7 +496,9 @@ class MatchEngine(object):
         trial_last_update = datetime.datetime.strptime(self.trials[protocol_no].get('last_updated', default_datetime),
                                                        fmt_string)
         query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
-        run_log_entries = list(self.db_ro.run_log.find(query).sort([("_created", pymongo.DESCENDING)]))
+        run_log_entries = list(
+            self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort([("_created", pymongo.DESCENDING)])
+        )
 
         if not run_log_entries:
             return self.clinical_ids
