@@ -10,81 +10,67 @@ if TYPE_CHECKING:
 
 
 def get_genomic_details(genomic_doc, query):
-    mmr_map_rev = {
-        'Proficient (MMR-P / MSS)': 'MMR-P/MSS',
-        'Deficient (MMR-D / MSI-H)': 'MMR-D/MSI-H'
-    }
+    alteration = list()
 
-    # for clarity
-    hugo_symbol = 'TRUE_HUGO_SYMBOL'
-    true_protein = 'TRUE_PROTEIN_CHANGE'
-    cnv = 'CNV_CALL'
-    variant_classification = 'TRUE_VARIANT_CLASSIFICATION'
-    variant_category = 'VARIANT_CATEGORY'
-    sv_comment = 'STRUCTURAL_VARIANT_COMMENT'
-    wildtype = 'WILDTYPE'
-    mmr_status = 'MMR_STATUS'
-
-    alteration = ''
-    is_variant = 'gene'
-
-    # determine if match was gene or variant-level
-    if true_protein in query and query[true_protein] is not None:
-        is_variant = 'variant'
+    wildtype = genomic_doc.get('WILDTYPE', None)
+    true_protein = query.get('TRUE_PROTEIN_CHANGE', None)
+    hugo_symbol = genomic_doc.get('TRUE_HUGO_SYMBOL', None)
+    cnv = genomic_doc.get('CNV_CALL', None)
+    variant_classification = genomic_doc.get("TRUE_VARIANT_CLASSIFICATION", None)
+    variant_category = genomic_doc.get('VARIANT_CATEGORY', None)
 
     # add wildtype calls
-    if wildtype in genomic_doc and genomic_doc[wildtype] is True:
-        alteration += 'wt '
+    if wildtype:
+        alteration.append('wt ')
 
     # add gene
-    if hugo_symbol in genomic_doc and genomic_doc[hugo_symbol] is not None:
-        alteration += genomic_doc[hugo_symbol]
+    if hugo_symbol:
+        alteration.append(hugo_symbol)
 
     # add mutation
-    if true_protein in genomic_doc and genomic_doc[true_protein] is not None:
-        alteration += ' %s' % genomic_doc[true_protein]
+    if true_protein:
+        alteration.append(f' {true_protein}')
 
     # add cnv call
-    elif cnv in genomic_doc and genomic_doc[cnv] is not None:
-        alteration += ' %s' % genomic_doc[cnv]
+    elif cnv:
+        alteration.append(f' {cnv}')
 
     # add variant classification
-    elif variant_classification in genomic_doc and genomic_doc[variant_classification] is not None:
-        alteration += ' %s' % genomic_doc[variant_classification]
+    elif variant_classification:
+        alteration.append(f' {variant_classification}')
 
     # add structural variation
-    elif (variant_category in genomic_doc
-          and genomic_doc[variant_category] == 'SV'
-          and genomic_doc.get(sv_comment) is not None):
-        pattern = query[sv_comment].pattern.split("|")[0]
-        gene = pattern.replace("(.*\\W", "").replace("\\W.*)", "")
-        alteration += f'{gene} Structural Variation'
+    elif variant_category == 'SV':
+        sv_comment = query.get('STRUCTURAL_VARIANT_COMMENT', None)
+        if sv_comment is not None:
+            pattern = sv_comment.pattern.split("|")[0]
+            gene = pattern.replace("(.*\\W", "").replace("\\W.*)", "")
+            alteration.append(f'{gene} Structural Variation')
 
-    elif (variant_category in genomic_doc
-          and genomic_doc[variant_category] == 'SV'
-          and genomic_doc.get(sv_comment) is None):
-        left = genomic_doc.get("LEFT_PARTNER_GENE", None)
-        right = genomic_doc.get("RIGHT_PARTNER_GENE", None)
-        if left is None:
-            left = "intergenic"
-        if right is None:
-            right = "intergenic"
+        else:
+            left = genomic_doc.get("LEFT_PARTNER_GENE", None)
+            right = genomic_doc.get("RIGHT_PARTNER_GENE", None)
+            if left is None:
+                left = "intergenic"
+            if right is None:
+                right = "intergenic"
 
-        alteration += (f'{left}'
-                       '-'
-                       f'{right}'
-                       ' Structural Variation')
+            alteration.append((f'{left}'
+                               '-'
+                               f'{right}'
+                               ' Structural Variation'))
 
     # add mutational signature
-    elif variant_category in genomic_doc \
-            and genomic_doc[variant_category] == 'SIGNATURE' \
-            and genomic_doc[mmr_status] is not None \
-            and genomic_doc[mmr_status] in mmr_map_rev \
-            and mmr_status in genomic_doc:
-        alteration += mmr_map_rev[genomic_doc[mmr_status]]
+    elif variant_category == 'SIGNATURE':
+        mapped_mmr_status = {
+            'Proficient (MMR-P / MSS)': 'MMR-P/MSS',
+            'Deficient (MMR-D / MSI-H)': 'MMR-D/MSI-H'
+        }.get(genomic_doc.get('MMR_STATUS', None), None)
+        if mapped_mmr_status:
+            alteration.append(mapped_mmr_status)
     return {
-        'match_type': is_variant,
-        'genomic_alteration': alteration,
+        'match_type': 'variant' if true_protein else 'gene',
+        'genomic_alteration': ''.join(alteration),
         'genomic_id': genomic_doc['_id'],
         **genomic_doc
     }
@@ -99,53 +85,48 @@ def format_exclusion_match(trial_match: TrialMatch):
     cnv_call = 'CNV_CALL'
     variant_classification = 'TRUE_VARIANT_CLASSIFICATION'
     sv_comment = 'STRUCTURAL_VARIANT_COMMENT'
-    alteration = '!'
+    alteration = ['!']
     is_variant = 'variant' if query.setdefault(protein_change_key, None) is not None else 'gene'
 
     if true_hugo in query and query[true_hugo] is not None:
-        alteration = f'!{query[true_hugo]}'
+        alteration.append(f'!{query[true_hugo]}')
 
     # add mutation
-    if query.setdefault(protein_change_key, None) is not None:
+    if query.get(protein_change_key, None) is not None:
         if '$regex' in query[protein_change_key]:
-            alteration += f' {query[protein_change_key]["$regex"].pattern[1:].split("[")[0]}'
+            alteration.append(f' {query[protein_change_key]["$regex"].pattern[1:].split("[")[0]}')
         else:
-            alteration += f' {query[protein_change_key]}'
+            alteration.append(f' {query[protein_change_key]}')
 
     # add cnv call
-    elif query.setdefault(cnv_call, None) is not None:
-        alteration += f' {query[cnv_call]}'
+    elif query.get(cnv_call, None) is not None:
+        alteration.append(f' {query[cnv_call]}')
 
     # add variant classification
-    elif query.setdefault(variant_classification, None) is not None:
-        alteration += f' {query[variant_classification]}'
+    elif query.get(variant_classification, None) is not None:
+        alteration.append(f' {query[variant_classification]}')
 
     # add structural variation
-    elif query.setdefault(sv_comment, None) is not None:
+    elif query.get(sv_comment, None) is not None:
         pattern = query[sv_comment].pattern.split("|")[0]
         gene = pattern.replace("(.*\\W", "").replace("\\W.*)", "")
-        alteration += f'{gene} Structural Variation'
+        alteration.append(f'{gene} Structural Variation')
 
     else:
         qn = trial_match.match_reason.query_node
         criteria = qn.criterion_ancestor[qn.query_level]
-        if criteria.get('variant_category', str()).lower() == '!Structural Variation'.lower():
+        if criteria.get('variant_category', str()).lower() == '!structural variation':
             left = criteria.get("hugo_symbol", None)
             right = criteria.get("fusion_partner_hugo_symbol", None)
-            if left is None:
-                left = "intergenic"
-            if right is None:
-                right = "intergenic"
 
-            alteration += (f'{left}'
-                           '-'
-                           f'{right}'
-                           ' Structural Variation')
-
+            alteration.append((f'{"intergenic" if left is None else left}'
+                               '-'
+                               f'{"intergenic" if right is None else right}'
+                               ' Structural Variation'))
 
     return {
         'match_type': is_variant,
-        'genomic_alteration': alteration
+        'genomic_alteration': ''.join(alteration)
     }
 
 
