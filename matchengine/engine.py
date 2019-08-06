@@ -134,7 +134,10 @@ class MatchEngine(object):
             report_clinical_reasons: bool = True,
             ignore_run_log: bool = False,
             skip_run_log_entry: bool = False,
-            trial_match_collection: str = "trial_match"
+            trial_match_collection: str = "trial_match",
+            drop: bool = False,
+            exit_after_drop: bool = False,
+            drop_accept: bool = False
     ):
 
         self.trial_match_collection = trial_match_collection
@@ -169,6 +172,22 @@ class MatchEngine(object):
         self._db_rw = MongoDBConnection(read_only=False, async_init=False, db=db_name) if self.db_init else None
         self.db_rw = self._db_rw.__enter__() if self.db_init else None
         log.info(f"Connected to database {self.db_ro.name}")
+        if drop:
+            log.info((f"Dropping all matches"
+                      "\n\t"
+                      f"{f'for trials: {protocol_nos}' if protocol_nos is not None else 'all trials'}"
+                      "\n\t"
+                      f"{f'for samples: {sample_ids}' if sample_ids is not None else 'all samples'}"
+                      "\n"
+                      f"{'and then exiting' if exit_after_drop else 'then continuing'}"))
+            try:
+                assert drop_accept or input('Type "yes" without quotes in all caps to confirm: ') == "YES"
+                self.drop_existing_matches(protocol_nos, sample_ids)
+            except AssertionError:
+                log.error("Your response was not 'YES'; exiting")
+                exit(1)
+            if exit_after_drop:
+                exit(0)
 
         # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
@@ -571,3 +590,15 @@ class MatchEngine(object):
             for field in fields:
                 mapping[field][raw_map.get(field)].add(obj_id)
         return mapping
+
+    def drop_existing_matches(self, protocol_nos: List[str] = None, sample_ids: List[str] = None):
+        assert self.db_ro.name != "matchminer"
+        drop_query = dict()
+        if protocol_nos is not None:
+            drop_query.update({'protocol_no': {'$in': protocol_nos}})
+        if sample_ids is not None:
+            drop_query.update({'sample_id': {'$in': sample_ids}})
+        if protocol_nos is None and sample_ids is None:
+            self.db_rw.get_collection(self.trial_match_collection).drop()
+        else:
+            self.db_rw.get_collection(self.trial_match_collection).remove(drop_query)

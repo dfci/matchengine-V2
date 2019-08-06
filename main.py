@@ -17,14 +17,17 @@ def main(run_args):
             match_on_deceased=run_args.match_on_deceased,
             debug=run_args.debug,
             num_workers=run_args.workers[0],
-            config=args.config_path,
-            db_name=args.db_name,
-            match_document_creator_class=args.match_document_creator_class,
-            db_secrets_class=args.db_secrets_class,
-            report_clinical_reasons=args.report_clinical_reasons,
-            ignore_run_log=args.ignore_run_log,
-            skip_run_log_entry=args.skip_run_log_entry,
-            trial_match_collection=args.trial_match_collection
+            config=run_args.config_path,
+            db_name=run_args.db_name,
+            match_document_creator_class=run_args.match_document_creator_class,
+            db_secrets_class=run_args.db_secrets_class,
+            report_clinical_reasons=run_args.report_clinical_reasons,
+            ignore_run_log=run_args.ignore_run_log,
+            skip_run_log_entry=run_args.skip_run_log_entry,
+            trial_match_collection=run_args.trial_match_collection,
+            drop=run_args.drop or run_args.drop_and_exit,
+            drop_accept=run_args.confirm_drop,
+            exit_after_drop=run_args.drop_and_exit
     ) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
@@ -106,6 +109,12 @@ if __name__ == "__main__":
                         help=deceased_help)
     subp_p.add_argument("--report-clinical-reasons", dest="report_clinical_reasons", action="store_true", default=False,
                         help=deceased_help)
+    subp_p.add_argument("--drop", dest="drop", action="store_true", default=False,
+                        help="Drop trials and samples from args supplier")
+    subp_p.add_argument("--drop-and-exit", dest="drop_and_exit", action="store_true", default=False,
+                        help="Like --drop, but exits directly after")
+    subp_p.add_argument("--drop-confirm", dest="confirm_drop", action="store_true", default=False,
+                        help="Confirm you wish --drop; skips confirmation prompt")
     subp_p.add_argument("--workers", nargs=1, type=int, default=[cpu_count() * 5])
     subp_p.add_argument('--db', dest='db_name', default=None, required=False, help=db_name_help)
     subp_p.add_argument('-o', dest="csv_output", action="store_true", default=False, required=False,
