@@ -24,7 +24,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
     remaining_to_disable = [
         result
         for result in await perform_db_call(matchengine,
-                                            collection='trial_match',
+                                            collection=matchengine.trial_match_collection,
                                             query=MongoQuery(
                                                 {
                                                     'protocol_no': protocol_no,
@@ -51,8 +51,14 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
                                                      'hash': {'$nin': new_matches_hashes}})
         projection = {"hash": 1, "is_disabled": 1}
         trial_matches_existent_results, trial_matches_to_disable = await asyncio.gather(
-            perform_db_call(matchengine, 'trial_match', trial_matches_to_not_change_query, projection),
-            perform_db_call(matchengine, 'trial_match', trial_matches_to_disable_query, projection)
+            perform_db_call(matchengine,
+                            matchengine.trial_match_collection,
+                            trial_matches_to_not_change_query,
+                            projection),
+            perform_db_call(matchengine,
+                            matchengine.trial_match_collection,
+                            trial_matches_to_disable_query,
+                            projection)
         )
 
         trial_matches_hashes_existent = {
