@@ -41,15 +41,9 @@ def get_genomic_details(genomic_doc, query):
 
     # add structural variation
     elif variant_category == 'SV':
-        sv_comment = query.get('STRUCTURAL_VARIANT_COMMENT', None)
-        if sv_comment is not None:
-            pattern = sv_comment.pattern.split("|")[0]
-            gene = pattern.replace("(.*\\W", "").replace("\\W.*)", "")
-            alteration.append(f'{gene} Structural Variation')
-
-        else:
-            left = genomic_doc.get("LEFT_PARTNER_GENE", None)
-            right = genomic_doc.get("RIGHT_PARTNER_GENE", None)
+        left = genomic_doc.get("LEFT_PARTNER_GENE", False)
+        right = genomic_doc.get("RIGHT_PARTNER_GENE", False)
+        if (left is not False) or (right is not False):
             if left is None:
                 left = "intergenic"
             if right is None:
@@ -59,6 +53,12 @@ def get_genomic_details(genomic_doc, query):
                                '-'
                                f'{right}'
                                ' Structural Variation'))
+        else:
+            sv_comment = query.get('STRUCTURAL_VARIANT_COMMENT', None)
+            pattern = sv_comment.pattern.split("|")[0]
+            gene = pattern.replace("(.*\\W", "").replace("\\W.*)", "")
+            alteration.append(f'{gene} Structural Variation')
+
 
     # add mutational signature
     elif variant_category == 'SIGNATURE':

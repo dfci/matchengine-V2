@@ -181,26 +181,15 @@ async def execute_genomic_queries(matchengine: MatchEngine,
             for clinical_id
             in reduce(operator.or_, query_node_container_clinical_ids, set())
         }
-        qn_valid = {
-            clinical_id: {
-                qn_idx
-                for qn_idx, qn_results
-                in enumerate(query_node_container_clinical_ids)
-                if clinical_id in qn_results
-            }
-            for clinical_id
-            in qnc_clinical_ids
-        }
         for invalid_clinical in current_clinical_ids - qnc_clinical_ids:
             all_qnc_qn_to_remove = clinical_ids.pop(invalid_clinical)
             for qnc_qn_to_remove in all_qnc_qn_to_remove:
                 qnc_qn_tracker[qnc_qn_to_remove].remove(invalid_clinical)
-        for valid_clinical, qn_idxs in qn_valid.items():
-            for qn_idx in qn_idxs:
-                clinical_ids[valid_clinical].add((qnc_idx, qn_idx))
-
         for qn_idx, qn_results in enumerate(query_node_container_clinical_ids):
+            for valid_clinical_id in qn_results & qnc_clinical_ids:
+                clinical_ids[valid_clinical_id].add((qnc_idx, qn_idx))
             qnc_qn_tracker[(qnc_idx, qn_idx)] = qn_results
+
     reasons = list()
     all_genomic = set()
     for (qnc_idx, qn_idx), found_clinical_ids in qnc_qn_tracker.items():
