@@ -80,7 +80,7 @@ class MongoDBConnection(object):
         if self.secrets.MAX_POOL_SIZE:
             uri_params.append(f"maxPoolSize={self.secrets.MAX_POOL_SIZE}")
         if self.secrets.MIN_POOL_SIZE:
-            uri_params.append(f"minPoolSize={self.secrets.MAX_POOL_SIZE}")
+            uri_params.append(f"minPoolSize={self.secrets.MIN_POOL_SIZE}")
         username_password_param = (f"{username if username else str()}"
                                    f"{':' if username and password else str()}"
                                    f"{password if password else str()}"
