@@ -232,9 +232,14 @@ def get_valid_genomic_reasons(genomic_match_reasons, clinical_ids, genomic_ids):
     ]
 
 
-def get_valid_clinical_reasons(clinical_match_reasons, clinical_ids):
+def get_valid_clinical_reasons(matchengine: MatchEngine,
+                               clinical_match_reasons: List[ClinicalMatchReason],
+                               clinical_ids: Set[ClinicalID]):
     return [
         clinical_reason
         for clinical_reason in clinical_match_reasons
-        if clinical_reason.clinical_id in clinical_ids
+        if (clinical_reason.clinical_id in clinical_ids) and (
+                matchengine.report_all_clinical_reasons or
+                frozenset(clinical_reason.query_node.extract_raw_query().keys())
+                in matchengine.match_criteria_transform.valid_clinical_reasons)
     ]

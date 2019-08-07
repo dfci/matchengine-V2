@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import operator
+from itertools import chain
 from typing import TYPE_CHECKING
 
 from matchengine.plugin_helpers.plugin_stub import TrialMatchDocumentCreator
@@ -62,17 +65,47 @@ def get_genomic_details(genomic_doc, query):
 
     # add mutational signature
     elif variant_category == 'SIGNATURE':
-        mapped_mmr_status = {
-            'Proficient (MMR-P / MSS)': 'MMR-P/MSS',
-            'Deficient (MMR-D / MSI-H)': 'MMR-D/MSI-H'
-        }.get(genomic_doc.get('MMR_STATUS', None), None)
-        if mapped_mmr_status:
-            alteration.append(mapped_mmr_status)
+        signature_type = next(chain({
+                                        'UVA_STATUS',
+                                        'TABACCO_STATUS',
+                                        'POLE_STATUS',
+                                        'TEMOZOLOMIDE_STATUS',
+                                        'MMR_STATUS',
+                                        'APOBEC_STATUS'
+                                    }.intersection(query.keys())))
+        signature_value = genomic_doc.get(signature_type, None)
+        if signature_type == 'MMR_STATUS':
+            mapped_mmr_status = {
+                'Proficient (MMR-P / MSS)': 'MMR-P/MSS',
+                'Deficient (MMR-D / MSI-H)': 'MMR-D/MSI-H'
+            }.get(signature_value, None)
+            if mapped_mmr_status:
+                alteration.append(mapped_mmr_status)
+        elif signature_type is not None:
+            alteration.append(f'{str() if signature_value.lower() == "yes" else "No "}'
+                              f'{signature_type.replace("_STATUS", " Signature")}')
     return {
         'match_type': 'variant' if true_protein else 'gene',
         'genomic_alteration': ''.join(alteration),
         'genomic_id': genomic_doc['_id'],
         **genomic_doc
+    }
+
+
+def get_clinical_details(clinical_doc, query):
+    alteration = list()
+
+    c_tmb, q_tmb = map(lambda x: x.get("TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE", None), (clinical_doc, query))
+    if all((q_tmb, c_tmb)):
+        alteration.append(f"TMB = {c_tmb}")
+        match_type = "tmb"
+    else:
+        match_type = "generic_clinical"
+
+    return {
+        'match_type': match_type,
+        'genomic_alteration': ''.join(alteration),
+        **clinical_doc
     }
 
 
@@ -191,7 +224,8 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         query = trial_match.match_reason.query_node.extract_raw_query()
 
         new_trial_match = dict()
-        new_trial_match.update(format_trial_match_k_v(self.cache.docs[trial_match.match_reason.clinical_id]))
+        clinical_doc = self.cache.docs[trial_match.match_reason.clinical_id]
+        new_trial_match.update(format_trial_match_k_v(clinical_doc))
         new_trial_match['clinical_id'] = self.cache.docs[trial_match.match_reason.clinical_id]['_id']
 
         new_trial_match.update(
@@ -219,6 +253,8 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
                 new_trial_match.update(format_trial_match_k_v(format_exclusion_match(trial_match)))
             else:
                 new_trial_match.update(format_trial_match_k_v(get_genomic_details(genomic_doc, query)))
+        elif trial_match.match_reason.reason_name == 'clinical':
+            new_trial_match.update(format_trial_match_k_v(get_clinical_details(clinical_doc, query)))
 
         sort_order = get_sort_order(self.config['trial_match_sorting'], new_trial_match)
         new_trial_match['sort_order'] = sort_order

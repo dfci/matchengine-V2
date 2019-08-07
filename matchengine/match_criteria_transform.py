@@ -40,6 +40,7 @@ class MatchCriteriaTransform(object):
     resources: dict = None
     query_transformers: AllTransformersContainer
     transform: TransformFunctions
+    valid_clinical_reasons: set
     config: dict = None
     trial_key_mappings: dict = None
     primary_collection_unique_field: str = "_id"
@@ -78,3 +79,8 @@ class MatchCriteriaTransform(object):
         self.trial_projection = {proj: 1 for proj in config["match_criteria"]['trial']}
         self.query_transformers = AllTransformersContainer(self)
         self.transform = TransformFunctions()
+        self.valid_clinical_reasons = {
+            frozenset(reasons)
+            for reasons in
+            self.config.get("valid_clinical_reasons", list())
+        }

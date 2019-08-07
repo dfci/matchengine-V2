@@ -21,7 +21,7 @@ def main(run_args):
             db_name=run_args.db_name,
             match_document_creator_class=run_args.match_document_creator_class,
             db_secrets_class=run_args.db_secrets_class,
-            report_clinical_reasons=run_args.report_clinical_reasons,
+            report_all_clinical_reasons=run_args.report_all_clinical_reasons,
             ignore_run_log=run_args.ignore_run_log,
             skip_run_log_entry=run_args.skip_run_log_entry,
             trial_match_collection=run_args.trial_match_collection,
@@ -107,8 +107,9 @@ if __name__ == "__main__":
                         help="Collection to store trial matches")
     subp_p.add_argument("--match-on-deceased-patients", dest="match_on_deceased", action="store_true",
                         help=deceased_help)
-    subp_p.add_argument("--report-clinical-reasons", dest="report_clinical_reasons", action="store_true", default=False,
-                        help=deceased_help)
+    subp_p.add_argument("--report-all-clinical-reasons", dest="report_all_clinical_reasons",
+                        action="store_true", default=False,
+                        help="Report all clinical match reasons")
     subp_p.add_argument("--drop", dest="drop", action="store_true", default=False,
                         help="Drop trials and samples from args supplier")
     subp_p.add_argument("--drop-and-exit", dest="drop_and_exit", action="store_true", default=False,
