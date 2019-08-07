@@ -103,7 +103,6 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
             matchengine.queue_task_count += 1
             if matchengine.queue_task_count % 1000 == 0:
                 log.info(f"Trial match count: {matchengine.queue_task_count}")
-                exit()
             match_document = matchengine.create_trial_matches(TrialMatch(task.trial,
                                                                          task.match_clause_data,
                                                                          task.match_path,
