@@ -34,17 +34,17 @@ class DefaultDBSecrets(DBSecrets):
             raise Exception("SECRETS_JSON not valid json; exiting")
 
     def get_secrets(self) -> Secrets:
-        return Secrets(HOST=self._secrets["MONGO_HOST"],
-                       PORT=self._secrets["MONGO_PORT"],
-                       DB=self._secrets["MONGO_DBNAME"],
-                       AUTH_DB=self._secrets.get("MONGO_AUTH_SOURCE", False),
-                       RO_USERNAME=self._secrets.get("MONGO_RO_USERNAME", False),
-                       RO_PASSWORD=self._secrets.get("MONGO_RO_PASSWORD", False),
-                       RW_USERNAME=self._secrets.get("MONGO_USERNAME", False),
-                       RW_PASSWORD=self._secrets.get("MONGO_PASSWORD", False),
-                       REPLICASET=self._secrets.get("MONGO_REPLICASET", False),
-                       MAX_POOL_SIZE=self._secrets.get("MONGO_MAX_POOL_SIZE", False, ),
-                       MIN_POOL_SIZE=self._secrets.get("MONGO_MIN_POOL_SIZE", False))
+        return Secrets(host=self._secrets["MONGO_HOST"],
+                       port=self._secrets["MONGO_PORT"],
+                       db=self._secrets["MONGO_DBNAME"],
+                       auth_db=self._secrets.get("MONGO_AUTH_SOURCE", False),
+                       ro_username=self._secrets.get("MONGO_RO_USERNAME", False),
+                       ro_password=self._secrets.get("MONGO_RO_PASSWORD", False),
+                       rw_username=self._secrets.get("MONGO_USERNAME", False),
+                       rw_password=self._secrets.get("MONGO_PASSWORD", False),
+                       replica_set=self._secrets.get("MONGO_REPLICASET", False),
+                       max_pool_size=self._secrets.get("MONGO_MAX_POOL_SIZE", False, ),
+                       min_pool_size=self._secrets.get("MONGO_MIN_POOL_SIZE", False))
 
 
 class MongoDBConnection(object):
@@ -75,8 +75,8 @@ class MongoDBConnection(object):
         uri_params = list()
         if self.secrets.AUTH_DB:
             uri_params.append(f"authSource={self.secrets.AUTH_DB}")
-        if self.secrets.REPLICASET:
-            uri_params.append(f"replicaSet={self.secrets.REPLICASET}")
+        if self.secrets.REPLICA_SET:
+            uri_params.append(f"replicaSet={self.secrets.REPLICA_SET}")
         if self.secrets.MAX_POOL_SIZE:
             uri_params.append(f"maxPoolSize={self.secrets.MAX_POOL_SIZE}")
         if self.secrets.MIN_POOL_SIZE:

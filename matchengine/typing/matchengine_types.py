@@ -451,35 +451,35 @@ class Secrets(object):
     __slots__ = (
         "HOST", "PORT", "DB",
         "AUTH_DB", "RO_USERNAME", "RO_PASSWORD",
-        "RW_USERNAME", "RW_PASSWORD", "REPLICASET",
+        "RW_USERNAME", "RW_PASSWORD", "REPLICA_SET",
         "MAX_POOL_SIZE", "MIN_POOL_SIZE"
     )
 
     def __init__(
             self,
-            HOST: str,
-            PORT: int,
-            DB: str,
-            AUTH_DB: str,
-            RO_USERNAME: str,
-            RO_PASSWORD: str,
-            RW_USERNAME: str,
-            RW_PASSWORD: str,
-            REPLICASET: str,
-            MAX_POOL_SIZE: str,
-            MIN_POOL_SIZE: str
+            host: str,
+            port: int,
+            db: str,
+            auth_db: str,
+            ro_username: str,
+            ro_password: str,
+            rw_username: str,
+            rw_password: str,
+            replica_set: str,
+            max_pool_size: str,
+            min_pool_size: str
     ):
-        self.MIN_POOL_SIZE = MIN_POOL_SIZE
-        self.MAX_POOL_SIZE = MAX_POOL_SIZE
-        self.REPLICASET = REPLICASET
-        self.RW_PASSWORD = RW_PASSWORD
-        self.RW_USERNAME = RW_USERNAME
-        self.RO_PASSWORD = RO_PASSWORD
-        self.RO_USERNAME = RO_USERNAME
-        self.AUTH_DB = AUTH_DB
-        self.DB = DB
-        self.PORT = PORT
-        self.HOST = HOST
+        self.MIN_POOL_SIZE = min_pool_size
+        self.MAX_POOL_SIZE = max_pool_size
+        self.REPLICA_SET = replica_set
+        self.RW_PASSWORD = rw_password
+        self.RW_USERNAME = rw_username
+        self.RO_PASSWORD = ro_password
+        self.RO_USERNAME = ro_username
+        self.AUTH_DB = auth_db
+        self.DB = db
+        self.PORT = port
+        self.HOST = host
 
 
 class QueryTransformerResult(object):
