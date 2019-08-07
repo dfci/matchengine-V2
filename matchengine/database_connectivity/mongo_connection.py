@@ -43,7 +43,8 @@ class DefaultDBSecrets(DBSecrets):
                        RW_USERNAME=self._secrets.get("MONGO_USERNAME", False),
                        RW_PASSWORD=self._secrets.get("MONGO_PASSWORD", False),
                        REPLICASET=self._secrets.get("MONGO_REPLICASET", False),
-                       MAX_POOL_SIZE=self._secrets.get("MONGO_MAX_POOL_SIZE", False))
+                       MAX_POOL_SIZE=self._secrets.get("MONGO_MAX_POOL_SIZE", False, ),
+                       MIN_POOL_SIZE=self._secrets.get("MONGO_MIN_POOL_SIZE", False))
 
 
 class MongoDBConnection(object):
@@ -78,6 +79,8 @@ class MongoDBConnection(object):
             uri_params.append(f"replicaSet={self.secrets.REPLICASET}")
         if self.secrets.MAX_POOL_SIZE:
             uri_params.append(f"maxPoolSize={self.secrets.MAX_POOL_SIZE}")
+        if self.secrets.MIN_POOL_SIZE:
+            uri_params.append(f"minPoolSize={self.secrets.MIN_POOL_SIZE}")
         username_password_param = (f"{username if username else str()}"
                                    f"{':' if username and password else str()}"
                                    f"{password if password else str()}"
