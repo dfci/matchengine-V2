@@ -229,5 +229,10 @@
       "clinical_id",
       "protocol_no"
     ]
-  }
+  },
+  "valid_clinical_reasons": [
+    [
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE"
+    ]
+  ]
 }

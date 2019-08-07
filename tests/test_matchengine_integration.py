@@ -56,7 +56,8 @@ class IntegrationTestMatchengine(TestCase):
             match_document_creator_class=kwargs.get('match_document_creator_class', "DFCITrialMatchDocumentCreator"),
             fig_dir=kwargs.get('fig_dir', '/tmp/'),
             protocol_nos=kwargs.get('protocol_nos', None),
-            sample_ids=kwargs.get('sample_ids', None)
+            sample_ids=kwargs.get('sample_ids', None),
+            report_all_clinical_reasons=kwargs.get("report_all_clinical", True)
         )
 
         assert self.me.db_rw.name == 'integration'
@@ -395,7 +396,8 @@ class IntegrationTestMatchengine(TestCase):
 
     def test_tmb(self):
         self._reset(do_reset_trials=True,
-                    trials_to_load=['signatures'])
+                    trials_to_load=['tmb'],
+                    report_all_clinical=False)
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert len(self.me._matches['99-9999']['1d2799df4446699a8ddeeee']) == 4

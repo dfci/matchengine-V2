@@ -131,7 +131,7 @@ class MatchEngine(object):
             query_node_subsetter_class: str = "DFCIQueryNodeClinicalIDSubsetter",
             query_node_container_transformer_class: str = "DFCIQueryContainerTransformer",
             db_secrets_class: str = None,
-            report_clinical_reasons: bool = True,
+            report_all_clinical_reasons: bool = False,
             ignore_run_log: bool = False,
             skip_run_log_entry: bool = False,
             trial_match_collection: str = "trial_match",
@@ -196,7 +196,7 @@ class MatchEngine(object):
         self.protocol_nos = protocol_nos
         self.match_on_closed = match_on_closed
         self.match_on_deceased = match_on_deceased
-        self.report_clinical_reasons = report_clinical_reasons
+        self.report_all_clinical_reasons = report_all_clinical_reasons
         self.debug = debug
         self.num_workers = num_workers
         self.visualize_match_paths = visualize_match_paths
@@ -288,8 +288,7 @@ class MatchEngine(object):
                 self.cache.docs[result["_id"]] = result
 
         valid_reasons = get_valid_genomic_reasons(genomic_match_reasons, clinical_ids, genomic_ids)
-        if self.report_clinical_reasons:
-            valid_reasons.extend(get_valid_clinical_reasons(clinical_match_reasons, clinical_ids))
+        valid_reasons.extend(get_valid_clinical_reasons(self, clinical_match_reasons, clinical_ids))
 
         return valid_reasons
 
@@ -493,7 +492,7 @@ class MatchEngine(object):
                 'sample_ids': self._sample_ids_param,
                 'match_on_deceased': self.match_on_deceased,
                 'match_on_closed': self.match_on_closed,
-                'report_clinical_reasons': self.report_clinical_reasons,
+                'report_clinical_reasons': self.report_all_clinical_reasons,
                 'workers': self.num_workers,
                 'ignore_run_log': self.ignore_run_log
             },

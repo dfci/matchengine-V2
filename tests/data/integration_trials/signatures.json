@@ -23,31 +23,6 @@
               {
                 "or": [
                   {
-                    "clinical": {
-                      "tmb_numerical": ">=10"
-                    }
-                  },
-                  {
-                    "clinical": {
-                      "tmb_numerical": ">15"
-                    }
-                  },
-                  {
-                    "clinical": {
-                      "tmb_numerical": "<=40"
-                    }
-                  },
-                  {
-                    "clinical": {
-                      "tmb_numerical": "<40"
-                    }
-                  },
-                  {
-                    "clinical": {
-                      "tmb_numerical": "==40"
-                    }
-                  },
-                  {
                     "genomic": {
                       "hugo_symbol": "None",
                       "temozolomide_signature": "No"
