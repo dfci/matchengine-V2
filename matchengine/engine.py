@@ -398,10 +398,10 @@ class MatchEngine(object):
                     log.info(f"Query: {query}")
                 # put the query onto the task queue for execution
                 self._task_q.put_nowait(QueryTask(trial,
-                                                 match_clause,
-                                                 match_path,
-                                                 query,
-                                                 clinical_ids_to_run))
+                                                  match_clause,
+                                                  match_path,
+                                                  query,
+                                                  clinical_ids_to_run))
         log.info(f"Submitted {self._task_q.qsize()} QueryTasks to queue")
         await self._task_q.join()
         logging.info(f"Total results: {len(self._matches[protocol_no])}")
@@ -433,7 +433,7 @@ class MatchEngine(object):
             for result
             in self.db_ro.get_collection(
                 f"clinical_run_history_{self.trial_match_collection}"
-            ).find({'clinical_id': {"$in": list[self.clinical_ids]}})
+            ).find({'clinical_id': {"$in": list(self.clinical_ids)}})
         }
         for not_present in self.clinical_ids - set(output.keys()):
             output[not_present] = None
