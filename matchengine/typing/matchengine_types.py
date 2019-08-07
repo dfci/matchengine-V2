@@ -452,7 +452,7 @@ class Secrets(object):
         "HOST", "PORT", "DB",
         "AUTH_DB", "RO_USERNAME", "RO_PASSWORD",
         "RW_USERNAME", "RW_PASSWORD", "REPLICASET",
-        "MAX_POOL_SIZE"
+        "MAX_POOL_SIZE", "MIN_POOL_SIZE"
     )
 
     def __init__(
@@ -467,7 +467,9 @@ class Secrets(object):
             RW_PASSWORD: str,
             REPLICASET: str,
             MAX_POOL_SIZE: str,
+            MIN_POOL_SIZE: str
     ):
+        self.MIN_POOL_SIZE = MIN_POOL_SIZE
         self.MAX_POOL_SIZE = MAX_POOL_SIZE
         self.REPLICASET = REPLICASET
         self.RW_PASSWORD = RW_PASSWORD

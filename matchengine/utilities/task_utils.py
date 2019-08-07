@@ -29,6 +29,8 @@ async def run_check_indices_task(matchengine: MatchEngine, task, worker_id):
             f"Worker: {worker_id}, got new CheckIndicesTask")
     try:
         for collection, desired_indices in matchengine.config['indices'].items():
+            if collection == "trial_match":
+                collection = matchengine.trial_match_collection
             indices = list()
             indices.extend(matchengine.db_ro[collection].list_indexes())
             existing_indices = set()
@@ -37,7 +39,7 @@ async def run_check_indices_task(matchengine: MatchEngine, task, worker_id):
                 existing_indices.add(index_key)
             indices_to_create = set(desired_indices) - existing_indices
             for index in indices_to_create:
-                await matchengine.task_q.put(IndexUpdateTask(collection, index))
+                matchengine.task_q.put_nowait(IndexUpdateTask(collection, index))
         matchengine.task_q.task_done()
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
@@ -67,10 +69,10 @@ async def run_index_update_task(matchengine: MatchEngine, task: IndexUpdateTask,
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
         if isinstance(e, AutoReconnect):
-            await matchengine.task_q.put(task)
+            matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
         elif isinstance(e, CursorNotFound):
-            await matchengine.task_q.put(task)
+            matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
         else:
             matchengine.loop.stop()
@@ -79,8 +81,8 @@ async def run_index_update_task(matchengine: MatchEngine, task: IndexUpdateTask,
 
 
 async def run_query_task(matchengine: MatchEngine, task, worker_id):
-    log.info(f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask")
-    log.info(f"{matchengine._task_q.qsize()} tasks left in queue")
+    log.info((f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask, "
+              f"{matchengine._task_q.qsize()} tasks left in queue"))
     try:
         results: List[MatchReason] = await matchengine.run_query(task.query, task.clinical_ids)
     except Exception as e:
@@ -88,11 +90,11 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
         results = list()
         if isinstance(e, AutoReconnect):
-            await matchengine.task_q.put(task)
-            await matchengine.task_q.task_done()
+            matchengine.task_q.put_nowait(task)
+            matchengine.task_q.task_done()
         elif isinstance(e, CursorNotFound):
-            await matchengine.task_q.put(task)
-            await matchengine.task_q.task_done()
+            matchengine.task_q.put_nowait(task)
+            matchengine.task_q.task_done()
         else:
             matchengine.loop.stop()
             log.error(f"ERROR: Worker: {worker_id}, error: {e}")
@@ -135,7 +137,7 @@ async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id)
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
         if isinstance(e, AutoReconnect):
             matchengine.task_q.task_done()
-            await matchengine.task_q.put(task)
+            matchengine.task_q.put_nowait(task)
         else:
             raise e
     finally:
@@ -170,7 +172,7 @@ async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTa
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
         if isinstance(e, AutoReconnect):
             matchengine.task_q.task_done()
-            await matchengine.task_q.put(task)
+            matchengine.task_q.put_nowait(task)
         else:
             raise e
     finally:
