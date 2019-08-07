@@ -96,7 +96,7 @@ class MatchEngine(object):
         Ensure that all async workers exit gracefully.
         """
         for _ in range(0, self.num_workers):
-            await self._task_q.put(PoisonPill())
+            self._task_q.put_nowait(PoisonPill())
         await self._task_q.join()
 
     def __exit__(self, exception_type, exception_value, exception_traceback):
@@ -172,7 +172,8 @@ class MatchEngine(object):
         self._db_rw = MongoDBConnection(read_only=False, async_init=False, db=db_name) if self.db_init else None
         self.db_rw = self._db_rw.__enter__() if self.db_init else None
         log.info(f"Connected to database {self.db_ro.name}")
-        if drop:
+        self._drop = drop
+        if self._drop:
             log.info((f"Dropping all matches"
                       "\n\t"
                       f"{f'for trials: {protocol_nos}' if protocol_nos is not None else 'all trials'}"
@@ -240,7 +241,7 @@ class MatchEngine(object):
             worker_id: self._loop.create_task(self._queue_worker(worker_id))
             for worker_id in range(0, self.num_workers)
         }
-        await self._task_q.put(CheckIndicesTask())
+        self._task_q.put_nowait(CheckIndicesTask())
         await self._task_q.join()
 
     async def run_query(self,
@@ -396,7 +397,7 @@ class MatchEngine(object):
                 if self.debug:
                     log.info(f"Query: {query}")
                 # put the query onto the task queue for execution
-                await self._task_q.put(QueryTask(trial,
+                self._task_q.put_nowait(QueryTask(trial,
                                                  match_clause,
                                                  match_path,
                                                  query,
