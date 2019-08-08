@@ -20,6 +20,7 @@ def get_genomic_details(genomic_doc, query):
     cnv = genomic_doc.get('CNV_CALL', None)
     variant_classification = genomic_doc.get("TRUE_VARIANT_CLASSIFICATION", None)
     variant_category = genomic_doc.get('VARIANT_CATEGORY', None)
+    is_variant = 'variant' if true_protein else 'gene'
 
     # add wildtype calls
     if wildtype:
@@ -50,6 +51,7 @@ def get_genomic_details(genomic_doc, query):
                                '-'
                                f'{"intergenic" if right is None else right}'
                                ' Structural Variation'))
+            is_variant = 'structural_variant'
         else:
             sv_comment = query.get('STRUCTURAL_VARIANT_COMMENT', None)
             pattern = sv_comment.pattern.split("|")[0] if sv_comment is not None else None
@@ -78,7 +80,7 @@ def get_genomic_details(genomic_doc, query):
             alteration.append(f'{str() if signature_value.lower() == "yes" else "No "}'
                               f'{signature_type.replace("_STATUS", " Signature")}')
     return {
-        'match_type': 'variant' if true_protein else "structural_variant" if variant_category == "SV" else 'gene',
+        'match_type': is_variant,
         'genomic_alteration': ''.join(alteration),
         'genomic_id': genomic_doc['_id'],
         **genomic_doc
@@ -146,9 +148,9 @@ def format_exclusion_match(trial_match: TrialMatch):
             left = criteria.get("hugo_symbol", None)
             right = criteria.get("fusion_partner_hugo_symbol", None)
 
-            alteration.append((f'{"intergenic" if left is None else left}'
-                               '-'
-                               f'{"intergenic" if right is None else right}'
+            alteration.append((f'{"" if left is None else left}'
+                               f'{"-" if left is not None and right is not None else ""}'
+                               f'{"" if right is None else right}'
                                ' Structural Variation'))
 
     return {
