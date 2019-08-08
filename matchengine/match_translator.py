@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 from collections import deque
 from itertools import cycle
-
 from typing import TYPE_CHECKING
+
 import networkx as nx
 
 from matchengine.typing.matchengine_types import (
@@ -23,8 +24,7 @@ if TYPE_CHECKING:
         Generator,
         Dict,
         Any,
-        Tuple,
-        List
+        Tuple
     )
     from matchengine.engine import MatchEngine
 

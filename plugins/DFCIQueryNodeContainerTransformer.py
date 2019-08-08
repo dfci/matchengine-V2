@@ -1,6 +1,8 @@
 from __future__ import annotations
-from matchengine.plugin_helpers.plugin_stub import QueryNodeContainerTransformer
+
 from typing import TYPE_CHECKING
+
+from matchengine.plugin_helpers.plugin_stub import QueryNodeContainerTransformer
 
 if TYPE_CHECKING:
     from matchengine.typing.matchengine_types import QueryNodeContainer

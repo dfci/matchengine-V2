@@ -1,40 +1,23 @@
 from __future__ import annotations
 
-import uuid
-import json
 import asyncio
-import logging
-import pymongo
 import datetime
-
-from typing import TYPE_CHECKING, Iterable
+import json
+import logging
+import uuid
 from collections import defaultdict
 from multiprocessing import cpu_count
+from typing import TYPE_CHECKING, Iterable
+
+import pymongo
+
 from matchengine.database_connectivity.mongo_connection import MongoDBConnection
 from matchengine.match_criteria_transform import MatchCriteriaTransform
-from matchengine.utilities.update_match_utils import async_update_matches_by_protocol_no
-from matchengine.utilities.utilities import (
-    find_plugins
-)
-from matchengine.utilities.task_utils import (
-    run_query_task,
-    run_poison_pill,
-    run_update_task,
-    run_run_log_update_task,
-    run_check_indices_task, run_index_update_task
-)
 from matchengine.match_translator import (
     extract_match_clauses_from_trial,
     create_match_tree,
     get_match_paths,
     translate_match_path
-)
-from matchengine.utilities.query import (
-    execute_clinical_queries,
-    execute_genomic_queries,
-    get_docs_results,
-    get_valid_genomic_reasons,
-    get_valid_clinical_reasons
 )
 from matchengine.typing.matchengine_types import (
     PoisonPill,
@@ -44,6 +27,24 @@ from matchengine.typing.matchengine_types import (
     RunLogUpdateTask,
     CheckIndicesTask,
     IndexUpdateTask
+)
+from matchengine.utilities.query import (
+    execute_clinical_queries,
+    execute_genomic_queries,
+    get_docs_results,
+    get_valid_genomic_reasons,
+    get_valid_clinical_reasons
+)
+from matchengine.utilities.task_utils import (
+    run_query_task,
+    run_poison_pill,
+    run_update_task,
+    run_run_log_update_task,
+    run_check_indices_task, run_index_update_task
+)
+from matchengine.utilities.update_match_utils import async_update_matches_by_protocol_no
+from matchengine.utilities.utilities import (
+    find_plugins
 )
 
 if TYPE_CHECKING:

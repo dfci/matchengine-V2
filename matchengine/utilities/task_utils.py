@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, List
 import logging
 import traceback
+from typing import TYPE_CHECKING, List
 
 from pymongo import InsertOne
 from pymongo.errors import (

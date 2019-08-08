@@ -1,11 +1,12 @@
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import motor.motor_asyncio
 import pymongo.database
 
-from matchengine.typing.matchengine_types import Secrets
 from matchengine.plugin_helpers.plugin_stub import DBSecrets
-
-from typing import TYPE_CHECKING
+from matchengine.typing.matchengine_types import Secrets
 
 if TYPE_CHECKING:
     from typing import (
