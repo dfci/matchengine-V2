@@ -215,7 +215,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
         in config.json
         """
-        query = trial_match.match_reason.query_node.extract_raw_query()
+        query = trial_match.match_reason.extract_raw_query()
 
         new_trial_match = dict()
         clinical_doc = self.cache.docs[trial_match.match_reason.clinical_id]
@@ -227,8 +227,8 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
              'internal_id': trial_match.match_clause_data.internal_id,
              'cancer_type_match': get_cancer_type_match(trial_match),
              'reason_type': trial_match.match_reason.reason_name,
-             'q_depth': trial_match.match_reason.query_node.query_depth,
-             'q_width': trial_match.match_reason.width if trial_match.match_reason.reason_name == 'genomic' else 1,
+             'q_depth': trial_match.match_reason.depth,
+             'q_width': trial_match.match_reason.width,
              'code': trial_match.match_clause_data.code,
              'trial_accrual_status': 'closed' if trial_match.match_clause_data.is_suspended else 'open',
              'trial_summary_status': trial_match.match_clause_data.status,
@@ -243,6 +243,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
 
         if trial_match.match_reason.reason_name == 'genomic':
             genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.genomic_id, None)
+            new_trial_match.update({"q_c_width": trial_match.match_reason.clinical_width})
             if genomic_doc is None:
                 new_trial_match.update(format_trial_match_k_v(format_exclusion_match(trial_match)))
             else:
