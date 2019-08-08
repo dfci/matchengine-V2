@@ -11,15 +11,15 @@ from typing import TYPE_CHECKING, Iterable
 
 import pymongo
 
-from matchengine.database_connectivity.mongo_connection import MongoDBConnection
-from matchengine.match_criteria_transform import MatchCriteriaTransform
-from matchengine.match_translator import (
+from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
+from matchengine.internals.match_criteria_transform import MatchCriteriaTransform
+from matchengine.internals.match_translator import (
     extract_match_clauses_from_trial,
     create_match_tree,
     get_match_paths,
     translate_match_path
 )
-from matchengine.typing.matchengine_types import (
+from matchengine.internals.typing.matchengine_types import (
     PoisonPill,
     Cache,
     QueryTask,
@@ -28,22 +28,22 @@ from matchengine.typing.matchengine_types import (
     CheckIndicesTask,
     IndexUpdateTask
 )
-from matchengine.utilities.query import (
+from matchengine.internals.utilities.query import (
     execute_clinical_queries,
     execute_genomic_queries,
     get_docs_results,
     get_valid_genomic_reasons,
     get_valid_clinical_reasons
 )
-from matchengine.utilities.task_utils import (
+from matchengine.internals.utilities.task_utils import (
     run_query_task,
     run_poison_pill,
     run_update_task,
     run_run_log_update_task,
     run_check_indices_task, run_index_update_task
 )
-from matchengine.utilities.update_match_utils import async_update_matches_by_protocol_no
-from matchengine.utilities.utilities import (
+from matchengine.internals.utilities.update_match_utils import async_update_matches_by_protocol_no
+from matchengine.internals.utilities.utilities import (
     find_plugins
 )
 
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
         NoReturn,
         Any
     )
-    from matchengine.typing.matchengine_types import (
+    from matchengine.internals.typing.matchengine_types import (
         Dict,
         Union,
         List,

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 
-from matchengine.typing.matchengine_types import (
+from matchengine.internals.typing.matchengine_types import (
     MatchClauseData,
     ParentPath,
     MatchClauseLevel,
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
         Any,
         Tuple
     )
-    from matchengine.engine import MatchEngine
+    from matchengine.internals.engine import MatchEngine
 
 
 def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str) -> Generator[MatchClauseData]:

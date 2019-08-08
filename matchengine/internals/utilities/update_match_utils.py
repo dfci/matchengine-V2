@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING
 
 from pymongo import UpdateMany, InsertOne
 
-from matchengine.typing.matchengine_types import RunLogUpdateTask, UpdateTask, MongoQuery
-from matchengine.utilities.utilities import perform_db_call
+from matchengine.internals.typing.matchengine_types import RunLogUpdateTask, UpdateTask, MongoQuery
+from matchengine.internals.utilities.utilities import perform_db_call
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
 if TYPE_CHECKING:
-    from matchengine.engine import MatchEngine
+    from matchengine.internals.engine import MatchEngine
 
 
 async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol_no: str):

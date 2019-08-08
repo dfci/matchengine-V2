@@ -4,9 +4,9 @@ import json
 from types import MethodType
 from typing import Type
 
-from matchengine.match_criteria_transform import MatchCriteriaTransform
-from matchengine.plugin_helpers.plugin_stub import QueryTransformerContainer
-from matchengine.typing.matchengine_types import QueryTransformerResult
+from matchengine.internals.match_criteria_transform import MatchCriteriaTransform
+from matchengine.internals.plugin_helpers.plugin_stub import QueryTransformerContainer
+from matchengine.internals.typing.matchengine_types import QueryTransformerResult
 
 
 def is_negate(trial_value):

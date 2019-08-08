@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from matchengine.plugin_helpers.plugin_stub import QueryNodeContainerTransformer
+from matchengine.internals.plugin_helpers.plugin_stub import QueryNodeContainerTransformer
 
 if TYPE_CHECKING:
-    from matchengine.typing.matchengine_types import QueryNodeContainer
+    from matchengine.internals.typing.matchengine_types import QueryNodeContainer
 
 
 class DFCIQueryContainerTransformer(QueryNodeContainerTransformer):

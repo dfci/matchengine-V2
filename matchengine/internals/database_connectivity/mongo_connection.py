@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 import motor.motor_asyncio
 import pymongo.database
 
-from matchengine.plugin_helpers.plugin_stub import DBSecrets
-from matchengine.typing.matchengine_types import Secrets
+from matchengine.internals.plugin_helpers.plugin_stub import DBSecrets
+from matchengine.internals.typing.matchengine_types import Secrets
 
 if TYPE_CHECKING:
     from typing import (

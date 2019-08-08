@@ -3,23 +3,23 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Tuple, List, Union, Dict
 
-from matchengine.plugin_helpers.plugin_stub import (
+from matchengine.internals.plugin_helpers.plugin_stub import (
     QueryNodeTransformer,
     QueryNodeClinicalIDsSubsetter
 )
-from matchengine.typing.matchengine_types import (
+from matchengine.internals.typing.matchengine_types import (
     QueryPart
 )
-from matchengine.utilities.object_comparison import nested_object_hash
+from matchengine.internals.utilities.object_comparison import nested_object_hash
 
 if TYPE_CHECKING:
-    from matchengine.engine import MatchEngine
+    from matchengine.internals.engine import MatchEngine
     from typing import (
         NoReturn,
         Set,
         Iterable
     )
-    from matchengine.typing.matchengine_types import (
+    from matchengine.internals.typing.matchengine_types import (
         QueryNode,
         ClinicalID
     )

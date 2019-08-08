@@ -5,8 +5,8 @@ import re
 
 from dateutil.relativedelta import relativedelta
 
-from matchengine.query_transform import QueryTransformerContainer
-from matchengine.typing.matchengine_types import QueryTransformerResult
+from matchengine.internals.query_transform import QueryTransformerContainer
+from matchengine.internals.typing.matchengine_types import QueryTransformerResult
 
 
 class DFCIQueryTransformers(QueryTransformerContainer):

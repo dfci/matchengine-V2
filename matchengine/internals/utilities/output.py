@@ -5,7 +5,7 @@ import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from matchengine.engine import MatchEngine
+    from matchengine.internals.engine import MatchEngine
     from typing import Set
 
 
