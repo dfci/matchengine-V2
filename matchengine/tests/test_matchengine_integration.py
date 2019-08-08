@@ -445,7 +445,7 @@ class IntegrationTestMatchengine(TestCase):
                     caught_matches[alteration] += 1
 
         check_against = {
-            '!TP53-intergenic Structural Variation': 12,
+            '!TP53 Structural Variation': 12,
             'ALK-TFG Structural Variation': 2,
             'TFG-ALK Structural Variation': 2,
             'intergenic-STRN Structural Variation': 1,
