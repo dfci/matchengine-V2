@@ -9,6 +9,7 @@ from collections import defaultdict
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Iterable
 
+import dateutil.parser
 import pymongo
 
 from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
@@ -217,6 +218,7 @@ class MatchEngine(object):
                                          if self.get_clinical_ids_from_sample_ids()
                                          else self.get_clinical_run_log_mapping())
         self.clinical_extra_field_mapping = self.get_extra_field_mapping(self._clinical_data, "clinical")
+        self.clinical_extra_field_lookup = self.get_extra_field_lookup(self._clinical_data, "clinical")
         self.sample_mapping = {sample_id: clinical_id for clinical_id, sample_id in self.clinical_mapping.items()}
         self.clinical_ids = set(self.clinical_mapping.keys())
         if self.sample_ids is None:
@@ -416,9 +418,13 @@ class MatchEngine(object):
         if not self.ignore_run_log:
             projection.update({'_updated': 1, 'run_history': 1})
         projection.update({
-            item: 1
+            item[0]: 1
             for item
             in self.config.get("extra_initial_mapping_fields", dict()).get("clinical", list())})
+        projection.update({
+            item[0]: 1
+            for item
+            in self.config.get("extra_initial_lookup_fields", dict()).get("clinical", list())})
         return {result['_id']: result
                 for result in
                 self.db_ro.clinical.find(query, projection)}
@@ -588,8 +594,31 @@ class MatchEngine(object):
         fields = self.config.get("extra_initial_mapping_fields", dict()).get(key, list())
         mapping = defaultdict(lambda: defaultdict(set))
         for obj_id, raw_map in raw_mapping.items():
-            for field in fields:
-                mapping[field][raw_map.get(field)].add(obj_id)
+            for field_name, field_transform in fields:
+                if field_transform == "date":
+                    try:
+                        field_value = dateutil.parser.parse(raw_map.get(field_name))
+                    except ValueError:
+                        field_value = None
+                else:
+                    field_value = raw_map.get(field_name)
+                mapping[field_name][field_value].add(obj_id)
+        return mapping
+
+    def get_extra_field_lookup(self, raw_mapping: Dict[ObjectId, Any], key: str) -> Dict[Any: Set[ObjectId]]:
+        fields = self.config.get("extra_initial_lookup_fields", dict()).get(key, list())
+        mapping = defaultdict(dict)
+        for obj_id, raw_map in raw_mapping.items():
+            for field_name, field_transform in fields:
+                if field_transform == "date":
+                    try:
+                        field_value = dateutil.parser.parse(raw_map.get(field_name))
+                    except ValueError:
+                        field_value = None
+                else:
+                    field_value = raw_map.get(field_name)
+                if field_value is not None:
+                    mapping[field_name][obj_id] = field_value
         return mapping
 
     def drop_existing_matches(self, protocol_nos: List[str] = None, sample_ids: List[str] = None):

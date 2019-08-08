@@ -48,7 +48,12 @@
   },
   "extra_initial_mapping_fields": {
     "clinical": [
-      "PANEL_VERSION"
+      ["PANEL_VERSION", "raw"]
+    ]
+  },
+  "extra_initial_lookup_fields": {
+    "clinical": [
+      ["REPORT_DATE", "date"]
     ]
   },
   "trial_key_mappings": {
@@ -129,7 +134,7 @@
       "ONCOTREE_PRIMARY_DIAGNOSIS": {
         "sample_key": "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
         "sample_value": "external_file_mapping",
-        "file": "oncotree_mapping.json"
+        "file": "matchengine/ref/oncotree_mapping.json"
       },
       "GENDER": {
         "sample_key": "GENDER",
@@ -229,5 +234,10 @@
       "clinical_id",
       "protocol_no"
     ]
-  }
+  },
+  "valid_clinical_reasons": [
+    [
+      "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE"
+    ]
+  ]
 }

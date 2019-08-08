@@ -142,7 +142,7 @@ def format_exclusion_match(trial_match: TrialMatch):
         qn = trial_match.match_reason.query_node
         criteria = qn.criterion_ancestor[qn.query_level]
         if criteria.get('variant_category', str()).lower() == '!structural variation':
-            is_variant = "structural_variation"
+            is_variant = "structural_variant"
             left = criteria.get("hugo_symbol", None)
             right = criteria.get("fusion_partner_hugo_symbol", None)
 
