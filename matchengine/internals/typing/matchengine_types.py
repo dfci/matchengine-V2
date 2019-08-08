@@ -372,7 +372,7 @@ class MatchClauseData(object):
 class GenomicMatchReason(object):
     __slots__ = (
         "query_node", "width", "clinical_id",
-        "genomic_id", "clinical_width"
+        "genomic_id", "clinical_width", "depth"
     )
     reason_name = "genomic"
 
@@ -389,21 +389,31 @@ class GenomicMatchReason(object):
         self.clinical_id = clinical_id
         self.width = width
         self.query_node = query_node
+        self.depth = query_node.query_depth
+
+    def extract_raw_query(self):
+        return self.query_node.extract_raw_query()
 
 
 class ClinicalMatchReason(object):
     __slots__ = (
-        "query_node", "clinical_id"
+        "query_part", "clinical_id", "depth"
     )
     reason_name = "clinical"
+    width = 1
 
     def __init__(
             self,
-            query_node: QueryNode,
-            clinical_id: ClinicalID
+            query_part: QueryPart,
+            clinical_id: ClinicalID,
+            depth: int
     ):
         self.clinical_id = clinical_id
-        self.query_node = query_node
+        self.query_part = query_part
+        self.depth = depth
+
+    def extract_raw_query(self):
+        return self.query_part.query
 
 
 MatchReason = NewType("MatchReason", Union[GenomicMatchReason, ClinicalMatchReason])

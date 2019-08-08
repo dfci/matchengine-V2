@@ -44,15 +44,15 @@ async def execute_clinical_queries(matchengine: MatchEngine,
     collection = matchengine.match_criteria_transform.CLINICAL
     reasons = list()
     reasons_cache = set()
-    query_nodes_by_hash = dict()
+    query_parts_by_hash = dict()
     for _clinical in multi_collection_query.clinical:
         for query_node in _clinical.query_nodes:
             clinical_ids = matchengine.clinical_query_node_clinical_ids_subsetter(query_node, clinical_ids)
-            query_nodes_by_hash[query_node.hash()] = query_node
             for query_part in query_node.query_parts:
                 if not query_part.render:
                     continue
 
+                query_parts_by_hash[query_part.hash()] = query_part
                 # hash the inner query to use as a reference for returned clinical ids, if necessary
                 query_hash = query_part.hash()
                 if query_hash not in matchengine.cache.ids:
@@ -91,27 +91,27 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                     # an exclusion criteria returned a clinical document hence doc is not a match
                     if id_cache[clinical_id] is not None and query_part.negate:
                         clinical_ids.remove(clinical_id)
-                        if (query_node.hash(), clinical_id) in reasons_cache:
-                            reasons_cache.remove((query_node.hash(), clinical_id))
+                        if (query_node.hash(), clinical_id, query_node.query_depth) in reasons_cache:
+                            reasons_cache.remove((query_part.hash(), clinical_id, query_node.query_depth))
 
                     # clinical doc fulfills exclusion criteria
                     elif id_cache[clinical_id] is None and query_part.negate:
-                        reasons_cache.add((query_node.hash(), clinical_id))
+                        reasons_cache.add((query_part.hash(), clinical_id, query_node.query_depth))
                         pass
 
                     # doc meets inclusion criteria
                     elif id_cache[clinical_id] is not None and not query_part.negate:
-                        reasons_cache.add((query_node.hash(), clinical_id))
+                        reasons_cache.add((query_part.hash(), clinical_id, query_node.query_depth))
                         pass
 
                     # no clinical doc returned for an inclusion criteria query, so remove _id from future queries
                     elif id_cache[clinical_id] is None and not query_part.negate:
                         clinical_ids.remove(clinical_id)
                         if (query_node.hash(), clinical_id) in reasons_cache:
-                            reasons_cache.remove((query_node.hash(), clinical_id))
+                            reasons_cache.remove((query_part.hash(), clinical_id, query_node.query_depth))
 
-    for query_node_hash, clinical_id in reasons_cache:
-        reasons.append(ClinicalMatchReason(query_nodes_by_hash[query_node_hash], clinical_id))
+    for query_node_hash, clinical_id, depth in reasons_cache:
+        reasons.append(ClinicalMatchReason(query_parts_by_hash[query_node_hash], clinical_id, depth))
     return clinical_ids, reasons
 
 
@@ -121,7 +121,6 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                                                                                   List[GenomicMatchReason]]:
     clinical_ids = {clinical_id: set() for clinical_id in initial_clinical_ids}
     qnc_qn_tracker = dict()
-    width_cache = dict()
     join_field = matchengine.match_criteria_transform.collection_mappings['genomic']['join_field']
     for qnc_idx, genomic_query_node_container in enumerate(multi_collection_query.genomic):
         query_node_container_clinical_ids = list()
@@ -173,13 +172,6 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                                      in id_cache.items()
                                      if genomic_docs is not None}
             not_returned_clinical_ids = working_clinical_ids - returned_clinical_ids
-            clinical_width = (len(not_returned_clinical_ids)
-                              if genomic_query_node.exclusion
-                              else len(returned_clinical_ids))
-            genomic_width = (1
-                             if genomic_query_node.exclusion
-                             else sum(map(len, filter(bool, id_cache.values()))))
-            width_cache[(qnc_idx, qn_idx)] = (clinical_width, genomic_width)
             working_clinical_ids.intersection_update((
                 not_returned_clinical_ids
                 if genomic_query_node.exclusion
@@ -205,12 +197,14 @@ async def execute_genomic_queries(matchengine: MatchEngine,
     for (qnc_idx, qn_idx), found_clinical_ids in qnc_qn_tracker.items():
         genomic_query_node_container = multi_collection_query.genomic[qnc_idx]
         query_node = genomic_query_node_container.query_nodes[qn_idx]
-        clinical_width, genomic_width = width_cache[(qnc_idx, qn_idx)]
         for clinical_id in found_clinical_ids:
             genomic_ids = matchengine.cache.ids[query_node.raw_query_hash()][clinical_id]
             if genomic_ids is not None:
                 all_genomic.update(genomic_ids)
             for genomic_id in (genomic_ids if genomic_ids is not None else [None]):
+                id_cache = matchengine.cache.ids[query_node.raw_query_hash()]
+                genomic_width = len(id_cache[clinical_id]) if genomic_id is not None else 1
+                clinical_width = len(id_cache)
                 reasons.append(GenomicMatchReason(query_node, genomic_width, clinical_width, clinical_id, genomic_id))
 
     return set(clinical_ids.keys()), all_genomic, reasons
@@ -250,6 +244,6 @@ def get_valid_clinical_reasons(matchengine: MatchEngine,
         for clinical_reason in clinical_match_reasons
         if (clinical_reason.clinical_id in clinical_ids) and (
                 matchengine.report_all_clinical_reasons or
-                frozenset(clinical_reason.query_node.extract_raw_query().keys())
+                frozenset(clinical_reason.query_part.query.keys())
                 in matchengine.match_criteria_transform.valid_clinical_reasons)
     ]

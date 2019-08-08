@@ -115,12 +115,13 @@ class IntegrationTestMatchengine(TestCase):
     def test_update_trial_matches(self):
         self._reset(do_reset_trial_matches=True,
                     do_reset_trials=True,
-                    trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
+                    trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'],
+                    report_all_clinical=False)
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         for protocol_no in self.me.trials.keys():
             self.me.update_matches_for_protocol_number(protocol_no)
-        assert self.me.db_ro.trial_match.count() == 80
+        assert self.me.db_ro.trial_match.count() == 48
 
     def test_wildcard_protein_change(self):
         self._reset(do_reset_trial_matches=True,
@@ -158,7 +159,8 @@ class IntegrationTestMatchengine(TestCase):
     def test_output_csv(self):
         self._reset(do_reset_trial_matches=True,
                     do_reset_trials=True,
-                    trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
+                    trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'],
+                    report_all_clinical=False)
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         filename = f'trial_matches_{datetime.datetime.now().strftime("%b_%d_%Y_%H:%M")}.csv'
@@ -176,8 +178,8 @@ class IntegrationTestMatchengine(TestCase):
             assert sum([1
                         for protocol_matches in self.me._matches.values()
                         for sample_matches in protocol_matches.values()
-                        for _ in sample_matches]) == 80
-            assert len(rows) == 80
+                        for _ in sample_matches]) == 48
+            assert len(rows) == 48
             os.unlink(filename)
         except Exception as e:
             if os.path.exists(filename):
@@ -194,12 +196,13 @@ class IntegrationTestMatchengine(TestCase):
             reset_run_log=True,
             match_on_closed=True,
             match_on_deceased=False,
-            do_rm_clinical_run_history=True
+            do_rm_clinical_run_history=True,
+            report_all_clinical=False
         )
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
-        assert len(list(self.me.db_ro.trial_match.find())) == 5
+        assert len(list(self.me.db_ro.trial_match.find())) == 3
         assert len(list(self.me.db_ro.run_log_trial_match.find())) == 1
 
         # time travel to the future, of the current past. to the delorean we go...
@@ -219,14 +222,15 @@ class IntegrationTestMatchengine(TestCase):
             match_on_closed=True,
             match_on_deceased=False,
             do_rm_clinical_run_history=False,
-            do_reset_time=False
+            do_reset_time=False,
+            report_all_clinical=False
         )
 
         # check that run log has 2 rows, and number of trial matches has not changed
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
         assert len(list(self.me.db_ro.run_log_trial_match.find())) == 2
-        assert len(list(self.me.db_ro.trial_match.find())) == 5
+        assert len(list(self.me.db_ro.trial_match.find())) == 3
 
         # simulate a trial update
         self.me.db_rw.trial.update({"protocol_no": "10-002"}, {'$set': {"last_updated": "December 20, 2001"}})
@@ -242,7 +246,8 @@ class IntegrationTestMatchengine(TestCase):
             match_on_closed=True,
             match_on_deceased=False,
             do_rm_clinical_run_history=False,
-            do_reset_time=False
+            do_reset_time=False,
+            report_all_clinical=False
         )
 
         self.me.get_matches_for_all_trials()
@@ -291,7 +296,8 @@ class IntegrationTestMatchengine(TestCase):
             match_on_closed=True,
             match_on_deceased=False,
             do_rm_clinical_run_history=False,
-            do_reset_time=False
+            do_reset_time=False,
+            report_all_clinical=False
         )
 
         self.me.get_matches_for_all_trials()
@@ -417,11 +423,12 @@ class IntegrationTestMatchengine(TestCase):
 
     def test_structured_sv(self):
         self._reset(do_reset_trials=True,
-                    trials_to_load=['structured_sv'])
+                    trials_to_load=['structured_sv'],
+                    report_all_clinical=False)
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert '5d2799df6756630d8dd068c6' in self.me.matches['99-9999']
-        assert len(self.me.matches['99-9999']['5d2799df6756630d8dd068c6']) == 56
+        assert len(self.me.matches['99-9999']['5d2799df6756630d8dd068c6']) == 44
         caught_matches = defaultdict(int)
         for match in self.me.matches['99-9999']['5d2799df6756630d8dd068c6']:
             alteration = match.get('genomic_alteration')
