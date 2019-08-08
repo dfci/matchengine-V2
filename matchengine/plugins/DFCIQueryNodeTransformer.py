@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import re
 from typing import TYPE_CHECKING, Tuple, List, Union, Dict
 
@@ -65,14 +66,24 @@ class DFCIQueryNodeClinicalIDSubsetter(QueryNodeClinicalIDsSubsetter):
                 clinical_id
                 for clinical_id
                 in clinical_ids
-                if clinical_id in self.clinical_extra_field_mapping.get('PANEL_VERSION', dict()).get(3, set())
+                if self.clinical_extra_field_lookup.get(
+                    'REPORT_DATE',
+                    dict()).get(
+                    clinical_id,
+                    datetime.datetime(1900, 1, 1, 1, 1, 1, 1)
+                ) >= datetime.datetime(2018, 12, 1, 0, 0, 0, 0)
             }
         elif query_node.get_query_part_by_key('STRUCTURAL_VARIANT_COMMENT') is not None:
             return {
                 clinical_id
                 for clinical_id
                 in clinical_ids
-                if clinical_id not in self.clinical_extra_field_mapping.get('PANEL_VERSION', dict()).get(3, set())
+                if self.clinical_extra_field_lookup.get(
+                    'REPORT_DATE',
+                    dict()).get(
+                    clinical_id,
+                    datetime.datetime(1900, 1, 1, 1, 1, 1, 1)
+                ) < datetime.datetime(2018, 12, 1, 0, 0, 0, 0)
             }
         else:
             return {clinical_id for clinical_id in clinical_ids}
