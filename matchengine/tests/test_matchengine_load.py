@@ -4,8 +4,8 @@ from argparse import Namespace
 from collections import defaultdict
 from unittest import TestCase
 
-from matchengine.database_connectivity.mongo_connection import MongoDBConnection
-from matchengine.load import load
+from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
+from matchengine.internals.load import load
 
 
 class IntegrationTestMatchengineLoading(TestCase):
@@ -44,7 +44,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          db_name='integration_load',
                          plugin_dir='plugins',
                          trial_format='json',
-                         trial='tests/data/trials/11-111.json',
+                         trial='matchengine/tests/data/trials/11-111.json',
                          upsert_fields='')
         load(args)
         assert len(list(self.db_ro.trial.find({}))) == 1
@@ -57,7 +57,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          db_name='integration_load',
                          plugin_dir='plugins',
                          trial_format='json',
-                         trial='tests/data/trials/two_trials_one_doc.json',
+                         trial='matchengine/tests/data/trials/two_trials_one_doc.json',
                          upsert_fields='')
         load(args)
         assert len(list(self.db_ro.trial.find({}))) == 2
@@ -71,7 +71,7 @@ class IntegrationTestMatchengineLoading(TestCase):
             db_name='integration_load',
             plugin_dir='plugins',
             trial_format='json',
-            trial='tests/data/trials/trials_json_array.json',
+            trial='matchengine/tests/data/trials/trials_json_array.json',
             upsert_fields='')
         load(args)
         assert len(list(self.db_ro.trial.find({}))) == 2
@@ -83,7 +83,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          db_name='integration_load',
                          plugin_dir='plugins',
                          trial_format='json',
-                         trial='tests/data/integration_trials/',
+                         trial='matchengine/tests/data/integration_trials/',
                          upsert_fields='')
         load(args)
         assert len(list(self.db_ro.trial.find({}))) == 14
@@ -94,7 +94,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          genomic=None, db_name='integration_load',
                          plugin_dir='plugins',
                          trial_format='yaml',
-                         trial='tests/data/yaml/11-111.yaml',
+                         trial='matchengine/tests/data/yaml/11-111.yaml',
                          upsert_fields='')
         load(args)
         assert len(list(self.db_ro.trial.find({}))) == 1
@@ -106,7 +106,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          db_name='integration_load',
                          plugin_dir='plugins',
                          trial_format='yaml',
-                         trial='tests/data/yaml/',
+                         trial='matchengine/tests/data/yaml/',
                          upsert_fields='')
         load(args)
         assert len(list(self.db_ro.trial.find({}))) == 2
@@ -118,7 +118,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          db_name='integration_load',
                          plugin_dir='plugins',
                          patient_format='json',
-                         clinical='tests/data/clinical_json/test_patient_1.json',
+                         clinical='matchengine/tests/data/clinical_json/test_patient_1.json',
                          upsert_fields='')
         load(args)
         assert len(list(self.db_ro.clinical.find({}))) == 1
@@ -130,7 +130,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          db_name='integration_load',
                          plugin_dir='plugins',
                          patient_format='json',
-                         clinical='tests/data/clinical_json/',
+                         clinical='matchengine/tests/data/clinical_json/',
                          upsert_fields='')
         load(args)
         assert len(list(self.db_ro.clinical.find({}))) == 2
@@ -142,7 +142,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          db_name='integration_load',
                          plugin_dir='plugins',
                          patient_format='csv',
-                         clinical='tests/data/clinical_csv/test_patients.csv',
+                         clinical='matchengine/tests/data/clinical_csv/test_patients.csv',
                          upsert_fields='')
         load(args)
         assert len(list(self.db_ro.clinical.find({}))) == 2
@@ -156,12 +156,12 @@ class IntegrationTestMatchengineLoading(TestCase):
                          db_name='integration_load',
                          plugin_dir='plugins',
                          patient_format='json',
-                         clinical='tests/data/clinical_json/test_patient_1.json',
+                         clinical='matchengine/tests/data/clinical_json/test_patient_1.json',
                          upsert_fields='')
         load(args)
 
         # load genomic doc
-        args = Namespace(genomic='tests/data/genomic_json/test_patient_1.json',
+        args = Namespace(genomic='matchengine/tests/data/genomic_json/test_patient_1.json',
                          trial=None,
                          db_name='integration_load',
                          plugin_dir='plugins',
@@ -183,12 +183,12 @@ class IntegrationTestMatchengineLoading(TestCase):
                          db_name='integration_load',
                          plugin_dir='plugins',
                          patient_format='json',
-                         clinical='tests/data/clinical_json/',
+                         clinical='matchengine/tests/data/clinical_json/',
                          upsert_fields='')
         load(args)
 
         # load genomic docs
-        args = Namespace(genomic='tests/data/genomic_json/',
+        args = Namespace(genomic='matchengine/tests/data/genomic_json/',
                          trial=None,
                          db_name='integration_load',
                          plugin_dir='plugins',
@@ -212,12 +212,12 @@ class IntegrationTestMatchengineLoading(TestCase):
                          db_name='integration_load',
                          plugin_dir='plugins',
                          patient_format='json',
-                         clinical='tests/data/clinical_json/',
+                         clinical='matchengine/tests/data/clinical_json/',
                          upsert_fields='')
         load(args)
 
         # load genomic doc
-        args = Namespace(genomic='tests/data/genomic_csv/test_patients.csv',
+        args = Namespace(genomic='matchengine/tests/data/genomic_csv/test_patients.csv',
                          trial=None,
                          db_name='integration_load',
                          plugin_dir='plugins',

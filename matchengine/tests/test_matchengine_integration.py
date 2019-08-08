@@ -7,9 +7,9 @@ from collections import defaultdict
 from contextlib import redirect_stderr
 from unittest import TestCase
 
-from matchengine.database_connectivity.mongo_connection import MongoDBConnection
-from matchengine.engine import MatchEngine
-from tests.timetravel_and_override import set_static_date_time
+from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
+from matchengine.internals.engine import MatchEngine
+from matchengine.tests.timetravel_and_override import set_static_date_time
 
 
 class IntegrationTestMatchengine(TestCase):
@@ -32,7 +32,11 @@ class IntegrationTestMatchengine(TestCase):
 
             if kwargs.get('do_reset_trials', False):
                 setup_db.trial.drop()
-                trials_to_load = map(lambda x: os.path.join('tests', 'data', 'integration_trials', x + '.json'),
+                trials_to_load = map(lambda x: os.path.join('matchengine',
+                                                            'tests',
+                                                            'data',
+                                                            'integration_trials',
+                                                            x + '.json'),
                                      kwargs.get('trials_to_load', list()))
                 for trial_path in trials_to_load:
                     with open(trial_path) as trial_file_handle:
@@ -49,8 +53,8 @@ class IntegrationTestMatchengine(TestCase):
             match_on_closed=kwargs.get('match_on_closed', True),
             num_workers=kwargs.get('num_workers', 1),
             visualize_match_paths=kwargs.get('visualize_match_paths', False),
-            config=kwargs.get('config', 'config/dfci_config.json'),
-            plugin_dir=kwargs.get('plugin_dir', 'plugins/'),
+            config=kwargs.get('config', 'matchengine/config/dfci_config.json'),
+            plugin_dir=kwargs.get('plugin_dir', 'matchengine/plugins/'),
             match_document_creator_class=kwargs.get('match_document_creator_class', "DFCITrialMatchDocumentCreator"),
             fig_dir=kwargs.get('fig_dir', '/tmp/'),
             protocol_nos=kwargs.get('protocol_nos', None),
@@ -159,7 +163,7 @@ class IntegrationTestMatchengine(TestCase):
         self.me.get_matches_for_all_trials()
         filename = f'trial_matches_{datetime.datetime.now().strftime("%b_%d_%Y_%H:%M")}.csv'
         try:
-            from matchengine.utilities.output import create_output_csv
+            from matchengine.internals.utilities.output import create_output_csv
             create_output_csv(self.me)
             assert os.path.exists(filename)
             assert os.path.isfile(filename)
@@ -167,7 +171,7 @@ class IntegrationTestMatchengine(TestCase):
                 csv_reader = csv.DictReader(csv_file_handle)
                 fieldnames = set(csv_reader.fieldnames)
                 rows = list(csv_reader)
-            from matchengine.utilities.output import get_all_match_fieldnames
+            from matchengine.internals.utilities.output import get_all_match_fieldnames
             assert len(fieldnames.intersection(get_all_match_fieldnames(self.me))) == len(fieldnames)
             assert sum([1
                         for protocol_matches in self.me._matches.values()
@@ -371,8 +375,8 @@ class IntegrationTestMatchengine(TestCase):
                          protocol_nos={'10-001'},
                          match_on_closed=True,
                          match_on_deceased=True,
-                         config='config/dfci_config.json',
-                         plugin_dir='plugins/',
+                         config='matchengine/config/dfci_config.json',
+                         plugin_dir='matchengine/plugins/',
                          match_document_creator_class='DFCITrialMatchDocumentCreator',
                          num_workers=1) as me:
             me.get_matches_for_trial('10-001')

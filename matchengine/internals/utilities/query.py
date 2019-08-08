@@ -6,17 +6,17 @@ import operator
 from functools import reduce
 from typing import TYPE_CHECKING
 
-from matchengine.typing.matchengine_types import (
+from matchengine.internals.typing.matchengine_types import (
     ClinicalMatchReason,
     GenomicMatchReason,
     MongoQuery
 )
-from matchengine.utilities.utilities import perform_db_call
+from matchengine.internals.utilities.utilities import perform_db_call
 
 if TYPE_CHECKING:
     from bson import ObjectId
-    from matchengine.engine import MatchEngine
-    from matchengine.typing.matchengine_types import (
+    from matchengine.internals.engine import MatchEngine
+    from matchengine.internals.typing.matchengine_types import (
         ClinicalID,
         MultiCollectionQuery
     )

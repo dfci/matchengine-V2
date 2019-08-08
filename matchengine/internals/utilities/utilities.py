@@ -7,9 +7,9 @@ import sys
 from types import MethodType
 from typing import TYPE_CHECKING
 
-from matchengine import query_transform
-from matchengine.database_connectivity.mongo_connection import MongoDBConnection
-from matchengine.plugin_helpers.plugin_stub import (
+from matchengine.internals import query_transform
+from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
+from matchengine.internals.plugin_helpers.plugin_stub import (
     QueryTransformerContainer,
     TrialMatchDocumentCreator,
     DBSecrets,
@@ -20,8 +20,8 @@ from matchengine.plugin_helpers.plugin_stub import (
 
 if TYPE_CHECKING:
     from typing import Dict, List
-    from matchengine.engine import MatchEngine
-    from matchengine.typing.matchengine_types import MongoQuery
+    from matchengine.internals.engine import MatchEngine
+    from matchengine.internals.typing.matchengine_types import MongoQuery
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
@@ -44,7 +44,7 @@ def find_plugins(matchengine: MatchEngine):
     """
     log.info(f"Checking for plugins in {matchengine.plugin_dir}")
     potential_files = glob.glob(os.path.join(matchengine.plugin_dir, "*.py"))
-    to_load = [(None, 'matchengine.query_transform')]
+    to_load = [(None, 'matchengine.internals.query_transform')]
     for potential_file_path in potential_files:
         dir_path = os.path.dirname(potential_file_path)
         module_name = ''.join(os.path.basename(potential_file_path).split('.')[0:-1])

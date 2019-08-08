@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from matchengine.match_criteria_transform import (
+    from matchengine.internals.match_criteria_transform import (
         MatchCriteriaTransform,
         TransformFunctions
     )
-    from matchengine.typing.matchengine_types import (
+    from matchengine.internals.typing.matchengine_types import (
         Secrets,
         QueryNode,
         TrialMatch,
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
         NoReturn,
         Set
     )
-    from matchengine.engine import MatchEngine
+    from matchengine.internals.engine import MatchEngine
 
 
 class TrialMatchDocumentCreator(object):

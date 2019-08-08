@@ -11,10 +11,10 @@ from pymongo.errors import (
     CursorNotFound
 )
 
-from matchengine.typing.matchengine_types import TrialMatch, IndexUpdateTask, MatchReason, UpdateTask, RunLogUpdateTask
+from matchengine.internals.typing.matchengine_types import TrialMatch, IndexUpdateTask, MatchReason, UpdateTask, RunLogUpdateTask
 
 if TYPE_CHECKING:
-    from matchengine.engine import MatchEngine
+    from matchengine.internals.engine import MatchEngine
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')

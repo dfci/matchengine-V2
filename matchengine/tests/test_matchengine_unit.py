@@ -3,14 +3,14 @@ import json
 import os
 from unittest import TestCase
 
-from matchengine.engine import MatchEngine
-from matchengine.match_criteria_transform import MatchCriteriaTransform
-from matchengine.match_translator import create_match_tree, get_match_paths, extract_match_clauses_from_trial, \
+from matchengine.internals.engine import MatchEngine
+from matchengine.internals.match_criteria_transform import MatchCriteriaTransform
+from matchengine.internals.match_translator import create_match_tree, get_match_paths, extract_match_clauses_from_trial, \
     translate_match_path
-from matchengine.typing.matchengine_types import MatchClause, MatchCriteria, MatchCriterion
-from matchengine.typing.matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel
-from matchengine.utilities.object_comparison import nested_object_hash
-from matchengine.utilities.utilities import find_plugins
+from matchengine.internals.typing.matchengine_types import MatchClause, MatchCriteria, MatchCriterion
+from matchengine.internals.typing.matchengine_types import MatchClauseData, ParentPath, MatchClauseLevel
+from matchengine.internals.utilities.object_comparison import nested_object_hash
+from matchengine.internals.utilities.utilities import find_plugins
 
 
 class TestMatchEngine(TestCase):
@@ -20,10 +20,10 @@ class TestMatchEngine(TestCase):
         self.me = MatchEngine.__new__(MatchEngine)
 
         assert isinstance(self.me.create_trial_matches({}), dict)
-        self.me.plugin_dir = 'tests/plugins'
+        self.me.plugin_dir = 'matchengine/tests/plugins'
         self.me.match_document_creator_class = 'TestTrialMatchDocumentCreator'
         self.me.visualize_match_paths = False
-        with open('tests/config.json') as config_file_handle:
+        with open('matchengine/tests/config.json') as config_file_handle:
             self.config = json.load(config_file_handle)
 
         self.me.match_criteria_transform = MatchCriteriaTransform(self.config)
@@ -51,7 +51,7 @@ class TestMatchEngine(TestCase):
             'trial_key': 'test',
             'trial_value': 'test',
             'sample_key': 'test',
-            'file': 'tests/data/external_file_mapping_test.json'
+            'file': 'matchengine/tests/data/external_file_mapping_test.json'
         }
 
         assert hasattr(self.me.match_criteria_transform.query_transformers, 'nomap')
@@ -88,7 +88,7 @@ class TestMatchEngine(TestCase):
     def test_extract_match_clauses_from_trial(self):
         self.me.trials = dict()
         self.me.match_on_closed = False
-        with open('./tests/data/trials/11-111.json') as f:
+        with open('./matchengine/tests/data/trials/11-111.json') as f:
             data = json.load(f)
             match_clause = data['treatment_list']['step'][0]['arm'][0]['match'][0]
             self.me.trials['11-111'] = data
@@ -101,13 +101,13 @@ class TestMatchEngine(TestCase):
 
     def test_create_match_tree(self):
         self.me.trials = dict()
-        for file in glob.glob('./tests/data/ctml_boolean_cases/*.json'):
+        for file in glob.glob('./matchengine/tests/data/ctml_boolean_cases/*.json'):
             with open(file) as f:
                 data = json.load(f)
                 trial = [data]
                 self.me.trials[file] = trial
 
-        with open('./tests/data/create_match_tree_expected.json') as f:
+        with open('./matchengine/tests/data/create_match_tree_expected.json') as f:
             test_cases = json.load(f)
 
         for trial in self.me.trials:
@@ -137,12 +137,12 @@ class TestMatchEngine(TestCase):
 
     def test_get_match_paths(self):
         self.me.trials = dict()
-        for file in glob.glob('./tests/data/ctml_boolean_cases/*.json'):
+        for file in glob.glob('./matchengine/tests/data/ctml_boolean_cases/*.json'):
             with open(file) as f:
                 data = json.load(f)
                 trial = [data]
                 self.me.trials[file] = trial
-        with open("./tests/data/get_match_paths_expected.json") as f:
+        with open("./matchengine/tests/data/get_match_paths_expected.json") as f:
             test_cases = json.load(f)
         for trial in self.me.trials:
             filename = os.path.basename(trial)
