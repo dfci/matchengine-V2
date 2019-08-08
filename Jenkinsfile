@@ -26,7 +26,7 @@ node {
             stage("run tests") {
                 docker.image('python:3.7').inside("--link ${c.id}") {
                     sh """
-                       cat << 'EOF' > matchengine/SECRETS_JSON.json
+                       cat << 'EOF' > SECRETS_JSON.json
 {
                       "MONGO_HOST": "${c.id.substring(0, 12)}",
                       "MONGO_PORT": 27017,
@@ -40,16 +40,15 @@ node {
 
                    """
 
-                    sh "cat matchengine/SECRETS_JSON.json"
+                    sh "cat SECRETS_JSON.json"
 
                     sh 'printf "\npygraphviz" >> requirements.txt'
                     sh 'apt-get update && apt-get install -y graphviz'
 
                     sh """
                        pip install -r requirements.txt && \
-                       cd matchengine && \
                        export SECRETS_JSON=SECRETS_JSON.json && \
-                       nosetests -v --with-xunit tests
+                       nosetests -v --with-xunit matchengine/tests
                        """
 
                     //report on nosetests results
