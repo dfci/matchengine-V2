@@ -595,13 +595,13 @@ class MatchEngine(object):
         mapping = defaultdict(lambda: defaultdict(set))
         for obj_id, raw_map in raw_mapping.items():
             for field_name, field_transform in fields:
+                field_value = raw_map.get(field_name)
                 if field_transform == "date":
-                    try:
-                        field_value = dateutil.parser.parse(raw_map.get(field_name))
-                    except ValueError:
-                        field_value = None
-                else:
-                    field_value = raw_map.get(field_name)
+                    if not isinstance(field_value, datetime.datetime):
+                        try:
+                            field_value = dateutil.parser.parse(raw_map.get(field_name))
+                        except ValueError:
+                            field_value = None
                 mapping[field_name][field_value].add(obj_id)
         return mapping
 
@@ -610,13 +610,13 @@ class MatchEngine(object):
         mapping = defaultdict(dict)
         for obj_id, raw_map in raw_mapping.items():
             for field_name, field_transform in fields:
+                field_value = raw_map.get(field_name)
                 if field_transform == "date":
-                    try:
-                        field_value = dateutil.parser.parse(raw_map.get(field_name))
-                    except ValueError:
-                        field_value = None
-                else:
-                    field_value = raw_map.get(field_name)
+                    if not isinstance(field_value, datetime.datetime):
+                        try:
+                            field_value = dateutil.parser.parse(raw_map.get(field_name))
+                        except ValueError:
+                            field_value = None
                 if field_value is not None:
                     mapping[field_name][obj_id] = field_value
         return mapping
