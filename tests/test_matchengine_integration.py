@@ -1,17 +1,15 @@
-from collections import defaultdict
-from unittest import TestCase
 import csv
-import os
-import json
-import sys
-
-from contextlib import redirect_stderr
-from matchengine.engine import MatchEngine
-from matchengine.database_connectivity.mongo_connection import MongoDBConnection
-
-from tests.timetravel_and_override import set_static_date_time
-
 import datetime
+import json
+import os
+import sys
+from collections import defaultdict
+from contextlib import redirect_stderr
+from unittest import TestCase
+
+from matchengine.database_connectivity.mongo_connection import MongoDBConnection
+from matchengine.engine import MatchEngine
+from tests.timetravel_and_override import set_static_date_time
 
 
 class IntegrationTestMatchengine(TestCase):

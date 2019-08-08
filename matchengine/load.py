@@ -1,12 +1,13 @@
-import os
 import csv
 import json
+import logging
+import os
+from argparse import Namespace
 from contextlib import ExitStack
 
 import yaml
-import logging
 from bson import json_util
-from argparse import Namespace
+
 from matchengine.database_connectivity.mongo_connection import MongoDBConnection
 
 logging.basicConfig(level=logging.INFO)

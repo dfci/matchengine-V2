@@ -1,8 +1,10 @@
 from __future__ import annotations
-from multiprocessing import cpu_count
+
 import argparse
-from load import load
+from multiprocessing import cpu_count
+
 from matchengine.engine import MatchEngine
+from matchengine.load import load
 
 
 def main(run_args):

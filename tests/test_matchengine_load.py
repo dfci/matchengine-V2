@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 from argparse import Namespace
 from collections import defaultdict
 from unittest import TestCase
-from load import load
+
 from matchengine.database_connectivity.mongo_connection import MongoDBConnection
+from matchengine.load import load
 
 
 class IntegrationTestMatchengineLoading(TestCase):

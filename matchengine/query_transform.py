@@ -1,6 +1,6 @@
 from __future__ import annotations
+
 import json
-import os
 from types import MethodType
 from typing import Type
 
