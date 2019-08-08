@@ -62,8 +62,8 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                 # are the clinical IDs returned
                 id_cache = matchengine.cache.ids[query_hash]
                 queried_ids = set(id_cache.keys())
-                waiting_for = matchengine.cache.in_process.setdefault(query_hash, set())
-                need_new = clinical_ids - queried_ids - waiting_for
+                still_waiting_for = matchengine.cache.in_process.setdefault(query_hash, set())
+                need_new = clinical_ids - queried_ids - still_waiting_for
                 matchengine.cache.in_process.setdefault(query_hash, set()).update(need_new)
 
                 if need_new:
@@ -79,10 +79,13 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                     # save IDs NOT returned as None so if a query is run in the future which is the same, it will skip
                     for unfound in need_new - set(id_cache.keys()):
                         id_cache[unfound] = None
-                    matchengine.cache.in_process[query_hash] -= need_new
+                    matchengine.cache.in_process[query_hash].difference_update(need_new)
 
-                while matchengine.cache.in_process[query_hash] & waiting_for:
-                    await asyncio.sleep(1)
+                while True:
+                    still_waiting_for.intersection_update(matchengine.cache.in_process[query_hash])
+                    if not still_waiting_for:
+                        break
+                    await asyncio.sleep(0)
                 for clinical_id in list(clinical_ids):
 
                     # an exclusion criteria returned a clinical document hence doc is not a match
@@ -135,8 +138,8 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                 matchengine.cache.ids[query_hash] = dict()
             id_cache = matchengine.cache.ids[query_hash]
             queried_ids = set(id_cache.keys())
-            waiting_for = matchengine.cache.in_process.setdefault(query_hash, set())
-            need_new = working_clinical_ids - queried_ids - waiting_for
+            still_waiting_for = matchengine.cache.in_process.setdefault(query_hash, set())
+            need_new = working_clinical_ids - queried_ids - still_waiting_for
             matchengine.cache.in_process.setdefault(query_hash, set()).update(need_new)
             query = genomic_query_node.extract_raw_query()
 
@@ -159,9 +162,12 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                 # Clinical IDs which do not return genomic docs need to be recorded to cache exclusions
                 for unfound in need_new - set(id_cache.keys()):
                     id_cache[unfound] = None
-                matchengine.cache.in_process[query_hash] -= need_new
-            while matchengine.cache.in_process[query_hash] & waiting_for:
-                await asyncio.sleep(1)
+                matchengine.cache.in_process[query_hash].difference_update(need_new)
+            while True:
+                still_waiting_for.intersection_update(matchengine.cache.in_process[query_hash])
+                if not still_waiting_for:
+                    break
+                await asyncio.sleep(0)
             returned_clinical_ids = {clinical_id
                                      for clinical_id, genomic_docs
                                      in id_cache.items()
@@ -174,7 +180,11 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                              if genomic_query_node.exclusion
                              else sum(map(len, filter(bool, id_cache.values()))))
             width_cache[(qnc_idx, qn_idx)] = (clinical_width, genomic_width)
-            working_clinical_ids &= not_returned_clinical_ids if genomic_query_node.exclusion else returned_clinical_ids
+            working_clinical_ids.intersection_update((
+                not_returned_clinical_ids
+                if genomic_query_node.exclusion
+                else returned_clinical_ids
+            ))
         current_clinical_ids = set(clinical_ids.keys())
         qnc_clinical_ids = {
             clinical_id

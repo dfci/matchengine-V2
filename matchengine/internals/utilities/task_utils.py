@@ -8,10 +8,11 @@ from typing import TYPE_CHECKING, List
 from pymongo import InsertOne
 from pymongo.errors import (
     AutoReconnect,
-    CursorNotFound
-)
+    CursorNotFound,
+    ServerSelectionTimeoutError)
 
-from matchengine.internals.typing.matchengine_types import TrialMatch, IndexUpdateTask, MatchReason, UpdateTask, RunLogUpdateTask
+from matchengine.internals.typing.matchengine_types import TrialMatch, IndexUpdateTask, MatchReason, UpdateTask, \
+    RunLogUpdateTask
 
 if TYPE_CHECKING:
     from matchengine.internals.engine import MatchEngine
@@ -48,7 +49,10 @@ async def run_check_indices_task(matchengine: MatchEngine, task, worker_id):
             await matchengine.task_q.put(task)
             matchengine.task_q.task_done()
         elif isinstance(e, CursorNotFound):
-            await matchengine.task_q.put(task)
+            matchengine.task_q.put_nowait(task)
+            matchengine.task_q.task_done()
+        elif isinstance(e, ServerSelectionTimeoutError):
+            matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
         else:
             matchengine.__exit__(None, None, None)
@@ -74,6 +78,9 @@ async def run_index_update_task(matchengine: MatchEngine, task: IndexUpdateTask,
         elif isinstance(e, CursorNotFound):
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
+        elif isinstance(e, ServerSelectionTimeoutError):
+            matchengine.task_q.put_nowait(task)
+            matchengine.task_q.task_done()
         else:
             matchengine.loop.stop()
             log.error((f"ERROR: Worker: {worker_id}, error: {e}"
@@ -86,13 +93,16 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
     try:
         results: List[MatchReason] = await matchengine.run_query(task.query, task.clinical_ids)
     except Exception as e:
+        results = list()
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
-        results = list()
         if isinstance(e, AutoReconnect):
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
         elif isinstance(e, CursorNotFound):
+            matchengine.task_q.put_nowait(task)
+            matchengine.task_q.task_done()
+        elif isinstance(e, ServerSelectionTimeoutError):
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
         else:
@@ -138,6 +148,12 @@ async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id)
         if isinstance(e, AutoReconnect):
             matchengine.task_q.task_done()
             matchengine.task_q.put_nowait(task)
+        elif isinstance(e, CursorNotFound):
+            matchengine.task_q.put_nowait(task)
+            matchengine.task_q.task_done()
+        elif isinstance(e, ServerSelectionTimeoutError):
+            matchengine.task_q.put_nowait(task)
+            matchengine.task_q.task_done()
         else:
             raise e
     finally:
@@ -173,6 +189,12 @@ async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTa
         if isinstance(e, AutoReconnect):
             matchengine.task_q.task_done()
             matchengine.task_q.put_nowait(task)
+        elif isinstance(e, CursorNotFound):
+            matchengine.task_q.put_nowait(task)
+            matchengine.task_q.task_done()
+        elif isinstance(e, ServerSelectionTimeoutError):
+            matchengine.task_q.put_nowait(task)
+            matchengine.task_q.task_done()
         else:
             raise e
     finally:
