@@ -180,12 +180,12 @@ def is_valid_single_json(path: str):
     try:
         with open(path) as f:
             json_file = json.load(f)
-            if isinstance(json_file, list):
+            if json_file.__class__ is list:
                 return False
             return True
     except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
-        if isinstance(e, FileNotFoundError):
+        if e.__class__ is FileNotFoundError:
             log.error(f"{e}")
             raise e
-        elif isinstance(e, json.decoder.JSONDecodeError):
+        elif e.__class__ is json.decoder.JSONDecodeError:
             return False

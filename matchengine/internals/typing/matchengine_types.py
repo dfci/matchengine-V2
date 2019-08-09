@@ -184,7 +184,7 @@ class QueryPart(object):
 
     @property
     def query(self):
-        return copy.deepcopy(self._query)
+        return self._query
 
 
 class QueryNode(object):
@@ -248,7 +248,7 @@ class QueryNode(object):
         if self.is_finalized:
             if self._raw_query is None:
                 self._raw_query = self._extract_raw_query()
-            return copy.deepcopy(self._raw_query)
+            return self._raw_query
         else:
             return self._extract_raw_query()
 
