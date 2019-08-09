@@ -277,6 +277,8 @@ class MatchEngine(object):
                                             initial_clinical_ids))
             )
             clinical_ids = new_clinical_ids
+            if not genomic_match_reasons:
+                return list()
         else:
             genomic_ids = set()
             genomic_match_reasons = list()

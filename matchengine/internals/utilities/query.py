@@ -124,11 +124,16 @@ async def execute_genomic_queries(matchengine: MatchEngine,
     join_field = matchengine.match_criteria_transform.collection_mappings['genomic']['join_field']
     for qnc_idx, genomic_query_node_container in enumerate(multi_collection_query.genomic):
         query_node_container_clinical_ids = list()
+        # TODO: add test for this - duplicate criteria causing empty qnc
+        if not genomic_query_node_container.query_nodes:
+            continue
         for qn_idx, genomic_query_node in enumerate(genomic_query_node_container.query_nodes):
             query_node_container_clinical_ids.append(
                 matchengine.genomic_query_node_clinical_ids_subsetter(genomic_query_node, clinical_ids.keys())
             )
             working_clinical_ids = query_node_container_clinical_ids[qn_idx]
+            if not working_clinical_ids:
+                continue
 
             # Create a nested id_cache where the key is the clinical ID being queried and the vals
             # are the genomic IDs returned
