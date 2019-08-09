@@ -208,7 +208,7 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                 all_genomic.update(genomic_ids)
             for genomic_id in (genomic_ids if genomic_ids is not None else [None]):
                 id_cache = matchengine.cache.ids[query_node.raw_query_hash()]
-                genomic_width = len(id_cache[clinical_id]) if genomic_id is not None else 1
+                genomic_width = len(id_cache[clinical_id]) if genomic_id is not None else -1
                 clinical_width = len(id_cache)
                 reasons.append(GenomicMatchReason(query_node, genomic_width, clinical_width, clinical_id, genomic_id))
 
