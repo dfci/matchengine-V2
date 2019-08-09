@@ -19,7 +19,7 @@ class TestMatchEngine(TestCase):
         """init matchengine without running __init__ since tests will need to instantiate various values individually"""
         self.me = MatchEngine.__new__(MatchEngine)
 
-        assert isinstance(self.me.create_trial_matches({}), dict)
+        assert self.me.create_trial_matches({}).__class__ is dict
         self.me.plugin_dir = 'matchengine/tests/plugins'
         self.me.match_document_creator_class = 'TestTrialMatchDocumentCreator'
         self.me.visualize_match_paths = False
@@ -35,7 +35,7 @@ class TestMatchEngine(TestCase):
         assert hasattr(self.me, 'create_trial_matches')
         assert id(self.me.create_trial_matches) != old_create_trial_matches
         blank_trial_match = self.me.create_trial_matches({})
-        assert isinstance(blank_trial_match, dict) and not blank_trial_match
+        assert blank_trial_match.__class__ is dict and not blank_trial_match
 
     def test_query_transform(self):
         find_plugins(self.me)
@@ -75,7 +75,7 @@ class TestMatchEngine(TestCase):
                                             **{'trial_value': '!test2'})).results[0]
         ext_f_map_ret_single, ext_f_map_no_negate_single = query_transform_result.query, query_transform_result.negate
         assert len(ext_f_map_ret) == 1 and ext_f_map_no_negate_single
-        assert 'test' in ext_f_map_ret_single and isinstance(ext_f_map_ret_single['test'], str)
+        assert 'test' in ext_f_map_ret_single and ext_f_map_ret_single['test'].__class__ is str
         assert ext_f_map_ret_single['test'] == 'option_4'
 
         assert hasattr(self.me.match_criteria_transform.query_transformers, 'to_upper')

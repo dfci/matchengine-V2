@@ -45,13 +45,13 @@ async def run_check_indices_task(matchengine: MatchEngine, task, worker_id):
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
-        if isinstance(e, AutoReconnect):
+        if e.__class__ is AutoReconnect:
             await matchengine.task_q.put(task)
             matchengine.task_q.task_done()
-        elif isinstance(e, CursorNotFound):
+        elif e.__class__ is CursorNotFound:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
-        elif isinstance(e, ServerSelectionTimeoutError):
+        elif e.__class__ is ServerSelectionTimeoutError:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
         else:
@@ -72,13 +72,13 @@ async def run_index_update_task(matchengine: MatchEngine, task: IndexUpdateTask,
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
-        if isinstance(e, AutoReconnect):
+        if e.__class__ is AutoReconnect:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
-        elif isinstance(e, CursorNotFound):
+        elif e.__class__ is CursorNotFound:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
-        elif isinstance(e, ServerSelectionTimeoutError):
+        elif e.__class__ is ServerSelectionTimeoutError:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
         else:
@@ -96,13 +96,13 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
         results = list()
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
-        if isinstance(e, AutoReconnect):
+        if e.__class__ is AutoReconnect:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
-        elif isinstance(e, CursorNotFound):
+        elif e.__class__ is CursorNotFound:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
-        elif isinstance(e, ServerSelectionTimeoutError):
+        elif e.__class__ is ServerSelectionTimeoutError:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
         else:
@@ -145,13 +145,13 @@ async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id)
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
-        if isinstance(e, AutoReconnect):
+        if e.__class__ is AutoReconnect:
             matchengine.task_q.task_done()
             matchengine.task_q.put_nowait(task)
-        elif isinstance(e, CursorNotFound):
+        elif e.__class__ is CursorNotFound:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
-        elif isinstance(e, ServerSelectionTimeoutError):
+        elif e.__class__ is ServerSelectionTimeoutError:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
         else:
@@ -186,13 +186,13 @@ async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTa
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
-        if isinstance(e, AutoReconnect):
+        if e.__class__ is AutoReconnect:
             matchengine.task_q.task_done()
             matchengine.task_q.put_nowait(task)
-        elif isinstance(e, CursorNotFound):
+        elif e.__class__ is CursorNotFound:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
-        elif isinstance(e, ServerSelectionTimeoutError):
+        elif e.__class__ is ServerSelectionTimeoutError:
             matchengine.task_q.put_nowait(task)
             matchengine.task_q.task_done()
         else:
