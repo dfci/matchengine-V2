@@ -97,12 +97,10 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                     # clinical doc fulfills exclusion criteria
                     elif id_cache[clinical_id] is None and query_part.negate:
                         reasons_cache.add((query_part.hash(), clinical_id, query_node.query_depth))
-                        pass
 
                     # doc meets inclusion criteria
                     elif id_cache[clinical_id] is not None and not query_part.negate:
                         reasons_cache.add((query_part.hash(), clinical_id, query_node.query_depth))
-                        pass
 
                     # no clinical doc returned for an inclusion criteria query, so remove _id from future queries
                     elif id_cache[clinical_id] is None and not query_part.negate:

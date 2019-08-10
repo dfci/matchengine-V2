@@ -152,7 +152,7 @@ class MatchEngine(object):
         self._protocol_nos_param = protocol_nos
         self._sample_ids_param = sample_ids
 
-        if isinstance(config, str):
+        if config.__class__ is str:
             with open(config) as config_file_handle:
                 self.config = json.load(config_file_handle)
         else:
@@ -305,23 +305,24 @@ class MatchEngine(object):
             # Execute update task
             task: Task = await self._task_q.get()
             args = (self, task, worker_id)
-            if isinstance(task, PoisonPill):
+            task_class = task.__class__
+            if task_class is PoisonPill:
                 await run_poison_pill(*args)
                 break
 
-            elif isinstance(task, QueryTask):
+            elif task_class is QueryTask:
                 await run_query_task(*args)
 
-            elif isinstance(task, UpdateTask):
+            elif task_class is UpdateTask:
                 await run_update_task(*args)
 
-            elif isinstance(task, RunLogUpdateTask):
+            elif task_class is RunLogUpdateTask:
                 await run_run_log_update_task(*args)
 
-            elif isinstance(task, CheckIndicesTask):
+            elif task_class is CheckIndicesTask:
                 await run_check_indices_task(*args)
 
-            elif isinstance(task, IndexUpdateTask):
+            elif task_class is IndexUpdateTask:
                 await run_index_update_task(*args)
 
     def query_node_transform(self, query_node: QueryNode) -> NoReturn:
@@ -599,7 +600,7 @@ class MatchEngine(object):
             for field_name, field_transform in fields:
                 field_value = raw_map.get(field_name)
                 if field_transform == "date":
-                    if not isinstance(field_value, datetime.datetime):
+                    if field_value.__class__ is not datetime.datetime:
                         try:
                             field_value = dateutil.parser.parse(raw_map.get(field_name))
                         except ValueError:
@@ -614,7 +615,7 @@ class MatchEngine(object):
             for field_name, field_transform in fields:
                 field_value = raw_map.get(field_name)
                 if field_transform == "date":
-                    if not isinstance(field_value, datetime.datetime):
+                    if field_value.__class__ is not datetime.datetime:
                         try:
                             field_value = dateutil.parser.parse(raw_map.get(field_name))
                         except ValueError:

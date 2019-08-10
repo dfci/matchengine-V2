@@ -41,7 +41,7 @@ def perform_override(override_class, base_class):
         # TODO: and recursive override logic to handle referrers nested in immutable objects
         if getattr(referrer, '__hash__', None) is None:
             # If the referrer is a dict, then the reference is present as a value in the dict
-            if isinstance(referrer, dict):
+            if referrer.__class__ is dict:
                 # iterate over each key in the referrer
                 for k in list(referrer.keys()):
                     # check to see if the value associated with that key is the base class

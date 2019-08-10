@@ -16,7 +16,7 @@ def is_negate(trial_value):
     :param trial_value:
     :return:
     """
-    negate = True if isinstance(trial_value, str) and trial_value and trial_value[0] == '!' else False
+    negate = True if trial_value.__class__ is str and trial_value and trial_value[0] == '!' else False
     trial_value = trial_value[1::] if negate else trial_value
     return trial_value, negate
 
@@ -51,7 +51,7 @@ class BaseTransformers(QueryTransformerContainer):
         resource = self.resources[file]
         trial_value, negate = is_negate(trial_value)
         match_value = resource.setdefault(trial_value, trial_value)
-        if isinstance(match_value, list):
+        if match_value.__class__ is list:
             return QueryTransformerResult({sample_key: {"$in": sorted(match_value)}}, negate)
         else:
             return QueryTransformerResult({sample_key: match_value}, negate)
