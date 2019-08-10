@@ -25,7 +25,6 @@ class AllTransformersContainer(object):
 class TransformFunctions(object):
     if TYPE_CHECKING:
         is_negate: Callable[[Any], bool]
-    pass
 
 
 class MatchCriteriaTransform(object):

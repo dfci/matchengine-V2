@@ -56,7 +56,7 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
     # process nested dicts to find more match clauses
     while process_q:
         path, parent_key, parent_value = process_q.pop()
-        if isinstance(parent_value, dict):
+        if parent_value.__class__ is dict:
             for inner_key, inner_value in parent_value.items():
                 if inner_key == 'match':
                     is_suspended = False
@@ -81,7 +81,7 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
                     parent_path = ParentPath(path + (parent_key, inner_key))
                     level = MatchClauseLevel(
                         matchengine.match_criteria_transform.level_mapping[
-                            [item for item in parent_path[::-1] if not isinstance(item, int) and item != 'match'][
+                            [item for item in parent_path[::-1] if item.__class__ is not int and item != 'match'][
                                 0]])
 
                     internal_id = parent_value[matchengine.match_criteria_transform.internal_id_mapping[level]]
@@ -98,7 +98,7 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
                                           trial['protocol_no'])
                 else:
                     process_q.append((path + (parent_key,), inner_key, inner_value))
-        elif isinstance(parent_value, list):
+        elif parent_value.__class__ is list:
             for index, item in enumerate(parent_value):
                 process_q.append((path + (parent_key,), index, item))
 

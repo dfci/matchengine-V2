@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import sys
 from collections import deque
-from ctypes import c_char, POINTER, cast
+from ctypes import POINTER, cast, c_byte
 
 TRAILING = 1
 LEADING = sys.getsizeof(str()) - TRAILING
@@ -12,21 +12,20 @@ LEADING = sys.getsizeof(str()) - TRAILING
 def nested_object_hash(item):
     output = set()
     q = deque()
-    if isinstance(item, dict):
+    item_class = item.__class__
+    if item_class is dict:
         for k, v in item.items():
             q.append((tuple(), k, v))
-    elif isinstance(item, list) or isinstance(item, set):
+    elif item_class is list or item_class is set:
         for v in item:
             q.append((tuple(), None, v))
     while q:
         path, k, v = q.pop()
-        if isinstance(v, list):
+        item_class = v.__class__
+        if item_class is list or item_class is set:
             for idx, item in enumerate(v):
                 q.append((path + (k,), None, item))
-        elif isinstance(v, set):
-            for item in v:
-                q.append((path + (k,), None, item))
-        elif isinstance(v, dict):
+        elif item_class is dict:
             for i_k, i_v in v.items():
                 q.append((path + (k,), i_k, i_v))
         else:
@@ -43,15 +42,16 @@ def nested_object_hash(item):
         cast(
             id(out_str) + LEADING,
             POINTER(
-                c_char * out_str.__len__()
+                c_byte * out_str.__len__()
             )
-        )[0]).hexdigest()
+        ).contents).hexdigest()
 
 
 def nested_object_hash_old(item):
     output = list()
     q = deque()
-    if isinstance(item, dict):
+    item_class = item.__class__
+    if item_class is dict:
         for k, v in item.items():
             q.append((tuple(), k, v))
     elif item_class is list or item_class is set:
