@@ -174,6 +174,7 @@ class MatchEngine(object):
         self._db_rw = MongoDBConnection(read_only=False, async_init=False, db=db_name) if self.db_init else None
         self.db_rw = self._db_rw.__enter__() if self.db_init else None
         log.info(f"Connected to database {self.db_ro.name}")
+        # TODO: check how this flag works with run log
         self._drop = drop
         if self._drop:
             log.info((f"Dropping all matches"
@@ -625,6 +626,7 @@ class MatchEngine(object):
         return mapping
 
     def drop_existing_matches(self, protocol_nos: List[str] = None, sample_ids: List[str] = None):
+        # TODO: rm before prod
         assert self.db_ro.name != "matchminer"
         drop_query = dict()
         if protocol_nos is not None:

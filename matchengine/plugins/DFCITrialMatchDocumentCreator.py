@@ -70,6 +70,7 @@ def get_genomic_details(genomic_doc, query):
                                     }.intersection(query.keys())))
         signature_value = genomic_doc.get(signature_type, None)
         if signature_type == 'MMR_STATUS':
+            is_variant = "signature"
             mapped_mmr_status = {
                 'Proficient (MMR-P / MSS)': 'MMR-P/MSS',
                 'Deficient (MMR-D / MSI-H)': 'MMR-D/MSI-H'
@@ -77,8 +78,13 @@ def get_genomic_details(genomic_doc, query):
             if mapped_mmr_status:
                 alteration.append(mapped_mmr_status)
         elif signature_type is not None:
+            signature_type = signature_type.replace('_STATUS', ' Signature')
+            signature_type = {
+                'TEMOZOLOMIDE Signature': 'Temozolomide Signature',
+                'TABACCO Signature': 'Tobacco Signature'
+            }.get(signature_type, signature_type)
             alteration.append(f'{str() if signature_value.lower() == "yes" else "No "}'
-                              f'{signature_type.replace("_STATUS", " Signature")}')
+                              f'{signature_type}')
     return {
         'match_type': is_variant,
         'genomic_alteration': ''.join(alteration),
@@ -232,7 +238,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
              'q_depth': trial_match.match_reason.depth,
              'q_width': trial_match.match_reason.width,
              'code': trial_match.match_clause_data.code,
-             'trial_accrual_status': 'closed' if trial_match.match_clause_data.is_suspended else 'open',
+             'trial_accrual_level_status': 'closed' if trial_match.match_clause_data.is_suspended else 'open',
              'trial_summary_status': trial_match.match_clause_data.status,
              'coordinating_center': trial_match.match_clause_data.coordinating_center})
 

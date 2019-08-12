@@ -2,8 +2,11 @@ import datetime
 
 import gc
 
-_scope_handler = {'date': datetime.date,
-                  'datetime': datetime.datetime}
+_scope_handler = {
+    'date': datetime.date,
+    'datetime': datetime.datetime,
+    'old_datetime': datetime.datetime,
+    'old_date': datetime.date}
 
 
 def set_static_date_time(year=2000, month=7, day=12, hour=9, minute=47, second=40, microsecond=303620):
@@ -34,6 +37,11 @@ class UnknownReferenceTypeForOverrideException(Exception):
     pass
 
 
+def unoverride_datetime():
+    perform_override(_scope_handler['old_date'], _scope_handler['date'])
+    perform_override(_scope_handler['old_datetime'], _scope_handler['datetime'])
+
+
 def perform_override(override_class, base_class):
     for referrer in gc.get_referrers(base_class):
         # Check to see if the referrer is mutable (otherwise performing an override won't do anything -
@@ -44,16 +52,20 @@ def perform_override(override_class, base_class):
             if referrer.__class__ is dict:
                 # iterate over each key in the referrer
                 for k in list(referrer.keys()):
+                    if referrer is _scope_handler and k in {'old_datetime', 'old_date'}:
+                        continue
                     # check to see if the value associated with that key is the base class
                     if referrer[k] is base_class:
                         # if it is, then re-associate the key with the the override class
                         referrer[k] = override_class
+            elif base_class in referrer:
+                referrer[base_class] = override_class
             # All other mutable types not caught above have not had the overrides implemented,
             # so raise an Exception to alert of this fact
             else:
-                raise UnknownReferenceTypeForOverrideException(
+                print('%s' % UnknownReferenceTypeForOverrideException(
                     (f"ERROR: Found a hashable object of type {type(referrer)} "
                      f"referring to {base_class} "
                      f"while performing overrides for {override_class} "
                      f"please implement logic for handling overriding references from this type.")
-                )
+                ))
