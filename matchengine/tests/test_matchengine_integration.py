@@ -9,7 +9,7 @@ from unittest import TestCase
 
 from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
 from matchengine.internals.engine import MatchEngine
-from matchengine.tests.timetravel_and_override import set_static_date_time
+from matchengine.tests.timetravel_and_override import set_static_date_time, perform_override, unoverride_datetime
 
 
 class IntegrationTestMatchengine(TestCase):
@@ -19,7 +19,8 @@ class IntegrationTestMatchengine(TestCase):
 
     def _reset(self, **kwargs):
         if not self.first_run_done:
-            set_static_date_time()
+            if kwargs.get('do_reset_time', True):
+                set_static_date_time()
             self.first_run_done = True
         with MongoDBConnection(read_only=False, db='integration', async_init=False) as setup_db:
             assert setup_db.name == 'integration'
@@ -77,6 +78,8 @@ class IntegrationTestMatchengine(TestCase):
                 set_static_date_time(**kwargs['date_args'])
             else:
                 set_static_date_time()
+        if kwargs.get("unreplace_dt", False):
+            unoverride_datetime()
 
     def test__match_on_deceased_match_on_closed(self):
         self._reset(do_reset_trials=True,
@@ -339,18 +342,18 @@ class IntegrationTestMatchengine(TestCase):
 
     def test_visualize_match_paths(self):
         # pygraphviz doesn't install easily on macOS so skip in that case.
-        if sys.platform == 'darwin':
-            return
 
         fig_dir = f"/tmp/{os.urandom(10).hex()}"
         os.makedirs(fig_dir, exist_ok=True)
+        unoverride_datetime()
         self._reset(
             do_reset_trial_matches=True,
             do_reset_trials=True,
             trials_to_load=['all_closed'],
             sample_ids={'5d2799cb6756630d8dd0621d'},
             visualize_match_paths=True,
-            fig_dir=fig_dir
+            fig_dir=fig_dir,
+            do_reset_time=False
         )
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_trial('10-001')
