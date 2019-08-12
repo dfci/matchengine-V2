@@ -48,12 +48,18 @@
   },
   "extra_initial_mapping_fields": {
     "clinical": [
-      ["PANEL_VERSION", "raw"]
+      [
+        "PANEL_VERSION",
+        "raw"
+      ]
     ]
   },
   "extra_initial_lookup_fields": {
     "clinical": [
-      ["REPORT_DATE", "date"]
+      [
+        "REPORT_DATE",
+        "date"
+      ]
     ]
   },
   "trial_key_mappings": {
@@ -189,6 +195,11 @@
       "match_type": {
         "variant": 0,
         "gene": 1
+      }
+    },
+    {
+      "variant_category": {
+        "SV": 0
       }
     },
     {
