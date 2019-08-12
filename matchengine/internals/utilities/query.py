@@ -4,13 +4,13 @@ import asyncio
 import logging
 import operator
 from functools import reduce
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict
 
 from matchengine.internals.typing.matchengine_types import (
     ClinicalMatchReason,
     GenomicMatchReason,
-    MongoQuery
-)
+    MongoQuery,
+    Cache)
 from matchengine.internals.utilities.utilities import perform_db_call
 
 if TYPE_CHECKING:
@@ -195,22 +195,29 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                 clinical_ids[valid_clinical_id].add((qnc_idx, qn_idx))
             qnc_qn_tracker[(qnc_idx, qn_idx)] = qn_results
 
+    reasons, all_genomic = get_reasons(qnc_qn_tracker, multi_collection_query, matchengine.cache)
+    return set(clinical_ids.keys()), all_genomic, reasons
+
+
+def get_reasons(qnc_qn_tracker: Dict[Tuple: int, List[ClinicalID]],
+                multi_collection_query: MultiCollectionQuery,
+                cache: Cache) -> (List[GenomicMatchReason], Set[ObjectId]):
     reasons = list()
     all_genomic = set()
+
     for (qnc_idx, qn_idx), found_clinical_ids in qnc_qn_tracker.items():
         genomic_query_node_container = multi_collection_query.genomic[qnc_idx]
         query_node = genomic_query_node_container.query_nodes[qn_idx]
         for clinical_id in found_clinical_ids:
-            genomic_ids = matchengine.cache.ids[query_node.raw_query_hash()][clinical_id]
+            genomic_ids = cache.ids[query_node.raw_query_hash()][clinical_id]
             if genomic_ids is not None:
                 all_genomic.update(genomic_ids)
             for genomic_id in (genomic_ids if genomic_ids is not None else [None]):
-                id_cache = matchengine.cache.ids[query_node.raw_query_hash()]
+                id_cache = cache.ids[query_node.raw_query_hash()]
                 genomic_width = len(id_cache[clinical_id]) if genomic_id is not None else -1
                 clinical_width = len(id_cache)
                 reasons.append(GenomicMatchReason(query_node, genomic_width, clinical_width, clinical_id, genomic_id))
-
-    return set(clinical_ids.keys()), all_genomic, reasons
+    return reasons, all_genomic
 
 
 async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_genomic):
