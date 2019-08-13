@@ -446,18 +446,22 @@ class IntegrationTestMatchengine(TestCase):
                             })
                 else:
                     caught_matches[alteration] += 1
-
         check_against = {
             '!TP53 Structural Variation': 12,
             'TFG-ALK Structural Variation': 2,
+            'ALK-TFG Structural Variation': 2,
             'STRN-intergenic Structural Variation': 2,
             'RANDB2-ALK Structural Variation': 2,
+            'ALK-RANDB2 Structural Variation': 2,
             'NPM1-intergenic Structural Variation': 6,
             'KIF5B-ALK Structural Variation': 2,
-            'intergenic-intergenic Structural Variation': 12,
-            'intergenic-KRAS Structural Variation': 2,
-            'KRAS-intergenic Structural Variation': 2,
-            'EML4-intragenic Structural Variation': 2,
+            'ALK-KIF5B Structural Variation': 2,
+            'CLIP4-ALK Structural Variation': 1,
+            'this should only match to any_gene-KRAS Structural Variation': 3,
+            'KRAS-this should only match to any_gene Structural Variation': 3,
+            'EML4-EML4 Structural Variation': 3,
+            'this should only match to any_gene-this should only match to any gene Structural Variation': 1,
+            'ALK-CLIP4 Structural Variation': 1
         }
         for alteration, count in caught_matches.items():
             assert check_against[alteration] == count
