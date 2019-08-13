@@ -52,8 +52,8 @@ node {
                        """
 
                     //report on nosetests results
-                    sh "ls matchengine/*.xml"
-                    junit "matchengine/*.xml"
+                    sh "ls *xml"
+                    junit "*xml"
                 }
             }
         }
