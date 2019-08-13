@@ -166,7 +166,7 @@
   },
   "trial_match_sorting": [
     {
-      "trial_accrual_status": {
+      "trial_curation_level_status": {
         "closed": -1,
         "open": 0
       },
