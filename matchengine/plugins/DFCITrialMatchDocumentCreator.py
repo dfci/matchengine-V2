@@ -20,11 +20,16 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
     cnv = genomic_doc.get('CNV_CALL', None)
     variant_classification = genomic_doc.get("TRUE_VARIANT_CLASSIFICATION", None)
     variant_category = genomic_doc.get('VARIANT_CATEGORY', None)
-    is_variant = 'variant' if true_protein else 'gene'
+    query = trial_match.match_reason.query_node
+    raw_query = query.extract_raw_query()
+    is_variant = 'gene'
 
     # add wildtype calls
     if wildtype:
         alteration.append('wt ')
+
+    if true_protein in raw_query and query[true_protein] is not None:
+        is_variant = 'variant'
 
     # add gene
     if hugo_symbol is not None:
@@ -47,11 +52,11 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
         left = genomic_doc.get("LEFT_PARTNER_GENE", False)
         right = genomic_doc.get("RIGHT_PARTNER_GENE", False)
         if (left is not False) or (right is not False):
-            qn = trial_match.match_reason.query_node
+            qn = query
             criteria = qn.criterion_ancestor[qn.query_level]
             left = criteria.get("hugo_symbol", None)
             right = criteria.get("fusion_partner_hugo_symbol", None)
-            is_variant = 'gene' if right is None or right.lower().replace(" ", "_") == 'any_gene' else False
+            is_variant = 'gene' if right is None or right.lower().replace(" ", "_") == 'any_gene' else 'variant'
             if left is not None and left.lower().replace(" ", "_") in {'any_gene', 'intergenic'}:
                 left = 'intergenic'
             if right is not None and right.lower().replace(" ", "_") in {'any_gene', 'intergenic'}:
@@ -63,15 +68,13 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
                                f'{"intergenic" if right is None else right}'
                                ' Structural Variation'))
         else:
-            query = trial_match.match_reason.query_node.extract_raw_query()
-            sv_comment = query.get('STRUCTURAL_VARIANT_COMMENT', None)
+            sv_comment = raw_query.get('STRUCTURAL_VARIANT_COMMENT', None)
             pattern = sv_comment.pattern.split("|")[0] if sv_comment is not None else None
             gene = pattern.replace("(.*\\W", "").replace("\\W.*)", "") if pattern is not None else None
             alteration.append(f'{gene} Structural Variation' if gene else 'Structural Variation')
 
     # add mutational signature
     elif variant_category == 'SIGNATURE':
-        query = trial_match.match_reason.query_node.extract_raw_query()
         signature_type = next(chain({
                                         'UVA_STATUS',
                                         'TABACCO_STATUS',
@@ -79,7 +82,7 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
                                         'TEMOZOLOMIDE_STATUS',
                                         'MMR_STATUS',
                                         'APOBEC_STATUS'
-                                    }.intersection(query.keys())))
+                                    }.intersection(raw_query.keys())))
         signature_value = genomic_doc.get(signature_type, None)
         if signature_type == 'MMR_STATUS':
             is_variant = "signature"
