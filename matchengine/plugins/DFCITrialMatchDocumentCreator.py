@@ -49,22 +49,25 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
 
     # add structural variation
     elif variant_category == 'SV':
-        left = genomic_doc.get("LEFT_PARTNER_GENE", False)
-        right = genomic_doc.get("RIGHT_PARTNER_GENE", False)
-        if (left is not False) or (right is not False):
-            left = criteria_ancestor.get("hugo_symbol", None)
-            right = criteria_ancestor.get("fusion_partner_hugo_symbol", None)
-            is_variant = 'gene' if right is None or right.lower().replace(" ", "_") == 'any_gene' else 'variant'
-            if left is not None and left.lower().replace(" ", "_") in {'any_gene', 'intergenic'}:
-                left = 'intergenic'
-            if right is not None and right.lower().replace(" ", "_") in {'any_gene', 'intergenic'}:
-                right = 'intergenic'
-            if left is not None and left != 'intergenic' and right == left:
-                right = "intragenic"
-            alteration.append((f'{"intergenic" if left is None else left}'
-                               '-'
-                               f'{"intergenic" if right is None else right}'
-                               ' Structural Variation'))
+        genomic_left = genomic_doc.get("LEFT_PARTNER_GENE", False)
+        genomic_right = genomic_doc.get("RIGHT_PARTNER_GENE", False)
+        if (genomic_left is not False) or (genomic_right is not False):
+            criteria_left = (criteria_ancestor.get("hugo_symbol", str())
+                             .lower()
+                             .replace(" ", "_"))
+            criteria_right = (criteria_ancestor
+                              .get("fusion_partner_hugo_symbol", str())
+                              .lower()
+                              .replace(" ", "_"))
+            is_variant = ('variant'
+                          if criteria_left not in {'', 'any_gene'}
+                             and criteria_right not in {'', 'any_gene'}
+                          else 'gene')
+            if genomic_left and genomic_right:
+                alteration.append(f'{genomic_left}-{genomic_right}')
+            else:
+                alteration.append(f'{genomic_left or genomic_right}-intergenic')
+            alteration.append(' Structural Variation')
         else:
             query = trial_match.match_reason.query_node.extract_raw_query()
             sv_comment = query.get('STRUCTURAL_VARIANT_COMMENT', None)
@@ -167,7 +170,6 @@ def format_exclusion_match(trial_match: TrialMatch):
         if criteria.get('variant_category', str()).lower() == '!structural variation':
             left = criteria.get("hugo_symbol", None)
             right = criteria.get("fusion_partner_hugo_symbol", None)
-            is_variant = "gene" if right is None or right.lower().replace("_", " ") == "any_gene" else "variant"
 
             alteration.append((f'{"" if left is None else left}'
                                f'{"-" if left is not None and right is not None else ""}'
