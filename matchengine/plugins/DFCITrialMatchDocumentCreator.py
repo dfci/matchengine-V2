@@ -84,8 +84,8 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
                                         'APOBEC_STATUS'
                                     }.intersection(raw_query.keys())))
         signature_value = genomic_doc.get(signature_type, None)
+        is_variant = "signature"
         if signature_type == 'MMR_STATUS':
-            is_variant = "signature"
             mapped_mmr_status = {
                 'Proficient (MMR-P / MSS)': 'MMR-P/MSS',
                 'Deficient (MMR-D / MSI-H)': 'MMR-D/MSI-H'
@@ -256,7 +256,6 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
              'trial_curation_level_status': 'closed' if trial_match.match_clause_data.is_suspended else 'open',
              'trial_summary_status': trial_match.match_clause_data.status,
              'coordinating_center': trial_match.match_clause_data.coordinating_center})
-
         # remove extra fields from trial_match output
         new_trial_match.update({
             k: v
