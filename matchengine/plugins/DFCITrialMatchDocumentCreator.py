@@ -20,7 +20,9 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
     cnv = genomic_doc.get('CNV_CALL', None)
     variant_classification = genomic_doc.get("TRUE_VARIANT_CLASSIFICATION", None)
     variant_category = genomic_doc.get('VARIANT_CATEGORY', None)
-    is_variant = 'variant' if true_protein else 'gene'
+    query_node = trial_match.match_reason.query_node
+    criteria_ancestor = query_node.criterion_ancestor[query_node.query_level]
+    is_variant = 'gene'
 
     # add wildtype calls
     if wildtype:
@@ -33,6 +35,9 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
     # add mutation
     if true_protein is not None:
         alteration.append(f' {true_protein}')
+        is_variant = ('variant'
+                      if {'protein_change', 'wildcard_protein_change'}.intersection(set(criteria_ancestor.keys()))
+                      else 'gene')
 
     # add cnv call
     elif cnv:
@@ -47,11 +52,9 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
         left = genomic_doc.get("LEFT_PARTNER_GENE", False)
         right = genomic_doc.get("RIGHT_PARTNER_GENE", False)
         if (left is not False) or (right is not False):
-            qn = trial_match.match_reason.query_node
-            criteria = qn.criterion_ancestor[qn.query_level]
-            left = criteria.get("hugo_symbol", None)
-            right = criteria.get("fusion_partner_hugo_symbol", None)
-            is_variant = 'gene' if right is None or right.lower().replace(" ", "_") == 'any_gene' else False
+            left = criteria_ancestor.get("hugo_symbol", None)
+            right = criteria_ancestor.get("fusion_partner_hugo_symbol", None)
+            is_variant = 'gene' if right is None or right.lower().replace(" ", "_") == 'any_gene' else 'variant'
             if left is not None and left.lower().replace(" ", "_") in {'any_gene', 'intergenic'}:
                 left = 'intergenic'
             if right is not None and right.lower().replace(" ", "_") in {'any_gene', 'intergenic'}:
@@ -71,7 +74,7 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
 
     # add mutational signature
     elif variant_category == 'SIGNATURE':
-        query = trial_match.match_reason.query_node.extract_raw_query()
+        query = query_node.extract_raw_query()
         signature_type = next(chain({
                                         'UVA_STATUS',
                                         'TABACCO_STATUS',
@@ -81,8 +84,8 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
                                         'APOBEC_STATUS'
                                     }.intersection(query.keys())))
         signature_value = genomic_doc.get(signature_type, None)
+        is_variant = "signature"
         if signature_type == 'MMR_STATUS':
-            is_variant = "signature"
             mapped_mmr_status = {
                 'Proficient (MMR-P / MSS)': 'MMR-P/MSS',
                 'Deficient (MMR-D / MSI-H)': 'MMR-D/MSI-H'
@@ -253,7 +256,6 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
              'trial_curation_level_status': 'closed' if trial_match.match_clause_data.is_suspended else 'open',
              'trial_summary_status': trial_match.match_clause_data.status,
              'coordinating_center': trial_match.match_clause_data.coordinating_center})
-
         # remove extra fields from trial_match output
         new_trial_match.update({
             k: v
