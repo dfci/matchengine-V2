@@ -118,6 +118,7 @@ def get_clinical_details(clinical_doc, query):
     if all((q_tmb, c_tmb)):
         alteration.append(f"TMB = {c_tmb}")
         match_type = "tmb"
+        clinical_doc.update({'variant_category': 'TMB'})
     else:
         match_type = "generic_clinical"
 
@@ -168,12 +169,16 @@ def format_exclusion_match(trial_match: TrialMatch):
         qn = trial_match.match_reason.query_node
         criteria = qn.criterion_ancestor[qn.query_level]
         if criteria.get('variant_category', str()).lower() == '!structural variation':
-            left = criteria.get("hugo_symbol", None)
-            right = criteria.get("fusion_partner_hugo_symbol", None)
+            left = criteria.get("hugo_symbol", '')
+            right = criteria.get("fusion_partner_hugo_symbol", '')
+            is_variant = ('variant'
+                          if left not in {'', 'any_gene'}
+                             and right not in {'', 'any_gene'}
+                          else 'gene')
 
-            alteration.append((f'{"" if left is None else left}'
-                               f'{"-" if left is not None and right is not None else ""}'
-                               f'{"" if right is None else right}'
+            alteration.append((f'{left}'
+                               f'{"-" if left and right else ""}'
+                               f'{right}'
                                ' Structural Variation'))
 
     return {

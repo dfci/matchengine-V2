@@ -3,7 +3,6 @@
     "genomic": [
       "TRUE_CDNA_CHANGE",
       "REFERENCE_ALLELE",
-      "CANONICAL_STRAND",
       "ALLELE_FRACTION",
       "STRUCTURAL_VARIANT_COMMENT",
       "SAMPLE_ID",

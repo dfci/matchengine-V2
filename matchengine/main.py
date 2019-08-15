@@ -56,8 +56,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     closed_help = 'Match on all closed trials and all suspended steps, arms and doses. Default is to skip.'
     deceased_help = 'Match on deceased patients. Default is to match only on alive patients.'
-    upsert_help = ('When loading clinical or trial data, specify a field other than _id to use as a unique key. '
-                   'Must be comma separated values if using more than one field e.g. name,age,gender')
     dry_help = "Execute a full matching run but do not insert any matches into the DB"
     debug_help = "Enable debug logging"
     config_help = ("Path to the config file. By default will look in config/config.json, but if this class is "
@@ -76,7 +74,6 @@ if __name__ == "__main__":
     subp_p.add_argument('--patient-format', dest='patient_format', default='json', action='store',
                         choices=['csv', 'json'],
                         help=param_patient_format_help)
-    subp_p.add_argument('--upsert-fields', dest='upsert_fields', default='', required=False, help=upsert_help)
     subp_p.add_argument('--db', dest='db_name', default='', required=False, help=db_name_help)
     subp_p.add_argument("--plugin-dir", dest="plugin_dir",
                         default="matchengine/plugins", help="Location of plugin directory")
