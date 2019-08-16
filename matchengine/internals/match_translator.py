@@ -81,7 +81,7 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
                         if all([arm.get('arm_suspended', 'n').lower().strip() == 'y'
                                 for arm in parent_value.get('arm', list())]):
                             if not matchengine.match_on_closed:
-                                log.info(f"{protocol_no} {match_level} {internal_id} has not open arms, skipping...")
+                                log.info(f"{protocol_no} {match_level} {internal_id} has no open arms, skipping...")
                                 continue
                             is_suspended = True
                     elif match_level == 'arm':
