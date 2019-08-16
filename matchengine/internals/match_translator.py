@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import logging
 from collections import deque
-from itertools import cycle
+from itertools import cycle, chain
 from typing import TYPE_CHECKING
 
 import networkx as nx
@@ -27,6 +28,8 @@ if TYPE_CHECKING:
         Tuple
     )
     from matchengine.internals.engine import MatchEngine
+
+log = logging.getLogger("matchengine")
 
 
 def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str) -> Generator[MatchClauseData]:
@@ -58,6 +61,19 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
         path, parent_key, parent_value = process_q.pop()
         if parent_value.__class__ is dict:
             for inner_key, inner_value in parent_value.items():
+                parent_path = ParentPath(path + (parent_key, inner_key))
+                level = MatchClauseLevel(
+                    matchengine.match_criteria_transform.level_mapping.get(
+                        next(
+                            chain(
+                                [item for item in parent_path[::-1] if item.__class__ is not int and item != 'match'],
+                                [None]
+                            )
+                        )))
+
+                internal_id = parent_value.get(
+                    matchengine.match_criteria_transform.internal_id_mapping.get(level, None), None)
+                code = parent_value.get(matchengine.match_criteria_transform.code_mapping.get(level, None), None)
                 if inner_key == 'match':
                     is_suspended = False
                     match_level = path[-1]
@@ -65,27 +81,22 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
                         if all([arm.get('arm_suspended', 'n').lower().strip() == 'y'
                                 for arm in parent_value.get('arm', list())]):
                             if not matchengine.match_on_closed:
+                                log.info(f"{protocol_no} {match_level} {internal_id} has not open arms, skipping...")
                                 continue
                             is_suspended = True
                     elif match_level == 'arm':
                         if parent_value.get('arm_suspended', 'n').lower().strip() == 'y':
                             if not matchengine.match_on_closed:
+                                log.info(f"{protocol_no} {match_level} {internal_id} is suspended, skipping...")
                                 continue
                             is_suspended = True
                     elif match_level == 'dose_level':
                         if parent_value.get('level_suspended', 'n').lower().strip() == 'y':
                             if not matchengine.match_on_closed:
+                                log.info(f"{protocol_no} {match_level} {internal_id} is suspended, skipping...")
                                 continue
                             is_suspended = True
 
-                    parent_path = ParentPath(path + (parent_key, inner_key))
-                    level = MatchClauseLevel(
-                        matchengine.match_criteria_transform.level_mapping[
-                            [item for item in parent_path[::-1] if item.__class__ is not int and item != 'match'][
-                                0]])
-
-                    internal_id = parent_value[matchengine.match_criteria_transform.internal_id_mapping[level]]
-                    code = parent_value[matchengine.match_criteria_transform.code_mapping[level]]
                     yield MatchClauseData(inner_value,
                                           internal_id,
                                           code,
