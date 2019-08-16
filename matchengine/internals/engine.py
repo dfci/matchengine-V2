@@ -480,7 +480,7 @@ class MatchEngine(object):
             for protocol_no, trial
             in trials.items()
             if (self.match_on_closed or
-                trial.get("_summary", dict()).get("status", [dict()])[0].get("value", str()))
+                trial.get("_summary", dict()).get("status", [dict()])[0].get("value", str()).lower() in {"open to accrual"})
         }
 
     def create_run_log_entry(self, protocol_no, clinical_ids: Set[ClinicalID]):
