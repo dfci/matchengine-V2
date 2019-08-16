@@ -141,8 +141,10 @@ def format_exclusion_match(trial_match: TrialMatch):
     alteration = ['!']
     is_variant = 'variant' if query.setdefault(protein_change_key, None) is not None else 'gene'
 
+    true_hugo_symbol_added = False
     if true_hugo in query and query[true_hugo] is not None:
         alteration.append(f'{query[true_hugo]}')
+        true_hugo_symbol_added = True
 
     # add mutation
     if query.get(protein_change_key, None) is not None:
@@ -181,6 +183,8 @@ def format_exclusion_match(trial_match: TrialMatch):
                                f'{right}'
                                ' Structural Variation'))
 
+    if len(alteration) == 2 and true_hugo_symbol_added:
+        alteration.append(' Mutation')
     return {
         'match_type': is_variant,
         'genomic_alteration': ''.join(alteration)
