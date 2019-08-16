@@ -372,7 +372,8 @@ class MatchClauseData(object):
 class GenomicMatchReason(object):
     __slots__ = (
         "query_node", "width", "clinical_id",
-        "genomic_id", "clinical_width", "depth"
+        "genomic_id", "clinical_width", "depth",
+        "show_in_ui"
     )
     reason_name = "genomic"
 
@@ -382,8 +383,10 @@ class GenomicMatchReason(object):
             width: int,
             clinical_width: int,
             clinical_id: ClinicalID,
-            genomic_id: Union[GenomicID, None]
+            genomic_id: Union[GenomicID, None],
+            show_in_ui: bool
     ):
+        self.show_in_ui = show_in_ui
         self.clinical_width = clinical_width
         self.genomic_id = genomic_id
         self.clinical_id = clinical_id
@@ -397,7 +400,8 @@ class GenomicMatchReason(object):
 
 class ClinicalMatchReason(object):
     __slots__ = (
-        "query_part", "clinical_id", "depth"
+        "query_part", "clinical_id", "depth",
+        "show_in_ui"
     )
     reason_name = "clinical"
     width = 1
@@ -406,8 +410,10 @@ class ClinicalMatchReason(object):
             self,
             query_part: QueryPart,
             clinical_id: ClinicalID,
-            depth: int
+            depth: int,
+            show_in_ui: bool
     ):
+        self.show_in_ui = show_in_ui
         self.clinical_id = clinical_id
         self.query_part = query_part
         self.depth = depth

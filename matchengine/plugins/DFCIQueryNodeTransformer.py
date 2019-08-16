@@ -60,9 +60,9 @@ def build_structured_sv_query(left, right, sv_query_type) -> Dict:
 class DFCIQueryNodeClinicalIDSubsetter(QueryNodeClinicalIDsSubsetter):
     def genomic_query_node_clinical_ids_subsetter(self: MatchEngine,
                                                   query_node: QueryNode,
-                                                  clinical_ids: Iterable[ClinicalID]) -> Set[ClinicalID]:
+                                                  clinical_ids: Iterable[ClinicalID]) -> Tuple[bool, Set[ClinicalID]]:
         if query_node.get_query_part_by_key('STRUCTURED_SV') is not None:
-            return {
+            return True, {
                 clinical_id
                 for clinical_id
                 in clinical_ids
@@ -74,7 +74,7 @@ class DFCIQueryNodeClinicalIDSubsetter(QueryNodeClinicalIDsSubsetter):
                 ) >= datetime.datetime(2018, 12, 1, 0, 0, 0, 0)
             }
         elif query_node.get_query_part_by_key('STRUCTURAL_VARIANT_COMMENT') is not None:
-            return {
+            return False, {
                 clinical_id
                 for clinical_id
                 in clinical_ids
@@ -86,12 +86,12 @@ class DFCIQueryNodeClinicalIDSubsetter(QueryNodeClinicalIDsSubsetter):
                 ) < datetime.datetime(2018, 12, 1, 0, 0, 0, 0)
             }
         else:
-            return {clinical_id for clinical_id in clinical_ids}
+            return True, {clinical_id for clinical_id in clinical_ids}
 
     def clinical_query_node_clinical_ids_subsetter(self: MatchEngine,
                                                    query_node: QueryNode,
-                                                   clinical_ids: Set[ClinicalID]) -> Set[ClinicalID]:
-        return clinical_ids
+                                                   clinical_ids: Set[ClinicalID]) -> Tuple[bool, Set[ClinicalID]]:
+        return True, clinical_ids
 
 
 class DFCIQueryNodeTransformer(QueryNodeTransformer):
