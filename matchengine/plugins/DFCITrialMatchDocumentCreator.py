@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import operator
 from itertools import chain
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
+from internals.engine import MatchEngine
 from matchengine.internals.plugin_helpers.plugin_stub import TrialMatchDocumentCreator
 from matchengine.internals.utilities.object_comparison import nested_object_hash
 
 if TYPE_CHECKING:
-    from matchengine.internals.typing.matchengine_types import TrialMatch
+    from matchengine.internals.typing.matchengine_types import TrialMatch, QueryTask, MatchReason, ClinicalID
     from typing import Dict
 
 
@@ -244,6 +246,12 @@ def get_cancer_type_match(trial_match):
 
 
 class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
+    def results_transformer(self: MatchEngine, results: Dict[ClinicalID, List[MatchReason]]):
+        for clinical_id, reasons in results.items():
+            if not all(map(operator.attrgetter("show_in_ui"), reasons)):
+                for reason in reasons:
+                    reason.show_in_ui = False
+
     def create_trial_matches(self, trial_match: TrialMatch) -> Dict:
         """
         Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
@@ -295,6 +303,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         new_trial_match['combo_coord'] = nested_object_hash({'query_hash': new_trial_match['query_hash'],
                                                              'match_path': new_trial_match['match_path'],
                                                              'protocol_no': new_trial_match['protocol_no']})
+        new_trial_match['show_in_ui'] = trial_match.match_reason.show_in_ui
         new_trial_match.pop("_updated", None)
         new_trial_match.pop("last_updated", None)
         return new_trial_match

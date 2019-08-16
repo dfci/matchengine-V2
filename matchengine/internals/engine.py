@@ -6,8 +6,9 @@ import json
 import logging
 import uuid
 from collections import defaultdict
+from itertools import chain
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, Tuple
 
 import dateutil.parser
 import pymongo
@@ -33,9 +34,7 @@ from matchengine.internals.utilities.query import (
     execute_clinical_queries,
     execute_genomic_queries,
     get_docs_results,
-    get_valid_genomic_reasons,
-    get_valid_clinical_reasons
-)
+    get_valid_reasons)
 from matchengine.internals.utilities.task_utils import (
     run_query_task,
     run_poison_pill,
@@ -250,7 +249,7 @@ class MatchEngine(object):
 
     async def run_query(self,
                         multi_collection_query: MultiCollectionQuery,
-                        initial_clinical_ids: Set[ClinicalID]) -> List[MatchReason]:
+                        initial_clinical_ids: Set[ClinicalID]) -> Dict[MatchReason]:
         """
         Execute a mongo query on the clinical and genomic collections to find trial matches.
         First execute the clinical query. If no records are returned short-circuit and return.
@@ -264,25 +263,26 @@ class MatchEngine(object):
                                                                                       else set(initial_clinical_ids))
             clinical_ids = new_clinical_ids
         else:
-            clinical_match_reasons = list()
+            clinical_match_reasons = defaultdict(list)
         if not clinical_ids:
-            return list()
+            return dict()
 
         if multi_collection_query.genomic:
-            new_clinical_ids, genomic_ids, genomic_match_reasons = await (
+            new_clinical_ids, genomic_ids, all_match_reasons = await (
                 execute_genomic_queries(self,
                                         multi_collection_query,
                                         clinical_ids
                                         if clinical_ids
                                         else set(
-                                            initial_clinical_ids))
+                                            initial_clinical_ids),
+                                        clinical_match_reasons)
             )
             clinical_ids = new_clinical_ids
-            if not genomic_match_reasons:
-                return list()
+            if not all_match_reasons:
+                return dict()
         else:
             genomic_ids = set()
-            genomic_match_reasons = list()
+            all_match_reasons = clinical_match_reasons
 
         needed_clinical = list(clinical_ids)
         needed_genomic = list(genomic_ids)
@@ -293,8 +293,7 @@ class MatchEngine(object):
             for result in outer_result:
                 self.cache.docs[result["_id"]] = result
 
-        valid_reasons = get_valid_genomic_reasons(genomic_match_reasons, clinical_ids, genomic_ids)
-        valid_reasons.extend(get_valid_clinical_reasons(self, clinical_match_reasons, clinical_ids))
+        valid_reasons = get_valid_reasons(self, all_match_reasons, clinical_ids, genomic_ids)
 
         return valid_reasons
 
@@ -336,15 +335,15 @@ class MatchEngine(object):
 
     def genomic_query_node_clinical_ids_subsetter(self,
                                                   query_node: QueryNode,
-                                                  clinical_ids: Iterable[ClinicalID]) -> Set[ClinicalID]:
+                                                  clinical_ids: Iterable[ClinicalID]) -> Tuple[bool, Set[ClinicalID]]:
         """Stub function to be overriden by plugin"""
-        return {clinical_id for clinical_id in clinical_ids}
+        return True, {clinical_id for clinical_id in clinical_ids}
 
     def clinical_query_node_clinical_ids_subsetter(self,
                                                    query_node: QueryNode,
-                                                   clinical_ids: Iterable[ClinicalID]) -> Set[ClinicalID]:
+                                                   clinical_ids: Iterable[ClinicalID]) -> Tuple[bool, Set[ClinicalID]]:
         """Stub function to be overriden by plugin"""
-        return {clinical_id for clinical_id in clinical_ids}
+        return True, {clinical_id for clinical_id in clinical_ids}
 
     def update_matches_for_protocol_number(self, protocol_no: str):
         """
@@ -480,7 +479,8 @@ class MatchEngine(object):
             for protocol_no, trial
             in trials.items()
             if (self.match_on_closed or
-                trial.get("_summary", dict()).get("status", [dict()])[0].get("value", str()).lower() in {"open to accrual"})
+                trial.get("_summary", dict()).get("status", [dict()])[0].get("value", str()).lower() in {
+                    "open to accrual"})
         }
 
     def create_run_log_entry(self, protocol_no, clinical_ids: Set[ClinicalID]):
@@ -574,6 +574,9 @@ class MatchEngine(object):
     def create_trial_matches(self, trial_match: TrialMatch) -> Dict:
         """Stub function to be overriden by plugin"""
         return dict()
+
+    def results_transformer(self, results: Dict[ClinicalID, List[MatchReason]]):
+        """Stub function to be overriden by plugin"""
 
     @property
     def task_q(self):
