@@ -479,7 +479,8 @@ class MatchEngine(object):
             protocol_no
             for protocol_no, trial
             in trials.items()
-            if self.match_on_closed or trial.get('status', "key not found").lower().strip() in {"open to accrual"}
+            if (self.match_on_closed or
+                trial.get("_summary", dict()).get("status", [dict()])[0].get("value", str()))
         }
 
     def create_run_log_entry(self, protocol_no, clinical_ids: Set[ClinicalID]):
