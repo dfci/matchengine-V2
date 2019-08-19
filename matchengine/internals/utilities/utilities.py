@@ -75,7 +75,14 @@ def find_plugins(matchengine: MatchEngine):
                     setattr(matchengine,
                             'create_trial_matches',
                             MethodType(getattr(item,
-                                               'create_trial_matches'),
+                                               'create_trial_matches',
+                                               matchengine.create_trial_matches),
+                                       matchengine))
+                    setattr(matchengine,
+                            'results_transformer',
+                            MethodType(getattr(item,
+                                               'results_transformer',
+                                               matchengine.results_transformer),
                                        matchengine))
             elif issubclass(item, DBSecrets):
                 if item_name == matchengine.db_secrets_class:

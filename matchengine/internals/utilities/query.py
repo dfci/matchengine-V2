@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import operator
+from collections import defaultdict
 from functools import reduce
 from typing import TYPE_CHECKING, Dict
 
@@ -10,7 +11,7 @@ from matchengine.internals.typing.matchengine_types import (
     ClinicalMatchReason,
     GenomicMatchReason,
     MongoQuery,
-    Cache)
+    Cache, MatchReason)
 from matchengine.internals.utilities.utilities import perform_db_call
 
 if TYPE_CHECKING:
@@ -33,7 +34,7 @@ log = logging.getLogger('matchengine')
 async def execute_clinical_queries(matchengine: MatchEngine,
                                    multi_collection_query: MultiCollectionQuery,
                                    clinical_ids: Set[ClinicalID]) -> Tuple[Set[ObjectId],
-                                                                           List[ClinicalMatchReason]]:
+                                                                           Dict[ClinicalID, List[ClinicalMatchReason]]]:
     """
     Take in a list of queries and only execute the clinical ones. Take the resulting clinical ids, and pass that
     to the next clinical query. Repeat for all clinical queries, continuously subsetting the returned ids.
@@ -42,12 +43,12 @@ async def execute_clinical_queries(matchengine: MatchEngine,
     Match Reasons are not used by default, but are composed of QueryNode objects and a clinical ID.
     """
     collection = matchengine.match_criteria_transform.CLINICAL
-    reasons = list()
+    reasons = defaultdict(list)
     reasons_cache = set()
     query_parts_by_hash = dict()
     for _clinical in multi_collection_query.clinical:
         for query_node in _clinical.query_nodes:
-            clinical_ids = matchengine.clinical_query_node_clinical_ids_subsetter(query_node, clinical_ids)
+            show_in_ui, clinical_ids = matchengine.clinical_query_node_clinical_ids_subsetter(query_node, clinical_ids)
             for query_part in query_node.query_parts:
                 if not query_part.render:
                     continue
@@ -92,31 +93,34 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                     if id_cache[clinical_id] is not None and query_part.negate:
                         clinical_ids.remove(clinical_id)
                         if (query_node.hash(), clinical_id, query_node.query_depth) in reasons_cache:
-                            reasons_cache.remove((query_part.hash(), clinical_id, query_node.query_depth))
+                            reasons_cache.remove((show_in_ui, query_part.hash(), clinical_id, query_node.query_depth))
 
                     # clinical doc fulfills exclusion criteria
                     elif id_cache[clinical_id] is None and query_part.negate:
-                        reasons_cache.add((query_part.hash(), clinical_id, query_node.query_depth))
+                        reasons_cache.add((show_in_ui, query_part.hash(), clinical_id, query_node.query_depth))
 
                     # doc meets inclusion criteria
                     elif id_cache[clinical_id] is not None and not query_part.negate:
-                        reasons_cache.add((query_part.hash(), clinical_id, query_node.query_depth))
+                        reasons_cache.add((show_in_ui, query_part.hash(), clinical_id, query_node.query_depth))
 
                     # no clinical doc returned for an inclusion criteria query, so remove _id from future queries
                     elif id_cache[clinical_id] is None and not query_part.negate:
                         clinical_ids.remove(clinical_id)
                         if (query_node.hash(), clinical_id) in reasons_cache:
-                            reasons_cache.remove((query_part.hash(), clinical_id, query_node.query_depth))
+                            reasons_cache.remove((show_in_ui, query_part.hash(), clinical_id, query_node.query_depth))
 
-    for query_node_hash, clinical_id, depth in reasons_cache:
-        reasons.append(ClinicalMatchReason(query_parts_by_hash[query_node_hash], clinical_id, depth))
+    for show_in_ui, query_node_hash, clinical_id, depth in reasons_cache:
+        reasons[clinical_id].append(
+            ClinicalMatchReason(query_parts_by_hash[query_node_hash], clinical_id, depth, show_in_ui))
     return clinical_ids, reasons
 
 
 async def execute_genomic_queries(matchengine: MatchEngine,
                                   multi_collection_query: MultiCollectionQuery,
-                                  initial_clinical_ids: Set[ClinicalID]) -> Tuple[Set[ObjectId], Set[ObjectId],
-                                                                                  List[GenomicMatchReason]]:
+                                  initial_clinical_ids: Set[ClinicalID],
+                                  reasons: Dict[ClinicalID, List[MatchReason]]) -> Tuple[Set[ObjectId], Set[ObjectId],
+                                                                                         Dict[ClinicalID, List[
+                                                                                             MatchReason]]]:
     clinical_ids = {clinical_id: set() for clinical_id in initial_clinical_ids}
     qnc_qn_tracker = dict()
     join_field = matchengine.match_criteria_transform.collection_mappings['genomic']['join_field']
@@ -129,7 +133,7 @@ async def execute_genomic_queries(matchengine: MatchEngine,
             query_node_container_clinical_ids.append(
                 matchengine.genomic_query_node_clinical_ids_subsetter(genomic_query_node, clinical_ids.keys())
             )
-            working_clinical_ids = query_node_container_clinical_ids[qn_idx]
+            show_in_ui, working_clinical_ids = query_node_container_clinical_ids[qn_idx]
             if not working_clinical_ids:
                 continue
 
@@ -184,28 +188,29 @@ async def execute_genomic_queries(matchengine: MatchEngine,
         qnc_clinical_ids = {
             clinical_id
             for clinical_id
-            in reduce(operator.or_, query_node_container_clinical_ids, set())
+            in reduce(operator.or_, map(operator.itemgetter(1), query_node_container_clinical_ids), set())
         }
         for invalid_clinical in current_clinical_ids - qnc_clinical_ids:
             all_qnc_qn_to_remove = clinical_ids.pop(invalid_clinical)
             for qnc_qn_to_remove in all_qnc_qn_to_remove:
-                qnc_qn_tracker[qnc_qn_to_remove].remove(invalid_clinical)
+                qnc_qn_tracker[qnc_qn_to_remove][1].remove(invalid_clinical)
         for qn_idx, qn_results in enumerate(query_node_container_clinical_ids):
-            for valid_clinical_id in qn_results & qnc_clinical_ids:
+            for valid_clinical_id in qn_results[1] & qnc_clinical_ids:
                 clinical_ids[valid_clinical_id].add((qnc_idx, qn_idx))
             qnc_qn_tracker[(qnc_idx, qn_idx)] = qn_results
 
-    reasons, all_genomic = get_reasons(qnc_qn_tracker, multi_collection_query, matchengine.cache)
+    reasons, all_genomic = get_reasons(qnc_qn_tracker, multi_collection_query, matchengine.cache, reasons)
     return set(clinical_ids.keys()), all_genomic, reasons
 
 
 def get_reasons(qnc_qn_tracker: Dict[Tuple: int, List[ClinicalID]],
                 multi_collection_query: MultiCollectionQuery,
-                cache: Cache) -> (List[GenomicMatchReason], Set[ObjectId]):
-    reasons = list()
+                cache: Cache,
+                reasons: Dict[ClinicalID, List[MatchReason]]) -> Tuple[
+    Dict[ClinicalID, List[MatchReason]], Set[ObjectId]]:
     all_genomic = set()
 
-    for (qnc_idx, qn_idx), found_clinical_ids in qnc_qn_tracker.items():
+    for (qnc_idx, qn_idx), (show_in_ui, found_clinical_ids) in qnc_qn_tracker.items():
         genomic_query_node_container = multi_collection_query.genomic[qnc_idx]
         query_node = genomic_query_node_container.query_nodes[qn_idx]
         for clinical_id in found_clinical_ids:
@@ -216,7 +221,8 @@ def get_reasons(qnc_qn_tracker: Dict[Tuple: int, List[ClinicalID]],
                 id_cache = cache.ids[query_node.raw_query_hash()]
                 genomic_width = len(id_cache[clinical_id]) if genomic_id is not None else -1
                 clinical_width = len(id_cache)
-                reasons.append(GenomicMatchReason(query_node, genomic_width, clinical_width, clinical_id, genomic_id))
+                reasons[clinical_id].append(
+                    GenomicMatchReason(query_node, genomic_width, clinical_width, clinical_id, genomic_id, show_in_ui))
     return reasons, all_genomic
 
 
@@ -237,23 +243,21 @@ async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_gen
     return results
 
 
-def get_valid_genomic_reasons(genomic_match_reasons, clinical_ids, genomic_ids):
-    return [
-        genomic_reason
-        for genomic_reason in genomic_match_reasons
-        if genomic_reason.clinical_id in clinical_ids and any([genomic_reason.query_node.exclusion,
-                                                               genomic_reason.genomic_id in genomic_ids])
-    ]
-
-
-def get_valid_clinical_reasons(matchengine: MatchEngine,
-                               clinical_match_reasons: List[ClinicalMatchReason],
-                               clinical_ids: Set[ClinicalID]):
-    return [
-        clinical_reason
-        for clinical_reason in clinical_match_reasons
-        if (clinical_reason.clinical_id in clinical_ids) and (
-                matchengine.report_all_clinical_reasons or
-                frozenset(clinical_reason.query_part.query.keys())
-                in matchengine.match_criteria_transform.valid_clinical_reasons)
-    ]
+def get_valid_reasons(matchengine: MatchEngine, possible_reasons, clinical_ids, genomic_ids):
+    return {
+        clinical_id: [
+            reason
+            for reason
+            in reasons
+            if ((reason.__class__ is GenomicMatchReason
+                 and (reason.query_node.exclusion
+                      or reason.genomic_id in genomic_ids))
+                or (reason.__class__ is ClinicalMatchReason
+                    and (matchengine.report_all_clinical_reasons
+                         or frozenset(reason.query_part.query.keys())
+                         in matchengine.match_criteria_transform.valid_clinical_reasons)))
+        ]
+        for clinical_id, reasons
+        in possible_reasons.items()
+        if clinical_id in clinical_ids
+    }

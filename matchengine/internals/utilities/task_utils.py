@@ -3,7 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import traceback
-from typing import TYPE_CHECKING, List
+from collections import defaultdict
+from typing import TYPE_CHECKING, List, Dict
 
 from pymongo import InsertOne
 from pymongo.errors import (
@@ -12,7 +13,7 @@ from pymongo.errors import (
     ServerSelectionTimeoutError)
 
 from matchengine.internals.typing.matchengine_types import TrialMatch, IndexUpdateTask, MatchReason, UpdateTask, \
-    RunLogUpdateTask
+    RunLogUpdateTask, ClinicalID
 
 if TYPE_CHECKING:
     from matchengine.internals.engine import MatchEngine
@@ -91,9 +92,9 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
     log.info((f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask, "
               f"{matchengine._task_q.qsize()} tasks left in queue"))
     try:
-        results: List[MatchReason] = await matchengine.run_query(task.query, task.clinical_ids)
+        results: Dict[ClinicalID, List[MatchReason]] = await matchengine.run_query(task.query, task.clinical_ids)
     except Exception as e:
-        results = list()
+        results = dict()
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
         if e.__class__ is AutoReconnect:
@@ -111,17 +112,22 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
             log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
 
     try:
-        for result in results:
-            matchengine.queue_task_count += 1
-            if matchengine.queue_task_count % 1000 == 0:
-                log.info(f"Trial match count: {matchengine.queue_task_count}")
-            match_document = matchengine.create_trial_matches(TrialMatch(task.trial,
-                                                                         task.match_clause_data,
-                                                                         task.match_path,
-                                                                         task.query,
-                                                                         result,
-                                                                         matchengine.starttime))
-            matchengine.matches[task.trial['protocol_no']][match_document['sample_id']].append(match_document)
+        by_sample_id = defaultdict(list)
+        matchengine.results_transformer(results)
+        for _, sample_results in results.items():
+            for result in sample_results:
+                matchengine.queue_task_count += 1
+                if matchengine.queue_task_count % 1000 == 0:
+                    log.info(f"Trial match count: {matchengine.queue_task_count}")
+                match_document = matchengine.create_trial_matches(TrialMatch(task.trial,
+                                                                             task.match_clause_data,
+                                                                             task.match_path,
+                                                                             task.query,
+                                                                             result,
+                                                                             matchengine.starttime))
+                matchengine.matches[task.trial['protocol_no']][match_document['sample_id']].append(match_document)
+                by_sample_id[match_document['sample_id']].append(match_document)
+
     except Exception as e:
         matchengine.loop.stop()
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
