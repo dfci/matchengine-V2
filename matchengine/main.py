@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from multiprocessing import cpu_count
 
 from matchengine.internals.engine import MatchEngine
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     db_name_help = ("Specify a custom db name to load trials and/or patient data into. If no value is passed, "
                     "db name will be take from SECRETS_JSON file.")
     run_log_help = "Ignore the run log and run on all specified sample IDs/protocol nos"
-
+    base_dir = os.path.dirname(__file__)
     subp = parser.add_subparsers(help='sub-command help')
     subp_p = subp.add_parser('load', help='Sets up your MongoDB for matching.')
     subp_p.add_argument('-t', dest='trial', default=None, help=param_trials_help)
@@ -76,9 +77,8 @@ if __name__ == "__main__":
                         help=param_patient_format_help)
     subp_p.add_argument('--db', dest='db_name', default='', required=False, help=db_name_help)
     subp_p.add_argument("--plugin-dir", dest="plugin_dir",
-                        default="matchengine/plugins", help="Location of plugin directory")
+                        default=os.path.join(base_dir, "plugins"), help="Location of plugin directory")
     subp_p.set_defaults(func=load)
-
     subp_p = subp.add_parser('match', help='Match patients to trials.')
     subp_p.add_argument("-trials", nargs="*", type=str, default=None)
     subp_p.add_argument("-samples", nargs="*", type=str, default=None)
@@ -96,8 +96,8 @@ if __name__ == "__main__":
     subp_p.add_argument("--dry-run", dest="dry", action="store_true", default=False, help=dry_help)
     subp_p.add_argument("--debug", dest="debug", action="store_true", default=False, help=debug_help)
     subp_p.add_argument("--config-path", dest="config_path",
-                        default="matchengine/config/dfci_config.json", help=config_help)
-    subp_p.add_argument("--override-plugin-dir", dest="plugin_dir", default="matchengine/plugins",
+                        default=os.path.join(base_dir, "config/dfci_config.json"), help=config_help)
+    subp_p.add_argument("--override-plugin-dir", dest="plugin_dir", default=os.path.join("plugins"),
                         help="Location of plugin directory")
     subp_p.add_argument("--match-document-creator", dest="match_document_creator_class",
                         default="DFCITrialMatchDocumentCreator",
