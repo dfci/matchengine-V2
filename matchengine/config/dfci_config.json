@@ -165,6 +165,10 @@
   },
   "trial_match_sorting": [
     {
+      "show_in_ui": {
+        "True": 1,
+        "False": -1
+      },
       "trial_curation_level_status": {
         "closed": -1,
         "open": 0
