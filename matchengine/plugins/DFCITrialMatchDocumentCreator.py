@@ -293,6 +293,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         elif trial_match.match_reason.reason_name == 'clinical':
             new_trial_match.update(format_trial_match_k_v(get_clinical_details(clinical_doc, query)))
 
+        new_trial_match['show_in_ui'] = trial_match.match_reason.show_in_ui
         sort_order = get_sort_order(self.config['trial_match_sorting'], new_trial_match)
         new_trial_match['sort_order'] = sort_order
         new_trial_match['query_hash'] = trial_match.match_criterion.hash()
@@ -304,7 +305,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         new_trial_match['combo_coord'] = nested_object_hash({'query_hash': new_trial_match['query_hash'],
                                                              'match_path': new_trial_match['match_path'],
                                                              'protocol_no': new_trial_match['protocol_no']})
-        new_trial_match['show_in_ui'] = trial_match.match_reason.show_in_ui
+
         new_trial_match.pop("_updated", None)
         new_trial_match.pop("last_updated", None)
         return new_trial_match

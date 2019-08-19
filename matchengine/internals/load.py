@@ -30,6 +30,7 @@ def load(args: Namespace):
     with ExitStack() as stack:
         db_rw = stack.enter_context(MongoDBConnection(read_only=False, db=args.db_name, async_init=False))
         db_ro = stack.enter_context(MongoDBConnection(read_only=True, db=args.db_name, async_init=False))
+        log.info(f"Database: {args.db_name}")
         if args.trial:
             log.info('Adding trial(s) to mongo...')
             load_trials(db_rw, args)
