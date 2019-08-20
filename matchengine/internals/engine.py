@@ -623,7 +623,7 @@ class MatchEngine(object):
                     if field_value.__class__ is not datetime.datetime:
                         try:
                             field_value = dateutil.parser.parse(raw_map.get(field_name))
-                        except ValueError:
+                        except (ValueError, TypeError):
                             field_value = None
                 if field_value is not None:
                     mapping[field_name][obj_id] = field_value
