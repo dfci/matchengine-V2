@@ -2,7 +2,7 @@ import csv
 import datetime
 import json
 import os
-import sys
+from shutil import which
 from collections import defaultdict
 from contextlib import redirect_stderr
 from unittest import TestCase
@@ -342,6 +342,20 @@ class IntegrationTestMatchengine(TestCase):
 
     def test_visualize_match_paths(self):
         # pygraphviz doesn't install easily on macOS so skip in that case.
+        try:
+            __import__('pygraphviz')
+        except ImportError:
+            print('WARNING: pygraphviz is not installed, skipping this test')
+            return
+        try:
+            __import__('matplotlib')
+        except ImportError:
+            print('WARNING: matplotlib is not installed, skipping this test')
+            return
+        if not which('dot'):
+            print('WARNING: executable "dot" not found, skipping this test')
+            return
+
 
         fig_dir = f"/tmp/{os.urandom(10).hex()}"
         os.makedirs(fig_dir, exist_ok=True)
