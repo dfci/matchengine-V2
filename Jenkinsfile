@@ -46,7 +46,7 @@ node {
 
                     sh """
                        python setup.py install && \
-                       pip install pygraphviz nose && \
+                       pip install pygraphviz nose matplotlib && \
                        export SECRETS_JSON=SECRETS_JSON.json && \
                        nosetests -v --with-xunit matchengine/tests
                        """
