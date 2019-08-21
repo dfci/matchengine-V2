@@ -42,11 +42,11 @@ node {
 
                     sh "cat SECRETS_JSON.json"
 
-                    sh 'printf "\npygraphviz" >> requirements.txt'
                     sh 'apt-get update && apt-get install -y graphviz'
 
                     sh """
-                       pip install -r requirements.txt && \
+                       python setup.py install && \
+                       pip install pygraphviz nose && \
                        export SECRETS_JSON=SECRETS_JSON.json && \
                        nosetests -v --with-xunit matchengine/tests
                        """
