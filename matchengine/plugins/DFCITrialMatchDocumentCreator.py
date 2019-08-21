@@ -4,7 +4,6 @@ import operator
 from itertools import chain
 from typing import TYPE_CHECKING, List
 
-
 from matchengine.internals.plugin_helpers.plugin_stub import TrialMatchDocumentCreator
 from matchengine.internals.utilities.object_comparison import nested_object_hash
 
@@ -202,8 +201,10 @@ def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
     """
     Sort trial matches based on sorting order specified in config.json under the key 'trial_match_sorting'.
 
-    The function will iterate over the objects in the 'trial_match_sorting', and then assess each trial match key
-    to determine a final sort string e.g. 001010111000
+    The function will iterate over the objects in the 'trial_match_sorting', and then look for that value
+    in the trial_match document, placing it in an array.
+
+    If being displayed, the matchminerAPI filters the array to output a single sort number.
 
     The sorting is multi-dimensional and currently organized as follows:
     MMR status > Tier 1 > Tier 2 > CNV > Tier 3 > Tier 4 > wild type
@@ -217,7 +218,7 @@ def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
     for sort_dimension in sort_map:
         sort_index = 99
         for sort_key in sort_dimension:
-            if match_document.setdefault(sort_key, None):
+            if sort_key in match_document:
                 trial_match_val = str(match_document[sort_key])
                 if trial_match_val is not None and trial_match_val in sort_dimension[sort_key]:
                     if sort_dimension[sort_key][trial_match_val] < sort_index:
