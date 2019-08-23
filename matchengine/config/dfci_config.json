@@ -179,8 +179,8 @@
         "Deficient(MMR - D / MSI - H)": 2,
         "Proficient(MMR - P / MSS)": 2
       },
-      "tumor_mutational_burden_per_megabase": {
-        "ANY_VALUE": 3
+      "match_type": {
+        "tmb": 3
       },
       "temozolomide_status": {
         "Yes": 4
