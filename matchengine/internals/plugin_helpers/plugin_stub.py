@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     from matchengine.internals.match_criteria_transform import (
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
         TrialMatch,
         Cache,
         QueryNodeContainer,
-        ClinicalID)
+        ClinicalID, MatchReason)
     from typing import (
         Dict,
         NoReturn,
@@ -25,6 +25,9 @@ if TYPE_CHECKING:
 class TrialMatchDocumentCreator(object):
     cache: Cache
     config: Dict
+
+    def results_transformer(self: MatchEngine, results: Dict[ClinicalID, List[MatchReason]]):
+        pass
 
     def create_trial_matches(self: MatchEngine, trial_match: TrialMatch) -> Dict:
         pass
