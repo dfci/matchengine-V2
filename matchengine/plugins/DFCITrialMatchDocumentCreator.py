@@ -69,7 +69,9 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
                 alteration.append(f'{genomic_left}-{genomic_right}')
             else:
                 alteration.append(f'{genomic_left or genomic_right}-intergenic')
-            alteration.append(' Structural Variation')
+            structural_variant_type = genomic_doc.get('STRUCTURAL_VARIANT_TYPE', None)
+            alteration.append(' ')
+            alteration.append('Structural Variant' if structural_variant_type is None else structural_variant_type)
         else:
             query = trial_match.match_reason.query_node.extract_raw_query()
             sv_comment = query.get('STRUCTURAL_VARIANT_COMMENT', None)
