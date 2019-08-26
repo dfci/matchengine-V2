@@ -176,11 +176,8 @@
       }
     },
     {
-      "mmr_status": {
-        "Deficient (MMR-D / MSI-H)": 2,
-        "Proficient (MMR-P / MSS)": 2
-      },
       "match_type": {
+        "mmr": 2,
         "tmb": 3
       },
       "temozolomide_status": {
