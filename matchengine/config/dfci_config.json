@@ -177,8 +177,8 @@
     },
     {
       "mmr_status": {
-        "Deficient(MMR - D / MSI - H)": 2,
-        "Proficient(MMR - P / MSS)": 2
+        "Deficient (MMR-D / MSI-H)": 2,
+        "Proficient (MMR-P / MSS)": 2
       },
       "match_type": {
         "tmb": 3
