@@ -26,7 +26,8 @@
       "TEMOZOLOMIDE_STATUS",
       "UVA_STATUS",
       "LEFT_PARTNER_GENE",
-      "RIGHT_PARTNER_GENE"
+      "RIGHT_PARTNER_GENE",
+      "STRUCTURAL_VARIANT_TYPE"
     ],
     "clinical": [
       "REPORT_DATE",
