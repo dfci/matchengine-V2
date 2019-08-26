@@ -93,6 +93,7 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
         signature_value = genomic_doc.get(signature_type, None)
         is_variant = "signature"
         if signature_type == 'MMR_STATUS':
+            is_variant = 'mmr'
             mapped_mmr_status = {
                 'Proficient (MMR-P / MSS)': 'MMR-P/MSS',
                 'Deficient (MMR-D / MSI-H)': 'MMR-D/MSI-H'
