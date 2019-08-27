@@ -74,7 +74,7 @@ class DFCIQueryNodeClinicalIDSubsetter(QueryNodeClinicalIDsSubsetter):
                 ) >= datetime.datetime(2018, 12, 1, 0, 0, 0, 0)
             }
         elif query_node.get_query_part_by_key('STRUCTURAL_VARIANT_COMMENT') is not None:
-            return False, {
+            return True if query_node.exclusion else False, {
                 clinical_id
                 for clinical_id
                 in clinical_ids
