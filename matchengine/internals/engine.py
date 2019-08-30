@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Iterable, Tuple
 
 import dateutil.parser
 import pymongo
-import uvloop
 
 from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
 from matchengine.internals.match_criteria_transform import MatchCriteriaTransform
@@ -228,7 +227,7 @@ class MatchEngine(object):
         self._param_cache = dict()
 
         # instantiate a new async event loop to allow class to be used as if it is synchronous
-        self._loop = uvloop.new_event_loop()
+        self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._async_init())
 
