@@ -189,6 +189,7 @@ async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTa
             {'clinical_id': {"$in": list(matchengine.clinical_run_log_entries[task.protocol_no])}},
             {'$push': {"run_history": matchengine.run_id.hex}}
         )
+        matchengine.task_q.task_done()
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
@@ -203,5 +204,3 @@ async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTa
             matchengine.task_q.task_done()
         else:
             raise e
-    finally:
-        matchengine.task_q.task_done()

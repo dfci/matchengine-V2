@@ -69,6 +69,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
 async def get_all_except(matchengine: MatchEngine,
                          protocol_no: str,
                          trial_matches_by_sample_id: dict) -> list:
+    # TODO: make sure this works when matching specific samples
     """Return all matches except ones matching current protocol_no"""
     query = {
         'protocol_no': protocol_no,
