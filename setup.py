@@ -9,7 +9,8 @@ setup(
         "matchengine.internals.database_connectivity",
         "matchengine.internals.plugin_helpers",
         "matchengine.internals.typing",
-        "matchengine.internals.utilities"
+        "matchengine.internals.utilities",
+        "matchengine.plugins"
     ],
     entrypoints={
         "console-scripts": [
