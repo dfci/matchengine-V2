@@ -651,7 +651,7 @@ class MatchEngine(object):
     def format_trial_match_k_v(self, clinical_doc):
         return {key.lower(): val for key, val in clinical_doc.items() if key != "_id"}
 
-    def create_trial_matches(self, trial_match: TrialMatch) -> Dict:
+    def create_trial_matches(self, trial_match: TrialMatch, new_trial_match: Dict) -> Dict:
         """Stub function to be overriden by plugin"""
         return dict()
 
