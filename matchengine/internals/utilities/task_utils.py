@@ -12,7 +12,8 @@ from pymongo.errors import (
     CursorNotFound,
     ServerSelectionTimeoutError)
 
-from matchengine.internals.typing.matchengine_types import TrialMatch, IndexUpdateTask, MatchReason, UpdateTask, \
+from matchengine.internals.typing.matchengine_types import TrialMatch, IndexUpdateTask, \
+    MatchReason, UpdateTask, \
     RunLogUpdateTask, ClinicalID
 
 if TYPE_CHECKING:
@@ -92,7 +93,8 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
     log.info((f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask, "
               f"{matchengine._task_q.qsize()} tasks left in queue"))
     try:
-        results: Dict[ClinicalID, List[MatchReason]] = await matchengine.run_query(task.query, task.clinical_ids)
+        results: Dict[ClinicalID, List[MatchReason]] = await matchengine.run_query(task.query,
+                                                                                   task.clinical_ids)
     except Exception as e:
         results = dict()
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
@@ -117,15 +119,18 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
         for _, sample_results in results.items():
             for result in sample_results:
                 matchengine.queue_task_count += 1
-                if matchengine.queue_task_count % 1000 == 0:
+                if matchengine.queue_task_count % 1000 == 0 and matchengine.debug:
                     log.info(f"Trial match count: {matchengine.queue_task_count}")
-                match_document = matchengine.create_trial_matches(TrialMatch(task.trial,
-                                                                             task.match_clause_data,
-                                                                             task.match_path,
-                                                                             task.query,
-                                                                             result,
-                                                                             matchengine.starttime))
-                matchengine.matches[task.trial['protocol_no']][match_document['sample_id']].append(match_document)
+                trial_match = TrialMatch(task.trial,
+                                         task.match_clause_data,
+                                         task.match_path,
+                                         task.query,
+                                         result,
+                                         matchengine.starttime)
+                new_match_doc_proto = matchengine.create_trial_matches_base(trial_match)
+                match_document = matchengine.create_trial_matches(trial_match, new_match_doc_proto)
+                matchengine.matches[task.trial['protocol_no']][match_document['sample_id']].append(
+                    match_document)
                 by_sample_id[match_document['sample_id']].append(match_document)
 
     except Exception as e:
@@ -172,9 +177,12 @@ async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTa
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new RunLogUpdateTask {task.protocol_no}")
         dont_need_insert, _ = await asyncio.gather(
-            matchengine.async_db_ro.get_collection(clinical_run_history_collection).distinct("clinical_id"),
-            matchengine.async_db_rw[run_log_collection].insert_one(matchengine.run_log_entries[task.protocol_no]))
-        new_clinical_run_log_docs = set(matchengine.clinical_run_log_entries[task.protocol_no]) - set(dont_need_insert)
+            matchengine.async_db_ro.get_collection(clinical_run_history_collection).distinct(
+                "clinical_id"),
+            matchengine.async_db_rw[run_log_collection].insert_one(
+                matchengine.run_log_entries[task.protocol_no]))
+        new_clinical_run_log_docs = set(
+            matchengine.clinical_run_log_entries[task.protocol_no]) - set(dont_need_insert)
         clinical_update_ops = [
             InsertOne({"clinical_id": clinical_id, "run_history": list()})
             for clinical_id
