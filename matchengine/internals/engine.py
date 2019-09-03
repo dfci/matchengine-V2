@@ -633,7 +633,6 @@ class MatchEngine(object):
         if trial_match.match_reason.reason_name == 'genomic':
             new_trial_match.update({"q_c_width": trial_match.match_reason.clinical_width})
 
-        new_trial_match["is_disabled"] = False
         new_trial_match.update(
             {'match_path': '.'.join(
                 [str(item) for item in trial_match.match_clause_data.parent_path])})
