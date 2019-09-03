@@ -157,8 +157,8 @@ class MatchEngine(object):
         self.ignore_run_log = ignore_run_log
         self.skip_run_log_entry = skip_run_log_entry
         self.clinical_run_log_entries = dict()
-        self._protocol_nos_param = protocol_nos
-        self._sample_ids_param = sample_ids
+        self._protocol_nos_param = list(protocol_nos) if protocol_nos is not None else protocol_nos
+        self._sample_ids_param = list(sample_ids) if sample_ids is not None else sample_ids
 
         if config.__class__ is str:
             with open(config) as config_file_handle:
