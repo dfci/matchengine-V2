@@ -46,7 +46,7 @@ class BaseTransformers(QueryTransformerContainer):
         sample_key = kwargs['sample_key']
         file = kwargs['file']
         if file not in self.resources:
-            with open(file) as file_handle:
+            with open(self.resource_paths[file]) as file_handle:
                 self.resources[file] = json.load(file_handle)
         resource = self.resources[file]
         trial_value, negate = is_negate(trial_value)

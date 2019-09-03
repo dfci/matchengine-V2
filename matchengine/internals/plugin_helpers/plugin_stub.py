@@ -37,6 +37,7 @@ class QueryTransformerContainer(object):
     _: MatchCriteriaTransform
     transform: TransformFunctions
     resources: Dict
+    resource_paths: Dict
 
 
 class DBSecrets(object):

@@ -30,7 +30,8 @@ def main(run_args):
             trial_match_collection=run_args.trial_match_collection,
             drop=run_args.drop or run_args.drop_and_exit,
             drop_accept=run_args.confirm_drop,
-            exit_after_drop=run_args.drop_and_exit
+            exit_after_drop=run_args.drop_and_exit,
+            resource_dirs=run_args.extra_resource_dirs
     ) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
@@ -92,6 +93,7 @@ if __name__ == "__main__":
                         help="Skip creating any run log entries for this run.")
     subp_p.add_argument("--visualize-match-paths", dest="visualize_match_paths", action="store_true", default=False,
                         help="Enable to render images of all match paths")
+    subp_p.add_argument("--extra_resource_dirs", nargs="*", type=str, default=None)
     subp_p.add_argument("--fig-dir", dest="fig_dir", default='img', help="Directory to store match path images")
     subp_p.add_argument("--dry-run", dest="dry", action="store_true", default=False, help=dry_help)
     subp_p.add_argument("--debug", dest="debug", action="store_true", default=False, help=debug_help)
