@@ -148,6 +148,7 @@ async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id)
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new UpdateTask {task.protocol_no}")
         await matchengine.async_db_rw[matchengine.trial_match_collection].bulk_write(task.ops, ordered=False)
+        matchengine.task_q.task_done()
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
@@ -162,8 +163,6 @@ async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id)
             matchengine.task_q.task_done()
         else:
             raise e
-    finally:
-        matchengine.task_q.task_done()
 
 
 async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTask, worker_id):
