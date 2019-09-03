@@ -132,6 +132,7 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
                 match_document = matchengine.create_trial_matches(match_context_data,
                                                                   new_match_doc_proto)
                 match_document['hash'] = nested_object_hash(match_document)
+                match_document['is_disabled'] = False
                 matchengine.matches[task.trial['protocol_no']][match_document['sample_id']].append(
                     match_document)
                 by_sample_id[match_document['sample_id']].append(match_document)
