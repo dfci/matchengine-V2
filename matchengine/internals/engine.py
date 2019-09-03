@@ -124,8 +124,11 @@ class MatchEngine(object):
             num_workers: int = cpu_count() * 5,
             visualize_match_paths: bool = False,
             fig_dir: str = None,
-            config: Union[str, dict] = os.path.join(os.path.dirname(__file__), '../config/dfci_config.json'),
-            plugin_dir: str = os.path.join(os.path.dirname(__file__), '../plugins'),
+            config: Union[str, dict] = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                'config',
+                'dfci_config.json'),
+            plugin_dir: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'plugins'),
             db_init: bool = True,
             db_name: str = None,
             match_document_creator_class: str = "DFCITrialMatchDocumentCreator",
