@@ -299,8 +299,6 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
 
         sort_order = get_sort_order(self.config['trial_match_sorting'], new_trial_match)
         new_trial_match['sort_order'] = sort_order
-        #TODO is there a way to move hash creation into base function
-        new_trial_match['hash'] = nested_object_hash(new_trial_match)
         new_trial_match.pop("_updated", None)
         new_trial_match.pop("last_updated", None)
         return new_trial_match

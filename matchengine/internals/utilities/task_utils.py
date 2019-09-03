@@ -15,6 +15,7 @@ from pymongo.errors import (
 from matchengine.internals.typing.matchengine_types import TrialMatch, IndexUpdateTask, \
     MatchReason, UpdateTask, \
     RunLogUpdateTask, ClinicalID
+from matchengine.internals.utilities.object_comparison import nested_object_hash
 
 if TYPE_CHECKING:
     from matchengine.internals.engine import MatchEngine
@@ -121,14 +122,16 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
                 matchengine.queue_task_count += 1
                 if matchengine.queue_task_count % 1000 == 0 and matchengine.debug:
                     log.info(f"Trial match count: {matchengine.queue_task_count}")
-                trial_match = TrialMatch(task.trial,
-                                         task.match_clause_data,
-                                         task.match_path,
-                                         task.query,
-                                         result,
-                                         matchengine.starttime)
-                new_match_doc_proto = matchengine.create_trial_matches_base(trial_match)
-                match_document = matchengine.create_trial_matches(trial_match, new_match_doc_proto)
+                match_context_data = TrialMatch(task.trial,
+                                                task.match_clause_data,
+                                                task.match_path,
+                                                task.query,
+                                                result,
+                                                matchengine.starttime)
+                new_match_doc_proto = matchengine.create_trial_matches_base(match_context_data)
+                match_document = matchengine.create_trial_matches(match_context_data,
+                                                                  new_match_doc_proto)
+                match_document['hash'] = nested_object_hash(match_document)
                 matchengine.matches[task.trial['protocol_no']][match_document['sample_id']].append(
                     match_document)
                 by_sample_id[match_document['sample_id']].append(match_document)
