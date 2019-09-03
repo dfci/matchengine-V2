@@ -26,7 +26,8 @@ class TestMatchEngine(TestCase):
         with open('matchengine/tests/config.json') as config_file_handle:
             self.config = json.load(config_file_handle)
 
-        self.me.match_criteria_transform = MatchCriteriaTransform(self.config)
+        self.me.match_criteria_transform = MatchCriteriaTransform(self.config,
+                                                                  [os.path.join(os.path.dirname(__file__), 'data')])
 
     def test_find_plugins(self):
         """Verify functions inside external config files are reachable within the Matchengine class"""
@@ -51,7 +52,7 @@ class TestMatchEngine(TestCase):
             'trial_key': 'test',
             'trial_value': 'test',
             'sample_key': 'test',
-            'file': 'matchengine/tests/data/external_file_mapping_test.json'
+            'file': 'external_file_mapping_test.json'
         }
 
         assert hasattr(self.me.match_criteria_transform.query_transformers, 'nomap')
@@ -129,7 +130,7 @@ class TestMatchEngine(TestCase):
                     for node_id, node_attrs in test_case[test_case_key].items():
                         graph_node = match_tree.nodes[int(node_id)]
                         assert len(node_attrs) == len(graph_node)
-                        assert nested_object_hash(node_attrs)== nested_object_hash(graph_node)
+                        assert nested_object_hash(node_attrs) == nested_object_hash(graph_node)
                 else:
                     for test_item, graph_item in zip(test_case[test_case_key], getattr(match_tree, test_case_key)):
                         for idx, test_item_part in enumerate(test_item):
@@ -164,7 +165,7 @@ class TestMatchEngine(TestCase):
                     assert test_case_criteria["depth"] == match_path_criteria.depth
                     for inner_test_case_criteria, inner_match_path_criteria in zip(test_case_criteria["criteria"],
                                                                                    match_path_criteria.criteria):
-                        assert nested_object_hash(inner_test_case_criteria)== nested_object_hash(
+                        assert nested_object_hash(inner_test_case_criteria) == nested_object_hash(
                             inner_match_path_criteria)
 
     def test_translate_match_path(self):
@@ -186,16 +187,16 @@ class TestMatchEngine(TestCase):
         assert len(match_paths.genomic) == 0
 
     def test_comparable_dict(self):
-        assert nested_object_hash({})== nested_object_hash({})
+        assert nested_object_hash({}) == nested_object_hash({})
         assert nested_object_hash({"1": "1",
-                               "2": "2"})== nested_object_hash({"2": "2",
-                                                                    "1": "1"})
+                                   "2": "2"}) == nested_object_hash({"2": "2",
+                                                                     "1": "1"})
         assert nested_object_hash({"1": [{}, {2: 3}],
-                               "2": "2"})== nested_object_hash({"2": "2",
-                                                                    "1": [{2: 3}, {}]})
+                                   "2": "2"}) == nested_object_hash({"2": "2",
+                                                                     "1": [{2: 3}, {}]})
         assert nested_object_hash({"1": [{'set': {1, 2, 3}}, {2: 3}],
-                               "2": "2"})== nested_object_hash({"2": "2",
-                                                                    "1": [{2: 3}, {'set': {3, 1, 2}}]})
+                                   "2": "2"}) == nested_object_hash({"2": "2",
+                                                                     "1": [{2: 3}, {'set': {3, 1, 2}}]})
         assert nested_object_hash({
             1: {
                 2: [

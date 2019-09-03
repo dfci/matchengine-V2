@@ -23,6 +23,10 @@ class AllTransformersContainer(object):
     def transform(self):
         return self._.transform
 
+    @property
+    def resource_paths(self):
+        return self._.resource_paths
+
 
 class TransformFunctions(object):
     if TYPE_CHECKING:
@@ -75,7 +79,7 @@ class MatchCriteriaTransform(object):
         self.resource_paths = dict()
         for resource_dir in resource_dirs:
             for file_path in os.listdir(resource_dir):
-                self.resource_paths[os.path.basename(file_path)] = file_path
+                self.resource_paths[os.path.basename(file_path)] = os.path.join(resource_dir, file_path)
         self.config = config
         self.trial_key_mappings = config['trial_key_mappings']
 
