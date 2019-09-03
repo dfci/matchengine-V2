@@ -22,6 +22,9 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
     the db. Delete matches by adding {is_disabled: true} and insert all new matches.
     """
     matches_by_sample_id = matchengine.matches.get(protocol_no, dict())
+    if protocol_no not in matchengine.trials_to_match_on:
+        log.info(f"Trial {protocol_no} was not matched on, not updating trial matches")
+        return
     log.info(f"Updating trial matches for {protocol_no}")
     if not matchengine._drop:
         matches_to_disable = await get_all_except(matchengine, protocol_no, matches_by_sample_id)

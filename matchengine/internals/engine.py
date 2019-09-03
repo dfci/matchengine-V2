@@ -650,3 +650,7 @@ class MatchEngine(object):
             self.db_rw.get_collection(self.trial_match_collection).drop()
         else:
             self.db_rw.get_collection(self.trial_match_collection).remove(drop_query)
+
+    @property
+    def trials_to_match_on(self):
+        return self._trials_to_match_on
