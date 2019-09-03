@@ -142,9 +142,14 @@ class MatchEngine(object):
             trial_match_collection: str = "trial_match",
             drop: bool = False,
             exit_after_drop: bool = False,
-            drop_accept: bool = False
+            drop_accept: bool = False,
+            resource_dirs: List = None
     ):
 
+        self.resource_dirs = list()
+        self.resource_dirs.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'ref'))
+        if resource_dirs is not None:
+            self.resource_dirs.extend(resource_dirs)
         self.trial_match_collection = trial_match_collection
         self.starttime = datetime.datetime.now()
         self.run_id = uuid.uuid4()
@@ -161,7 +166,7 @@ class MatchEngine(object):
         else:
             self.config = config
 
-        self.match_criteria_transform = MatchCriteriaTransform(self.config)
+        self.match_criteria_transform = MatchCriteriaTransform(self.config, self.resource_dirs)
 
         self.plugin_dir = plugin_dir
         self.match_document_creator_class = match_document_creator_class

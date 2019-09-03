@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -68,8 +70,12 @@ class MatchCriteriaTransform(object):
                     'arm': 'arm_code',
                     'dose': 'level_code'}
 
-    def __init__(self, config):
+    def __init__(self, config, resource_dirs):
         self.resources = dict()
+        self.resource_paths = dict()
+        for resource_dir in resource_dirs:
+            for file_path in os.listdir(resource_dir):
+                self.resource_paths[os.path.basename(file_path)] = file_path
         self.config = config
         self.trial_key_mappings = config['trial_key_mappings']
 
