@@ -29,7 +29,8 @@ class TrialMatchDocumentCreator(object):
     def results_transformer(self: MatchEngine, results: Dict[ClinicalID, List[MatchReason]]):
         pass
 
-    def create_trial_matches(self: MatchEngine, trial_match: TrialMatch) -> Dict:
+    def create_trial_matches(self: MatchEngine, trial_match: TrialMatch,
+                             new_trial_match: Dict) -> Dict:
         pass
 
 
@@ -53,12 +54,14 @@ class QueryNodeTransformer(object):
 class QueryNodeClinicalIDsSubsetter(object):
     def genomic_query_node_clinical_ids_subsetter(self: MatchEngine,
                                                   query_node: QueryNode,
-                                                  clinical_ids: Set[ClinicalID]) -> Set[ClinicalID]:
+                                                  clinical_ids: Set[ClinicalID]) -> Set[
+        ClinicalID]:
         pass
 
     def clinical_query_node_clinical_ids_subsetter(self: MatchEngine,
                                                    query_node: QueryNode,
-                                                   clinical_ids: Set[ClinicalID]) -> Set[ClinicalID]:
+                                                   clinical_ids: Set[ClinicalID]) -> Set[
+        ClinicalID]:
         pass
 
 
