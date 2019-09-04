@@ -143,7 +143,8 @@ class MatchEngine(object):
             drop: bool = False,
             exit_after_drop: bool = False,
             drop_accept: bool = False,
-            resource_dirs: List = None
+            resource_dirs: List = None,
+            chunk_size: int = 1000
     ):
 
         self.resource_dirs = list()
@@ -159,6 +160,7 @@ class MatchEngine(object):
         self.clinical_run_log_entries = dict()
         self._protocol_nos_param = protocol_nos
         self._sample_ids_param = sample_ids
+        self.chunk_size = chunk_size
 
         if config.__class__ is str:
             with open(config) as config_file_handle:
