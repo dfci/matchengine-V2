@@ -12,6 +12,7 @@ from pymongo.errors import (
     CursorNotFound,
     ServerSelectionTimeoutError)
 
+from internals.utilities.list_utils import chunk_list
 from matchengine.internals.typing.matchengine_types import TrialMatch, IndexUpdateTask, MatchReason, UpdateTask, \
     RunLogUpdateTask, ClinicalID
 
@@ -147,7 +148,12 @@ async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id)
     try:
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new UpdateTask {task.protocol_no}")
-        await matchengine.async_db_rw[matchengine.trial_match_collection].bulk_write(task.ops, ordered=False)
+        tasks = [
+            matchengine.async_db_rw[matchengine.trial_match_collection].bulk_write(chunked_ops, ordered=False)
+            for chunked_ops
+            in chunk_list(task.ops, matchengine.chunk_size)
+        ]
+        await asyncio.gather(*tasks)
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
