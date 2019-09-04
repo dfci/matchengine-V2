@@ -38,7 +38,8 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
     if true_protein is not None:
         alteration.append(f' {true_protein}')
         is_variant = ('variant'
-                      if {'protein_change', 'wildcard_protein_change'}.intersection(set(criteria_ancestor.keys()))
+                      if {'protein_change', 'wildcard_protein_change'}.intersection(
+            set(criteria_ancestor.keys()))
                       else 'gene')
 
     # add cnv call
@@ -71,12 +72,14 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
                 alteration.append(f'{genomic_left or genomic_right}-intergenic')
             structural_variant_type = genomic_doc.get('STRUCTURAL_VARIANT_TYPE', None)
             alteration.append(' ')
-            alteration.append('Structural Variant' if structural_variant_type is None else structural_variant_type)
+            alteration.append(
+                'Structural Variant' if structural_variant_type is None else structural_variant_type)
         else:
             query = trial_match.match_reason.query_node.extract_raw_query()
             sv_comment = query.get('STRUCTURAL_VARIANT_COMMENT', None)
             pattern = sv_comment.pattern.split("|")[0] if sv_comment is not None else None
-            gene = pattern.replace("(.*\\W", "").replace("\\W.*)", "") if pattern is not None else None
+            gene = pattern.replace("(.*\\W", "").replace("\\W.*)",
+                                                         "") if pattern is not None else None
             alteration.append(f'{gene} Structural Variation' if gene else 'Structural Variation')
 
     # add mutational signature
@@ -119,7 +122,8 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
 def get_clinical_details(clinical_doc, query):
     alteration = list()
 
-    c_tmb, q_tmb = map(lambda x: x.get("TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE", None), (clinical_doc, query))
+    c_tmb, q_tmb = map(lambda x: x.get("TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE", None),
+                       (clinical_doc, query))
     if all((q_tmb, c_tmb)):
         alteration.append(f"TMB = {c_tmb}")
         match_type = "tmb"
@@ -238,7 +242,8 @@ def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
                 is_any = sorting_vals.get("ANY_VALUE", None)
                 trial_match_val = str(match_document[sort_key]) if is_any is None else "ANY_VALUE"
 
-                if (trial_match_val is not None and trial_match_val in sorting_vals) or is_any is not None:
+                if (
+                        trial_match_val is not None and trial_match_val in sorting_vals) or is_any is not None:
                     if sort_dimension[sort_key][trial_match_val] < sort_index:
                         sort_index = sort_dimension[sort_key][trial_match_val]
 
@@ -272,59 +277,28 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
                 for reason in reasons:
                     reason.show_in_ui = False
 
-    def create_trial_matches(self, trial_match: TrialMatch) -> Dict:
+    def create_trial_matches(self, trial_match: TrialMatch, new_trial_match: Dict) -> Dict:
         """
         Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
         in config.json
         """
         query = trial_match.match_reason.extract_raw_query()
-
-        new_trial_match = dict()
         clinical_doc = self.cache.docs[trial_match.match_reason.clinical_id]
-        new_trial_match.update(format_trial_match_k_v(clinical_doc))
-        new_trial_match['clinical_id'] = self.cache.docs[trial_match.match_reason.clinical_id]['_id']
-
-        new_trial_match.update(
-            {'match_level': trial_match.match_clause_data.match_clause_level,
-             'internal_id': trial_match.match_clause_data.internal_id,
-             'cancer_type_match': get_cancer_type_match(trial_match),
-             'reason_type': trial_match.match_reason.reason_name,
-             'q_depth': trial_match.match_reason.depth,
-             'q_width': trial_match.match_reason.width,
-             'code': trial_match.match_clause_data.code,
-             'trial_curation_level_status': 'closed' if trial_match.match_clause_data.is_suspended else 'open',
-             'trial_summary_status': trial_match.match_clause_data.status,
-             'coordinating_center': trial_match.match_clause_data.coordinating_center})
-        # remove extra fields from trial_match output
-        new_trial_match.update({
-            k: v
-            for k, v in trial_match.trial.items()
-            if k not in {'treatment_list', '_summary', 'status', '_id', '_elasticsearch', 'match'}
-        })
+        new_trial_match.update({'cancer_type_match': get_cancer_type_match(trial_match)})
 
         if trial_match.match_reason.reason_name == 'genomic':
             genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.genomic_id, None)
-            new_trial_match.update({"q_c_width": trial_match.match_reason.clinical_width})
             if genomic_doc is None:
                 new_trial_match.update(format_trial_match_k_v(format_exclusion_match(trial_match)))
             else:
-                new_trial_match.update(format_trial_match_k_v(get_genomic_details(genomic_doc, trial_match)))
+                new_trial_match.update(
+                    format_trial_match_k_v(get_genomic_details(genomic_doc, trial_match)))
         elif trial_match.match_reason.reason_name == 'clinical':
-            new_trial_match.update(format_trial_match_k_v(get_clinical_details(clinical_doc, query)))
+            new_trial_match.update(
+                format_trial_match_k_v(get_clinical_details(clinical_doc, query)))
 
-        new_trial_match['show_in_ui'] = trial_match.match_reason.show_in_ui
         sort_order = get_sort_order(self.config['trial_match_sorting'], new_trial_match)
         new_trial_match['sort_order'] = sort_order
-        new_trial_match['query_hash'] = trial_match.match_criterion.hash()
-        new_trial_match['hash'] = nested_object_hash(new_trial_match)
-        new_trial_match["is_disabled"] = False
-        new_trial_match.update(
-            {'match_path': '.'.join([str(item) for item in trial_match.match_clause_data.parent_path])})
-
-        new_trial_match['combo_coord'] = nested_object_hash({'query_hash': new_trial_match['query_hash'],
-                                                             'match_path': new_trial_match['match_path'],
-                                                             'protocol_no': new_trial_match['protocol_no']})
-
         new_trial_match.pop("_updated", None)
         new_trial_match.pop("last_updated", None)
         return new_trial_match
