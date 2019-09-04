@@ -244,6 +244,9 @@ class MatchEngine(object):
         self._param_cache = dict()
 
         # instantiate a new async event loop to allow class to be used as if it is synchronous
+        if asyncio.get_event_loop().is_running():
+            self._old_loop = asyncio.get_event_loop()
+            self._old_loop.close()
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._async_init())
