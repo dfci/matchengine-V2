@@ -244,11 +244,9 @@ class MatchEngine(object):
         self._param_cache = dict()
 
         # instantiate a new async event loop to allow class to be used as if it is synchronous
-        if asyncio.get_event_loop().is_running():
-            self._loop = asyncio.get_event_loop()
-        else:
-            self._loop = asyncio.new_event_loop()
-        asyncio.ensure_future(self._async_init())
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_until_complete(self._async_init())
 
     async def _async_init(self):
         """
@@ -398,7 +396,8 @@ class MatchEngine(object):
         Get the trial matches for a given protocol number
         """
         log.info(f"Begin Protocol No: {protocol_no}")
-        return asyncio.ensure_future(self._async_get_matches_for_trial(protocol_no))
+        task = self._loop.create_task(self._async_get_matches_for_trial(protocol_no))
+        return self._loop.run_until_complete(task)
 
     async def _async_get_matches_for_trial(self, protocol_no: str) -> Dict[str, List[Dict]]:
         """
