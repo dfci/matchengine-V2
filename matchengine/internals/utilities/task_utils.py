@@ -165,7 +165,6 @@ async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id)
             in chunk_list(task.ops, matchengine.chunk_size)
         ]
         await asyncio.gather(*tasks)
-        await matchengine.async_db_rw[matchengine.trial_match_collection].bulk_write(task.ops, ordered=False)
         matchengine.task_q.task_done()
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
