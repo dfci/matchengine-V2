@@ -22,14 +22,22 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
     the db. Delete matches by adding {is_disabled: true} and insert all new matches.
     """
     matches_by_sample_id = matchengine.matches.get(protocol_no, dict())
-    if protocol_no not in matchengine.trials_to_match_on:
+    if protocol_no not in matchengine.matches:
         log.info(f"Trial {protocol_no} was not matched on, not updating trial matches")
         return
     log.info(f"Updating trial matches for {protocol_no}")
     if not matchengine._drop:
-        matches_to_disable = await get_all_except(matchengine, protocol_no, matches_by_sample_id)
-        delete_ops = await get_delete_ops(matches_to_disable)
-        matchengine.task_q.put_nowait(UpdateTask(delete_ops, protocol_no))
+        if not matchengine.matches[protocol_no]:
+            matchengine.task_q.put_nowait(
+                UpdateTask(
+                    [UpdateMany(filter={'protocol_no': protocol_no}, update={'$set': {"is_disabled": True}})],
+                    protocol_no
+                )
+            )
+        else:
+            matches_to_disable = await get_all_except(matchengine, protocol_no, matches_by_sample_id)
+            delete_ops = await get_delete_ops(matches_to_disable)
+            matchengine.task_q.put_nowait(UpdateTask(delete_ops, protocol_no))
 
     for sample_id in matches_by_sample_id.keys():
         if not matchengine._drop:
@@ -73,7 +81,15 @@ async def get_all_except(matchengine: MatchEngine,
     """Return all matches except ones matching current protocol_no"""
     query = {
         'protocol_no': protocol_no,
-        "sample_id": {'$nin': list(trial_matches_by_sample_id.keys())}
+        "clinical_id": {
+            '$in': [clinical_id
+                    for clinical_id
+                    in (matchengine.clinical_run_log_entries[protocol_no]
+                        - {
+                            matchengine.sample_mapping[sample_id]
+                            for sample_id
+                            in trial_matches_by_sample_id.keys()})]
+        }
     }
     projection = {
         '_id': 1,

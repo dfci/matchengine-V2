@@ -13,8 +13,12 @@ from pymongo.errors import (
     ServerSelectionTimeoutError)
 
 from matchengine.internals.utilities.list_utils import chunk_list
-from matchengine.internals.typing.matchengine_types import TrialMatch, IndexUpdateTask, MatchReason, UpdateTask, \
+from matchengine.internals.typing.matchengine_types import (
+    TrialMatch, IndexUpdateTask,
+    MatchReason, UpdateTask,
     RunLogUpdateTask, ClinicalID
+)
+from matchengine.internals.utilities.object_comparison import nested_object_hash
 
 if TYPE_CHECKING:
     from matchengine.internals.engine import MatchEngine
@@ -93,7 +97,8 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
     log.info((f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask, "
               f"{matchengine._task_q.qsize()} tasks left in queue"))
     try:
-        results: Dict[ClinicalID, List[MatchReason]] = await matchengine.run_query(task.query, task.clinical_ids)
+        results: Dict[ClinicalID, List[MatchReason]] = await matchengine.run_query(task.query,
+                                                                                   task.clinical_ids)
     except Exception as e:
         results = dict()
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
@@ -118,15 +123,25 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
         for _, sample_results in results.items():
             for result in sample_results:
                 matchengine.queue_task_count += 1
-                if matchengine.queue_task_count % 1000 == 0:
+                if matchengine.queue_task_count % 1000 == 0 and matchengine.debug:
                     log.info(f"Trial match count: {matchengine.queue_task_count}")
-                match_document = matchengine.create_trial_matches(TrialMatch(task.trial,
-                                                                             task.match_clause_data,
-                                                                             task.match_path,
-                                                                             task.query,
-                                                                             result,
-                                                                             matchengine.starttime))
-                matchengine.matches[task.trial['protocol_no']][match_document['sample_id']].append(match_document)
+                match_context_data = TrialMatch(task.trial,
+                                                task.match_clause_data,
+                                                task.match_path,
+                                                task.query,
+                                                result,
+                                                matchengine.starttime)
+                new_match_doc_proto = matchengine.create_trial_matches_base(match_context_data)
+                match_document = matchengine.create_trial_matches(match_context_data,
+                                                                  new_match_doc_proto)
+
+                # omit is_disabled key from hash to allow
+                # for trial_match diff'ing
+                to_hash = {key: match_document[key] for key in match_document if key not in {'hash', 'is_disabled'}}
+                match_document['hash'] = nested_object_hash(to_hash)
+
+                matchengine.matches[task.trial['protocol_no']][match_document['sample_id']].append(
+                    match_document)
                 by_sample_id[match_document['sample_id']].append(match_document)
 
     except Exception as e:
@@ -149,11 +164,13 @@ async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id)
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new UpdateTask {task.protocol_no}")
         tasks = [
-            matchengine.async_db_rw[matchengine.trial_match_collection].bulk_write(chunked_ops, ordered=False)
+            matchengine.async_db_rw[matchengine.trial_match_collection].bulk_write(chunked_ops,
+                                                                                   ordered=False)
             for chunked_ops
             in chunk_list(task.ops, matchengine.chunk_size)
         ]
         await asyncio.gather(*tasks)
+        matchengine.task_q.task_done()
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
@@ -168,20 +185,24 @@ async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id)
             matchengine.task_q.task_done()
         else:
             raise e
-    finally:
-        matchengine.task_q.task_done()
 
 
 async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTask, worker_id):
     clinical_run_history_collection = f"clinical_run_history_{matchengine.trial_match_collection}"
     run_log_collection = f"run_log_{matchengine.trial_match_collection}"
+    if task.protocol_no not in matchengine.trials_to_match_on:
+        matchengine.task_q.task_done()
+        return
     try:
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new RunLogUpdateTask {task.protocol_no}")
         dont_need_insert, _ = await asyncio.gather(
-            matchengine.async_db_ro.get_collection(clinical_run_history_collection).distinct("clinical_id"),
-            matchengine.async_db_rw[run_log_collection].insert_one(matchengine.run_log_entries[task.protocol_no]))
-        new_clinical_run_log_docs = set(matchengine.clinical_run_log_entries[task.protocol_no]) - set(dont_need_insert)
+            matchengine.async_db_ro.get_collection(clinical_run_history_collection).distinct(
+                "clinical_id"),
+            matchengine.async_db_rw[run_log_collection].insert_one(
+                matchengine.run_log_entries[task.protocol_no]))
+        new_clinical_run_log_docs = set(
+            matchengine.clinical_run_log_entries[task.protocol_no]) - set(dont_need_insert)
         clinical_update_ops = [
             InsertOne({"clinical_id": clinical_id, "run_history": list()})
             for clinical_id
@@ -193,8 +214,9 @@ async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTa
             ).bulk_write(clinical_update_ops, ordered=False)
         await matchengine.async_db_rw.get_collection(clinical_run_history_collection).update_many(
             {'clinical_id': {"$in": list(matchengine.clinical_run_log_entries[task.protocol_no])}},
-            {'$push': {"run_history": matchengine.run_id.hex}}
+            {'$addToSet': {"run_history": matchengine.run_id.hex}}
         )
+        matchengine.task_q.task_done()
     except Exception as e:
         log.error(f"ERROR: Worker: {worker_id}, error: {e}")
         log.error(f"TRACEBACK: {traceback.print_tb(e.__traceback__)}")
@@ -209,5 +231,3 @@ async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTa
             matchengine.task_q.task_done()
         else:
             raise e
-    finally:
-        matchengine.task_q.task_done()
