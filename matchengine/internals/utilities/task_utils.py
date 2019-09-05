@@ -140,8 +140,9 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
                 to_hash = {key: match_document[key] for key in match_document if key not in {'hash', 'is_disabled'}}
                 match_document['hash'] = nested_object_hash(to_hash)
 
-                matchengine.matches[task.trial['protocol_no']][match_document['sample_id']].append(
-                    match_document)
+                matchengine.matches.setdefault(task.trial['protocol_no'],
+                                               dict()).setdefault(match_document['sample_id'],
+                                                                  list()).append(match_document)
                 by_sample_id[match_document['sample_id']].append(match_document)
 
     except Exception as e:

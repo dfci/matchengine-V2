@@ -26,7 +26,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
         log.info(f"Trial {protocol_no} was not matched on, not updating trial matches")
         return
     log.info(f"Updating trial matches for {protocol_no}")
-    if not matchengine._drop:
+    if not matchengine.drop:
         if not matchengine.matches[protocol_no]:
             matchengine.task_q.put_nowait(
                 UpdateTask(
@@ -40,7 +40,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
             matchengine.task_q.put_nowait(UpdateTask(delete_ops, protocol_no))
 
     for sample_id in matches_by_sample_id.keys():
-        if not matchengine._drop:
+        if not matchengine.drop:
             new_matches_hashes = [match['hash'] for match in matches_by_sample_id[sample_id]]
 
             # get existing state of trial match collection
