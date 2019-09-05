@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Iterable, Tuple
 
 import dateutil.parser
 import pymongo
+from pymongo import UpdateMany
 
 from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
 from matchengine.internals.match_criteria_transform import MatchCriteriaTransform
@@ -228,6 +229,7 @@ class MatchEngine(object):
 
         self._clinical_data = self._get_clinical_data()
         self.clinical_mapping = self.get_clinical_ids_from_sample_ids()
+        self.clinical_deceased = self.get_clinical_deceased()
         self.clinical_update_mapping = dict() if self.ignore_run_log else self.get_clinical_updated_mapping()
         self.clinical_run_log_mapping = (dict()
                                          if self.get_clinical_ids_from_sample_ids()
@@ -378,6 +380,9 @@ class MatchEngine(object):
         Synchronously iterates over each protocol number, updating the matches in the database for each
         """
         for protocol_number in self.protocol_nos:
+            if not self.match_on_deceased:
+                self.task_q.put_nowait(UpdateTask([UpdateMany({'clinical_id':{'$in': list(self.clinical_deceased)}},
+                                                              {'$set': {'is_disabled': True}})], protocol_number))
             self.update_matches_for_protocol_number(protocol_number)
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
@@ -440,10 +445,10 @@ class MatchEngine(object):
 
     def _get_clinical_data(self):
         # if no sample ids are passed in as args, get all clinical documents
-        query: Dict = {} if self.match_on_deceased else {"VITAL_STATUS": 'alive'}
+        query: Dict = {}
         if self.sample_ids is not None:
             query.update({"SAMPLE_ID": {"$in": list(self.sample_ids)}})
-        projection = {'_id': 1, 'SAMPLE_ID': 1}
+        projection = {'_id': 1, 'SAMPLE_ID': 1, 'VITAL_STATUS': 1}
         if not self.ignore_run_log:
             projection.update({'_updated': 1, 'run_history': 1})
         projection.update({
@@ -474,12 +479,21 @@ class MatchEngine(object):
             output[not_present] = None
         return output
 
+    def get_clinical_deceased(self) -> Set[ClinicalID]:
+        return {clinical_id
+                for clinical_id, clinical_data
+                in self._clinical_data.items()
+                if clinical_data['VITAL_STATUS'] == 'deceased'}
     def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
         """
         Clinical ids are unique to sample_ids
         """
-        return {clinical_id: clinical_data['SAMPLE_ID'] for clinical_id, clinical_data in
-                self._clinical_data.items()}
+        if self.match_on_deceased:
+            return {clinical_id: clinical_data['SAMPLE_ID'] for clinical_id, clinical_data in
+                    self._clinical_data.items()}
+        else:
+            return {clinical_id: clinical_data['SAMPLE_ID'] for clinical_id, clinical_data in
+                    self._clinical_data.items() if clinical_data['VITAL_STATUS'] == 'alive'}
 
     def get_trials(self) -> Dict[str, Trial]:
         """
