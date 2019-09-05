@@ -242,8 +242,7 @@ def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
                 is_any = sorting_vals.get("ANY_VALUE", None)
                 trial_match_val = str(match_document[sort_key]) if is_any is None else "ANY_VALUE"
 
-                if (
-                        trial_match_val is not None and trial_match_val in sorting_vals) or is_any is not None:
+                if (trial_match_val is not None and trial_match_val in sorting_vals) or is_any is not None:
                     if sort_dimension[sort_key][trial_match_val] < sort_index:
                         sort_index = sort_dimension[sort_key][trial_match_val]
 
@@ -297,8 +296,6 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
             new_trial_match.update(
                 format_trial_match_k_v(get_clinical_details(clinical_doc, query)))
 
-        sort_order = get_sort_order(self.config['trial_match_sorting'], new_trial_match)
-        new_trial_match['sort_order'] = sort_order
         new_trial_match.pop("_updated", None)
         new_trial_match.pop("last_updated", None)
         return new_trial_match
