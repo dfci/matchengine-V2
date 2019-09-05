@@ -5,7 +5,6 @@ from itertools import chain
 from typing import TYPE_CHECKING, List
 
 from matchengine.internals.plugin_helpers.plugin_stub import TrialMatchDocumentCreator
-from matchengine.internals.utilities.object_comparison import nested_object_hash
 
 if TYPE_CHECKING:
     from matchengine.internals.typing.matchengine_types import TrialMatch, MatchReason, ClinicalID

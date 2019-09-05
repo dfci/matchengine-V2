@@ -19,6 +19,7 @@ from matchengine.internals.typing.matchengine_types import (
     RunLogUpdateTask, ClinicalID
 )
 from matchengine.internals.utilities.object_comparison import nested_object_hash
+from matchengine.internals.utilities.utilities import get_sort_order
 
 if TYPE_CHECKING:
     from matchengine.internals.engine import MatchEngine
@@ -131,12 +132,14 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
                                                 task.query,
                                                 result,
                                                 matchengine.starttime)
-                new_match_doc_proto = matchengine.create_trial_matches_base(match_context_data)
-                match_document = matchengine.create_trial_matches(match_context_data,
-                                                                  new_match_doc_proto)
 
-                # omit is_disabled key from hash to allow
-                # for trial_match diff'ing
+                # allow user to extend trial_match objects in plugin functions
+                # generate required fields on trial match doc before
+                # generate sort_order and hash fields after all fields are added
+                new_match_proto = matchengine.pre_process_trial_matches(match_context_data)
+                match_document = matchengine.create_trial_matches(match_context_data, new_match_proto)
+                sort_order = get_sort_order(matchengine.config['trial_match_sorting'], match_document)
+                match_document['sort_order'] = sort_order
                 to_hash = {key: match_document[key] for key in match_document if key not in {'hash', 'is_disabled'}}
                 match_document['hash'] = nested_object_hash(to_hash)
 
