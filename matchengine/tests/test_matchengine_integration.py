@@ -98,10 +98,9 @@ class IntegrationTestMatchengine(TestCase):
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
-        assert len(set(self.me._matches.keys()).intersection({'10-002', '10-003', '10-004'})) == 3
+        assert len(set(self.me._matches.keys()).intersection({'10-002', '10-003', '10-004'})) == 2
         assert len(self.me._matches['10-002']) == 5
         assert len(self.me._matches['10-003']) == 5
-        assert len(self.me._matches['10-004']) == 0
 
     def test__match_on_closed(self):
         self._reset(match_on_deceased=False, match_on_closed=True,
@@ -133,7 +132,6 @@ class IntegrationTestMatchengine(TestCase):
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
         assert len(self.me._matches['10-005']) == 64
-        assert len(self.me._matches['10-006']) == 0
 
     def test_match_on_individual_protocol_no(self):
         self._reset(do_reset_trial_matches=True,
@@ -142,8 +140,7 @@ class IntegrationTestMatchengine(TestCase):
                     protocol_nos={'10-006'})
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
-        assert len(self.me._matches.keys()) == 1
-        assert len(self.me._matches['10-006']) == 0
+        assert len(self.me._matches.keys()) == 0
 
     def test_match_on_individual_sample(self):
         self._reset(
