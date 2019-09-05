@@ -159,8 +159,9 @@ def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
                 trial_match_val = str(match_document[sort_key]) if is_any is None else "ANY_VALUE"
 
                 if (trial_match_val is not None and trial_match_val in sorting_vals) or is_any is not None:
-                    if sort_dimension[sort_key][trial_match_val] < sort_index:
-                        sort_index = sort_dimension[sort_key][trial_match_val]
+                    matched_sort_int = sort_dimension[sort_key][trial_match_val]
+                    if matched_sort_int < sort_index:
+                        sort_index = matched_sort_int
 
         sort_array.append(sort_index)
     sort_array.append(int(match_document['protocol_no'].replace("-", "")))
