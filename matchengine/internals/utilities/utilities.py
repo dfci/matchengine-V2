@@ -118,3 +118,51 @@ def find_plugins(matchengine: MatchEngine):
                             MethodType(getattr(item,
                                                "query_node_container_transform"),
                                        matchengine))
+
+
+def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
+    """
+    Sort trial matches based on sorting order specified in config.json under the key 'trial_match_sorting'.
+
+    The function will iterate over the objects in the 'trial_match_sorting', and then look for that value
+    in the trial_match document, placing it in an array.
+
+    If being displayed, the matchminerAPI filters the array to output a single sort number.
+
+    The sorting is currently organized as follows:
+    1. MMR status
+    2. Tumor Mutational Burden
+    3. UVA/POLE/APOBEC/Tobacco Status
+    4. Tier 1
+    5. Tier 2
+    6. CNV
+    7. Tier 3
+    8. Tier 4
+    9. wild type
+    10. Variant Level
+    11. Gene-level
+    12. Exact cancer match
+    13. General cancer match (all solid/liquid)
+    14. DFCI Coordinating Center
+    15. All other Coordinating centers
+    16. Protocol Number
+    """
+
+    sort_array = list()
+
+    for sort_dimension in sort_map:
+        sort_index = 99
+        for sort_key in sort_dimension:
+            if sort_key in match_document:
+                sorting_vals = sort_dimension[sort_key]
+                is_any = sorting_vals.get("ANY_VALUE", None)
+                trial_match_val = str(match_document[sort_key]) if is_any is None else "ANY_VALUE"
+
+                if (trial_match_val is not None and trial_match_val in sorting_vals) or is_any is not None:
+                    if sort_dimension[sort_key][trial_match_val] < sort_index:
+                        sort_index = sort_dimension[sort_key][trial_match_val]
+
+        sort_array.append(sort_index)
+    sort_array.append(int(match_document['protocol_no'].replace("-", "")))
+
+    return sort_array

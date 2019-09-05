@@ -204,55 +204,6 @@ def format_trial_match_k_v(clinical_doc):
     return {key.lower(): val for key, val in clinical_doc.items() if key != "_id"}
 
 
-def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
-    """
-    Sort trial matches based on sorting order specified in config.json under the key 'trial_match_sorting'.
-
-    The function will iterate over the objects in the 'trial_match_sorting', and then look for that value
-    in the trial_match document, placing it in an array.
-
-    If being displayed, the matchminerAPI filters the array to output a single sort number.
-
-    The sorting is currently organized as follows:
-    1. MMR status
-    2. Tumor Mutational Burden
-    3. UVA/POLE/APOBEC/Tobacco Status
-    4. Tier 1
-    5. Tier 2
-    6. CNV
-    7. Tier 3
-    8. Tier 4
-    9. wild type
-    10. Variant Level
-    11. Gene-level
-    12. Exact cancer match
-    13. General cancer match (all solid/liquid)
-    14. DFCI Coordinating Center
-    15. All other Coordinating centers
-    16. Protocol Number
-    """
-
-    sort_array = list()
-
-    for sort_dimension in sort_map:
-        sort_index = 99
-        for sort_key in sort_dimension:
-            if sort_key in match_document:
-                sorting_vals = sort_dimension[sort_key]
-                is_any = sorting_vals.get("ANY_VALUE", None)
-                trial_match_val = str(match_document[sort_key]) if is_any is None else "ANY_VALUE"
-
-                if (
-                        trial_match_val is not None and trial_match_val in sorting_vals) or is_any is not None:
-                    if sort_dimension[sort_key][trial_match_val] < sort_index:
-                        sort_index = sort_dimension[sort_key][trial_match_val]
-
-        sort_array.append(sort_index)
-    sort_array.append(int(match_document['protocol_no'].replace("-", "")))
-
-    return sort_array
-
-
 def get_cancer_type_match(trial_match):
     """Trial curations with _SOLID_ and _LIQUID_ should report those as reasons for match. All others should report
     'specific' """
@@ -297,8 +248,6 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
             new_trial_match.update(
                 format_trial_match_k_v(get_clinical_details(clinical_doc, query)))
 
-        sort_order = get_sort_order(self.config['trial_match_sorting'], new_trial_match)
-        new_trial_match['sort_order'] = sort_order
         new_trial_match.pop("_updated", None)
         new_trial_match.pop("last_updated", None)
         return new_trial_match
