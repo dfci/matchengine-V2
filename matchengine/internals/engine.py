@@ -599,7 +599,7 @@ class MatchEngine(object):
         # ensure that we have accounted for all clinical ids
         assert clinical_ids_to_run.union(clinical_ids_to_not_run) == self.clinical_ids
 
-        return self.clinical_ids - clinical_ids_to_not_run
+        return clinical_ids_to_run
 
     def pre_process_trial_matches(self, trial_match: TrialMatch) -> Dict:
         """
