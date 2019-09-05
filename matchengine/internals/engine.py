@@ -46,9 +46,8 @@ from matchengine.internals.utilities.task_utils import (
 )
 from matchengine.internals.utilities.update_match_utils import async_update_matches_by_protocol_no
 from matchengine.internals.utilities.utilities import (
-    find_plugins
-)
-from matchengine.plugins.DFCITrialMatchDocumentCreator import get_sort_order
+    find_plugins,
+    get_sort_order)
 
 if TYPE_CHECKING:
     from typing import (
