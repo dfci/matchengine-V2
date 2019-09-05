@@ -169,7 +169,7 @@ async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id)
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new UpdateTask {task.protocol_no}")
         tasks = [
-            matchengine.async_db_rw[matchengine.trial_match_collection].bulk_write([chunked_ops],
+            matchengine.async_db_rw[matchengine.trial_match_collection].bulk_write(chunked_ops,
                                                                                    ordered=False)
             for chunked_ops
             in chunk_list(task.ops, matchengine.chunk_size)
