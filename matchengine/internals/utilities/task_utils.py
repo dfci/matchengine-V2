@@ -142,6 +142,7 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
                 match_document['sort_order'] = sort_order
                 to_hash = {key: match_document[key] for key in match_document if key not in {'hash', 'is_disabled'}}
                 match_document['hash'] = nested_object_hash(to_hash)
+                match_document['_me_id'] = matchengine.run_id.hex
 
                 matchengine.matches.setdefault(task.trial['protocol_no'],
                                                dict()).setdefault(match_document['sample_id'],
@@ -168,7 +169,7 @@ async def run_update_task(matchengine: MatchEngine, task: UpdateTask, worker_id)
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new UpdateTask {task.protocol_no}")
         tasks = [
-            matchengine.async_db_rw[matchengine.trial_match_collection].bulk_write(chunked_ops,
+            matchengine.async_db_rw[matchengine.trial_match_collection].bulk_write([chunked_ops],
                                                                                    ordered=False)
             for chunked_ops
             in chunk_list(task.ops, matchengine.chunk_size)

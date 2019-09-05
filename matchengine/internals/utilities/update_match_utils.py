@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 from typing import TYPE_CHECKING
 
@@ -22,6 +23,10 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
     the db. Delete matches by adding {is_disabled: true} and insert all new matches.
     """
     matches_by_sample_id = matchengine.matches.get(protocol_no, dict())
+    updated_time = datetime.datetime.now()
+    for _, matches in matches_by_sample_id.values():
+        for match in matches:
+            match['_updated'] = updated_time
     if protocol_no not in matchengine.matches:
         log.info(f"Trial {protocol_no} was not matched on, not updating trial matches")
         return
