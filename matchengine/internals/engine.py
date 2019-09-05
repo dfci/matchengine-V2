@@ -110,9 +110,10 @@ class MatchEngine(object):
             self._async_db_ro.__exit__(exception_type, exception_value, exception_traceback)
             self._async_db_rw.__exit__(exception_type, exception_value, exception_traceback)
             self._db_ro.__exit__(exception_type, exception_value, exception_traceback)
-        self._loop.run_until_complete(self._async_exit())
-        self._loop.stop()
-        self._loop.close()
+        if not self.loop.is_closed():
+            self._loop.run_until_complete(self._async_exit())
+            self._loop.stop()
+            self._loop.close()
 
     def __init__(
             self,
@@ -244,6 +245,8 @@ class MatchEngine(object):
         self._param_cache = dict()
 
         # instantiate a new async event loop to allow class to be used as if it is synchronous
+        if asyncio.get_event_loop().is_closed():
+            asyncio.set_event_loop(asyncio.new_event_loop())
         self._loop = asyncio.get_event_loop()
         self._loop.run_until_complete(self._async_init())
 
