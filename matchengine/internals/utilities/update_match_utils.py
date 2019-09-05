@@ -82,18 +82,16 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
 async def get_all_except(matchengine: MatchEngine,
                          protocol_no: str,
                          trial_matches_by_sample_id: dict) -> list:
-    # TODO: make sure this works when matching specific samples
     """Return all matches except ones matching current protocol_no"""
+    clinical_ids = {matchengine.sample_mapping[sample_id] for sample_id in trial_matches_by_sample_id.keys()}
+
+    if protocol_no in matchengine.clinical_run_log_entries:
+        clinical_ids = matchengine.clinical_run_log_entries[protocol_no] - clinical_ids
+
     query = {
         'protocol_no': protocol_no,
         "clinical_id": {
-            '$in': [clinical_id
-                    for clinical_id
-                    in (matchengine.clinical_run_log_entries[protocol_no]
-                        - {
-                            matchengine.sample_mapping[sample_id]
-                            for sample_id
-                            in trial_matches_by_sample_id.keys()})]
+            '$in': [clinical_id for clinical_id in clinical_ids]
         }
     }
     projection = {

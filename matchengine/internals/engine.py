@@ -554,7 +554,7 @@ class MatchEngine(object):
         # run logs since trial has been last updated
         default_datetime = 'January 01, 0001'
         fmt_string = '%B %d, %Y'
-        trial_last_update = self.trials[protocol_no].get('_updated', default_datetime)
+        trial_last_update = self.trials[protocol_no].get('_updated', datetime.datetime.strptime(default_datetime, fmt_string))
         query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
         run_log_entries = list(
             self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
