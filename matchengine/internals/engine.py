@@ -46,8 +46,7 @@ from matchengine.internals.utilities.task_utils import (
 )
 from matchengine.internals.utilities.update_match_utils import async_update_matches_by_protocol_no
 from matchengine.internals.utilities.utilities import (
-    find_plugins,
-    get_sort_order)
+    find_plugins)
 
 if TYPE_CHECKING:
     from typing import (
@@ -602,7 +601,7 @@ class MatchEngine(object):
 
         return clinical_ids_to_run
 
-    def create_trial_matches_base(self, trial_match: TrialMatch) -> Dict:
+    def pre_process_trial_matches(self, trial_match: TrialMatch) -> Dict:
         """
         Function which returns required fields for trial_match documents
         """
@@ -645,9 +644,6 @@ class MatchEngine(object):
                 'match_path': new_trial_match['match_path'],
                 'protocol_no': new_trial_match['protocol_no']
             })
-
-        sort_order = get_sort_order(self.config['trial_match_sorting'], new_trial_match)
-        new_trial_match['sort_order'] = sort_order
 
         new_trial_match['is_disabled'] = False
         new_trial_match.pop("_updated", None)
