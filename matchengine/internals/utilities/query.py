@@ -244,20 +244,18 @@ async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_gen
 
 
 def get_valid_reasons(matchengine: MatchEngine, possible_reasons, clinical_ids, genomic_ids):
-    return {
-        clinical_id: [
-            reason
-            for reason
-            in reasons
-            if ((reason.__class__ is GenomicMatchReason
-                 and (reason.query_node.exclusion
-                      or reason.genomic_id in genomic_ids))
-                or (reason.__class__ is ClinicalMatchReason
-                    and (matchengine.report_all_clinical_reasons
-                         or frozenset(reason.query_part.query.keys())
-                         in matchengine.match_criteria_transform.valid_clinical_reasons)))
-        ]
-        for clinical_id, reasons
-        in possible_reasons.items()
-        if clinical_id in clinical_ids
-    }
+    valid_reasons = {}
+    for clinical_id, reasons in possible_reasons.items():
+        if clinical_id in clinical_ids:
+            list_o_reasons = list()
+            for reason in reasons:
+                if ((reason.__class__ is GenomicMatchReason
+                    and (reason.query_node.exclusion or reason.genomic_id in genomic_ids))
+                    or (reason.__class__ is ClinicalMatchReason
+                        and (matchengine.report_all_clinical_reasons
+                        or frozenset(reason.query_part.query.keys())
+                        in matchengine.match_criteria_transform.valid_clinical_reasons))):
+                    list_o_reasons.append(reason)
+                valid_reasons[clinical_id] = list_o_reasons
+
+    return valid_reasons
