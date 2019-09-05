@@ -264,7 +264,9 @@
       "mrn",
       "sample_id",
       "clinical_id",
-      "protocol_no"
+      "protocol_no",
+      "is_disabled",
+      "show_in_ui"
     ]
   },
   "valid_clinical_reasons": [
