@@ -24,7 +24,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
     """
     matches_by_sample_id = matchengine.matches.get(protocol_no, dict())
     updated_time = datetime.datetime.now()
-    for _, matches in matches_by_sample_id.values():
+    for matches in matches_by_sample_id.values():
         for match in matches:
             match['_updated'] = updated_time
     if protocol_no not in matchengine.matches:
