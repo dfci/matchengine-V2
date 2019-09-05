@@ -580,6 +580,8 @@ class MatchEngine(object):
             # Check if clinical_id has been updated since last run with current protocol.
             # If it has been updated, run.
             for clinical_id, updated_at in self.clinical_update_mapping.items():
+                if clinical_id not in self.clinical_ids:
+                    continue
                 if updated_at is None:
                     clinical_ids_to_run.add(clinical_id)
                 elif updated_at > run_log_created_at and clinical_id not in clinical_ids_to_not_run:
