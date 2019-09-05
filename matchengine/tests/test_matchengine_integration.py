@@ -308,7 +308,9 @@ class IntegrationTestMatchengine(TestCase):
         assert len(list(self.me.db_ro.run_log_trial_match.find())) == 4
 
         # now the chose should have 3, and the others should also have 3
-        the_chosen_ids = list(self.me.db_ro.clinical.find({"SAMPLE_ID": {'$in': sample_ids}}, {"_id": 1}))
+        the_chosen_ids = list(self.me.db_ro.clinical.find(
+            {"SAMPLE_ID": {'$in': sample_ids}}, {"_id": 1})
+        )
         the_chosen = list(self.me.db_ro.clinical_run_history_trial_match.find(
             {
                 'clinical_id': {
@@ -320,8 +322,8 @@ class IntegrationTestMatchengine(TestCase):
                 }
             }
         ))
-        assert len(the_chosen[0]['run_history']) == 3
-        assert len(the_chosen[1]['run_history']) == 3
+        assert len(the_chosen[0]['run_history']) == 4
+        assert len(the_chosen[1]['run_history']) == 4
 
         the_others_ids = list(
             self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids},
@@ -337,8 +339,9 @@ class IntegrationTestMatchengine(TestCase):
                 }
             }
         ))
-        assert len(the_others[0]['run_history']) == 2
-        assert len(the_others[1]['run_history']) == 2
+        assert len(the_others[0]['run_history']) == 3
+        assert len(the_others[1]['run_history']) == 3
+        assert len(the_others[2]['run_history']) == 3
 
     def test_visualize_match_paths(self):
         # pygraphviz doesn't install easily on macOS so skip in that case.
@@ -355,7 +358,6 @@ class IntegrationTestMatchengine(TestCase):
         if not which('dot'):
             print('WARNING: executable "dot" not found, skipping this test')
             return
-
 
         fig_dir = f"/tmp/{os.urandom(10).hex()}"
         os.makedirs(fig_dir, exist_ok=True)
