@@ -121,6 +121,8 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
     try:
         by_sample_id = defaultdict(list)
         matchengine.results_transformer(results)
+        if not results:
+            matchengine.matches.setdefault(task.match_clause_data.protocol_no, dict())
         for _, sample_results in results.items():
             for result in sample_results:
                 matchengine.queue_task_count += 1
