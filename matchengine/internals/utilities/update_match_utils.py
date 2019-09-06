@@ -36,7 +36,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
             matchengine.task_q.put_nowait(
                 UpdateTask(
                     [UpdateMany(filter={'protocol_no': protocol_no,
-                                        '_id': {'$in': list(matchengine.clinical_ids)}},
+                                        'clinical_id': {'$in': list(matchengine.clinical_ids)}},
                                 update={'$set': {"is_disabled": True,
                                                  '_updated': updated_time}})],
                     protocol_no
