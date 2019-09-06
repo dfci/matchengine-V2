@@ -81,8 +81,8 @@ if __name__ == "__main__":
                         default=os.path.join(base_dir, "plugins"), help="Location of plugin directory")
     subp_p.set_defaults(func=load)
     subp_p = subp.add_parser('match', help='Match patients to trials.')
-    subp_p.add_argument("-trials", nargs="*", type=str, default=None)
-    subp_p.add_argument("-samples", nargs="*", type=str, default=None)
+    subp_p.add_argument("--trials", nargs="*", type=str, default=None)
+    subp_p.add_argument("--samples", nargs="*", type=str, default=None)
     subp_p.add_argument("--match-on-closed", dest="match_on_closed", action="store_true", default=False,
                         help=closed_help)
     subp_p.add_argument("--force", dest="ignore_run_log", action="store_true", default=False, help=run_log_help)
@@ -93,7 +93,7 @@ if __name__ == "__main__":
                         help="Skip creating any run log entries for this run.")
     subp_p.add_argument("--visualize-match-paths", dest="visualize_match_paths", action="store_true", default=False,
                         help="Enable to render images of all match paths")
-    subp_p.add_argument("--extra_resource_dirs", nargs="*", type=str, default=None)
+    subp_p.add_argument("--extra-resource-dirs", nargs="*", type=str, default=None)
     subp_p.add_argument("--fig-dir", dest="fig_dir", default='img', help="Directory to store match path images")
     subp_p.add_argument("--dry-run", dest="dry", action="store_true", default=False, help=dry_help)
     subp_p.add_argument("--debug", dest="debug", action="store_true", default=False, help=debug_help)
@@ -121,7 +121,7 @@ if __name__ == "__main__":
                         help="Confirm you wish --drop; skips confirmation prompt")
     subp_p.add_argument("--workers", nargs=1, type=int, default=[cpu_count() * 5])
     subp_p.add_argument('--db', dest='db_name', default=None, required=False, help=db_name_help)
-    subp_p.add_argument('-o', dest="csv_output", action="store_true", default=False, required=False,
+    subp_p.add_argument('--o', dest="csv_output", action="store_true", default=False, required=False,
                         help=csv_output_help)
     subp_p.set_defaults(func=main)
     args = parser.parse_args()
