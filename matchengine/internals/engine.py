@@ -379,10 +379,13 @@ class MatchEngine(object):
         """
         Synchronously iterates over each protocol number, updating the matches in the database for each
         """
+        updated_time = datetime.datetime.now()
         for protocol_number in self.protocol_nos:
             if not self.match_on_deceased:
-                self.task_q.put_nowait(UpdateTask([UpdateMany({'clinical_id':{'$in': list(self.clinical_deceased)}},
-                                                              {'$set': {'is_disabled': True}})], protocol_number))
+                self.task_q.put_nowait(UpdateTask([UpdateMany({'clinical_id': {'$in': list(self.clinical_deceased)}},
+                                                              {'$set': {'is_disabled': True,
+                                                                        '_updated': updated_time}})],
+                                                  protocol_number))
             self.update_matches_for_protocol_number(protocol_number)
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
@@ -486,6 +489,7 @@ class MatchEngine(object):
                 for clinical_id, clinical_data
                 in self._clinical_data.items()
                 if clinical_data['VITAL_STATUS'] == 'deceased'}
+
     def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
         """
         Clinical ids are unique to sample_ids
@@ -570,7 +574,8 @@ class MatchEngine(object):
         # run logs since trial has been last updated
         default_datetime = 'January 01, 0001'
         fmt_string = '%B %d, %Y'
-        trial_last_update = self.trials[protocol_no].get('_updated', datetime.datetime.strptime(default_datetime, fmt_string))
+        trial_last_update = self.trials[protocol_no].get('_updated',
+                                                         datetime.datetime.strptime(default_datetime, fmt_string))
         query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
         run_log_entries = list(
             self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
