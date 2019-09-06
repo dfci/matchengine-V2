@@ -249,17 +249,17 @@ class MatchEngine(object):
         if asyncio.get_event_loop().is_closed():
             asyncio.set_event_loop(asyncio.new_event_loop())
         self._loop = asyncio.get_event_loop()
-        self._loop.run_until_complete(self._async_init())
+        self._loop.run_until_complete(self._async_init(db_name))
 
-    async def _async_init(self):
+    async def _async_init(self, db_name: str):
         """
         Instantiate asynchronous db connections and workers.
         Create a task que which holds all matching and update tasks for processing via workers.
         """
         self._task_q = asyncio.queues.Queue()
-        self._async_db_ro = MongoDBConnection(read_only=True)
+        self._async_db_ro = MongoDBConnection(read_only=True, db=db_name)
         self.async_db_ro = self._async_db_ro.__enter__()
-        self._async_db_rw = MongoDBConnection(read_only=False)
+        self._async_db_rw = MongoDBConnection(read_only=False, db=db_name)
         self.async_db_rw = self._async_db_rw.__enter__()
         self._workers = {
             worker_id: self._loop.create_task(self._queue_worker(worker_id))
