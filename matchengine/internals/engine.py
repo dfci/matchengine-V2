@@ -439,6 +439,8 @@ class MatchEngine(object):
                                                   query,
                                                   clinical_ids_to_run))
         log.info(f"Submitted {self._task_q.qsize()} QueryTasks to queue")
+        if not self._task_q.qsize():
+            self._matches[protocol_no] = dict()
         await self._task_q.join()
         logging.info(f"Total results: {len(self._matches.get(protocol_no, dict()))}")
         return self._matches.get(protocol_no, dict())
