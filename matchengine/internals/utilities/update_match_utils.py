@@ -35,7 +35,10 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
         if not matchengine.matches[protocol_no]:
             matchengine.task_q.put_nowait(
                 UpdateTask(
-                    [UpdateMany(filter={'protocol_no': protocol_no}, update={'$set': {"is_disabled": True}})],
+                    [UpdateMany(filter={'protocol_no': protocol_no,
+                                        '_id': {'$in': list(matchengine.clinical_ids)}},
+                                update={'$set': {"is_disabled": True,
+                                                 '_updated': updated_time}})],
                     protocol_no
                 )
             )
@@ -109,8 +112,10 @@ async def get_all_except(matchengine: MatchEngine,
 
 
 async def get_delete_ops(matches_to_disable: list) -> list:
+    updated_time = datetime.datetime.now()
     hashes = [result['hash'] for result in matches_to_disable]
-    return [UpdateMany(filter={'hash': {'$in': hashes}}, update={'$set': {"is_disabled": True}})]
+    return [UpdateMany(filter={'hash': {'$in': hashes}},
+                       update={'$set': {"is_disabled": True, '_updated': updated_time}})]
 
 
 async def get_existing_matches(matchengine: MatchEngine, new_matches_hashes: list) -> list:
@@ -147,15 +152,18 @@ def get_update_operations(matches_to_disable: list,
                           matches_to_insert: list,
                           matches_to_mark_available: list) -> list:
     ops = list()
+    updated_time = datetime.datetime.now()
     disable_hashes = [trial_match['hash'] for trial_match in matches_to_disable]
     ops.append(UpdateMany(filter={'hash': {'$in': disable_hashes}},
-                          update={'$set': {'is_disabled': True}}))
+                          update={'$set': {'is_disabled': True,
+                                           '_updated': updated_time}}))
     for to_insert in matches_to_insert:
         ops.append(InsertOne(document=to_insert))
 
     available_hashes = [trial_match['hash'] for trial_match in matches_to_mark_available]
     ops.append(UpdateMany(filter={'hash': {'$in': available_hashes}},
-                          update={'$set': {'is_disabled': False}}))
+                          update={'$set': {'is_disabled': False,
+                                           '_updated': updated_time}}))
     return ops
 
 
