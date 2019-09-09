@@ -382,7 +382,8 @@ class MatchEngine(object):
         updated_time = datetime.datetime.now()
         for protocol_number in self.protocol_nos:
             if not self.match_on_deceased:
-                self.task_q.put_nowait(UpdateTask([UpdateMany({'clinical_id': {'$in': list(self.clinical_deceased)}},
+                self.task_q.put_nowait(UpdateTask([UpdateMany({'clinical_id': {'$in': list(self.clinical_deceased)},
+                                                               'protocol_no': protocol_number},
                                                               {'$set': {'is_disabled': True,
                                                                         '_updated': updated_time}})],
                                                   protocol_number))
@@ -397,6 +398,7 @@ class MatchEngine(object):
                 logging.info((f'Trial {protocol_no} '
                               f'has status {self.trials[protocol_no]["status"]}, skipping'))
                 self._matches[protocol_no] = dict()
+                self._clinical_ids_for_protocol_cache[protocol_no] = self.clinical_ids
                 continue
             self.get_matches_for_trial(protocol_no)
         return self._matches
