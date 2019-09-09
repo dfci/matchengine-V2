@@ -193,7 +193,7 @@ class IntegrationTestMatchengine(TestCase):
                 os.unlink(filename)
             raise e
 
-    def test_run_log_updated_sample_leads_to_new_trial_match_and_existing_sample_not_updated_does_not_cause_new_trial_matches(self):
+    def test_run_log_updated_sample_leads_to_new_trial_match_and_existing_sample_not_updated_does_not_cause_new_trial_matches_and_sample_that_doesnt_match_never_matches(self):
 
         # run 1 - create matches and run log row
         self._reset(
@@ -215,6 +215,7 @@ class IntegrationTestMatchengine(TestCase):
         trial_matches = list(self.me.db_ro.trial_match.find())
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find())
         clinical_run_history_trial_match = list(self.me.db_ro.clinical_run_history_trial_match.find())
+        assert len(self.me.db_ro.find({"_id": ObjectId("5d3778bf4fbf195d68cdf4d5")})) == 0
         assert len(trial_matches) == 2
         assert len(run_log_trial_match) == 1
         assert len(clinical_run_history_trial_match) == 1392
@@ -242,6 +243,7 @@ class IntegrationTestMatchengine(TestCase):
         assert len(trial_matches) == 3
         assert len(run_log_trial_match) == 2
         assert len(clinical_run_history_trial_match['run_history']) == 2
+        assert len(self.me.db_ro.find({"_id": ObjectId("5d3778bf4fbf195d68cdf4d5")})) == 0
 
         self._reset(
             do_reset_trial_matches=False,
@@ -265,6 +267,7 @@ class IntegrationTestMatchengine(TestCase):
         )[0]
         assert len(trial_matches) == 3
         assert len(run_log_trial_match) == 3
+        assert len(self.me.db_ro.find({"_id": ObjectId("5d3778bf4fbf195d68cdf4d5")})) == 0
         assert len(clinical_run_history_trial_match['run_history']) == 3
 
 
