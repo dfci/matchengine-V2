@@ -193,7 +193,8 @@ class IntegrationTestMatchengine(TestCase):
                 os.unlink(filename)
             raise e
 
-    def test_run_log_updated_sample_leads_to_new_trial_match_and_existing_sample_not_updated_does_not_cause_new_trial_matches_and_sample_that_doesnt_match_never_matches(self):
+    def test_run_log_updated_sample_leads_to_new_trial_match_and_existing_sample_not_updated_does_not_cause_new_trial_matches_and_sample_that_doesnt_match_never_matches(
+            self):
 
         # run 1 - create matches and run log row
         self._reset(
@@ -215,7 +216,7 @@ class IntegrationTestMatchengine(TestCase):
         trial_matches = list(self.me.db_ro.trial_match.find())
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find())
         clinical_run_history_trial_match = list(self.me.db_ro.clinical_run_history_trial_match.find())
-        assert len(self.me.db_ro.find({"_id": ObjectId("5d3778bf4fbf195d68cdf4d5")})) == 0
+        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
         assert len(trial_matches) == 2
         assert len(run_log_trial_match) == 1
         assert len(clinical_run_history_trial_match) == 1392
@@ -243,7 +244,7 @@ class IntegrationTestMatchengine(TestCase):
         assert len(trial_matches) == 3
         assert len(run_log_trial_match) == 2
         assert len(clinical_run_history_trial_match['run_history']) == 2
-        assert len(self.me.db_ro.find({"_id": ObjectId("5d3778bf4fbf195d68cdf4d5")})) == 0
+        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
 
         self._reset(
             do_reset_trial_matches=False,
@@ -256,20 +257,24 @@ class IntegrationTestMatchengine(TestCase):
             report_all_clinical=False,
             skip_sample_id_reset=False
         )
+        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
+                                      {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
+                                                "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)}})
 
         # check that run log has 2 rows, and number of trial matches has not changed
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
         trial_matches = list(self.me.db_ro.trial_match.find())
+        disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
         clinical_run_history_trial_match = list(
             self.me.db_ro.clinical_run_history_trial_match.find({'clinical_id': ObjectId("5d2799d86756630d8dd065b8")})
         )[0]
         assert len(trial_matches) == 3
+        assert len(disabled_trial_matches) == 1
         assert len(run_log_trial_match) == 3
-        assert len(self.me.db_ro.find({"_id": ObjectId("5d3778bf4fbf195d68cdf4d5")})) == 0
+        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
         assert len(clinical_run_history_trial_match['run_history']) == 3
-
 
     def test_visualize_match_paths(self):
         # pygraphviz doesn't install easily on macOS so skip in that case.
