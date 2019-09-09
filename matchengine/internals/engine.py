@@ -571,7 +571,7 @@ class MatchEngine(object):
 
         if self.ignore_run_log:
             self._clinical_ids_for_protocol_cache[protocol_no] = self.clinical_ids
-        elif protocol_no in self._clinical_ids_for_protocol_cache:
+        if protocol_no in self._clinical_ids_for_protocol_cache:
             return self._clinical_ids_for_protocol_cache[protocol_no]
         # run logs since trial has been last updated
         default_datetime = 'January 01, 0001'
@@ -585,7 +585,8 @@ class MatchEngine(object):
         )
 
         if not run_log_entries:
-            return self.clinical_ids
+            self._clinical_ids_for_protocol_cache[protocol_no] = self.clinical_ids
+            return self._clinical_ids_for_protocol_cache[protocol_no]
 
         clinical_ids_to_not_run = set()
         clinical_ids_to_run = set()
