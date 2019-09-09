@@ -398,7 +398,7 @@ class MatchEngine(object):
                 logging.info((f'Trial {protocol_no} '
                               f'has status {self.trials[protocol_no]["status"]}, skipping'))
                 self._matches[protocol_no] = dict()
-                self._clinical_ids_for_protocol_cache[protocol_no] = self.clinical_ids
+                self._clinical_ids_for_protocol_cache[protocol_no] = self.get_clinical_ids_for_protocol(protocol_no)
                 continue
             self.get_matches_for_trial(protocol_no)
         return self._matches
