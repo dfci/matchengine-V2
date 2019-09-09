@@ -7,7 +7,6 @@ import logging
 import os
 import uuid
 from collections import defaultdict
-from itertools import chain
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Iterable, Tuple
 
@@ -238,6 +237,7 @@ class MatchEngine(object):
                                                                          "clinical")
         self.clinical_extra_field_lookup = self.get_extra_field_lookup(self._clinical_data,
                                                                        "clinical")
+        self._clinical_ids_for_protocol_cache = dict()
         self.sample_mapping = {sample_id: clinical_id for clinical_id, sample_id in
                                self.clinical_mapping.items()}
         self.clinical_ids = set(self.clinical_mapping.keys())
@@ -570,7 +570,9 @@ class MatchEngine(object):
         """
 
         if self.ignore_run_log:
-            return self.clinical_ids
+            self._clinical_ids_for_protocol_cache[protocol_no] = self.clinical_ids
+        elif protocol_no in self._clinical_ids_for_protocol_cache:
+            return self._clinical_ids_for_protocol_cache[protocol_no]
         # run logs since trial has been last updated
         default_datetime = 'January 01, 0001'
         fmt_string = '%B %d, %Y'
@@ -622,7 +624,8 @@ class MatchEngine(object):
         # ensure that we have accounted for all clinical ids
         assert clinical_ids_to_run.union(clinical_ids_to_not_run) == self.clinical_ids
 
-        return clinical_ids_to_run
+        self._clinical_ids_for_protocol_cache[protocol_no] = clinical_ids_to_run
+        return self._clinical_ids_for_protocol_cache[protocol_no]
 
     def pre_process_trial_matches(self, trial_match: TrialMatch) -> Dict:
         """
@@ -756,3 +759,7 @@ class MatchEngine(object):
     @property
     def drop(self):
         return self._drop
+
+    @property
+    def clinical_ids_for_protocol_cache(self):
+        return self._clinical_ids_for_protocol_cache
