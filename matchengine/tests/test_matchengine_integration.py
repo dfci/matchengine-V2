@@ -7,6 +7,8 @@ from collections import defaultdict
 from contextlib import redirect_stderr
 from unittest import TestCase
 
+from bson import ObjectId
+
 from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
 from matchengine.internals.engine import MatchEngine
 from matchengine.tests.timetravel_and_override import set_static_date_time, perform_override, unoverride_datetime
@@ -26,10 +28,9 @@ class IntegrationTestMatchengine(TestCase):
             assert setup_db.name == 'integration'
 
             if not kwargs.get("skip_sample_id_reset", False):
-                setup_db.clinical.update({"SAMPLE_ID": "5d2799df6756630d8dd068c9"},
-                                         {"$set": {"_updated": datetime.datetime(2001, 10, 10, 10, 0, 0, 0, None)}})
-                setup_db.clinical.update({"SAMPLE_ID": "5d2799df6756630d8dd068ca"},
-                                         {"$set": {"_updated": datetime.datetime(2001, 10, 10, 10, 0, 0, 0, None)}})
+                setup_db.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
+                                         {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Non-Small Cell Lung Cancer",
+                                                   "_updated": datetime.datetime(2001, 1, 1, 1, 1, 1, 1)}})
 
             if kwargs.get('do_reset_trial_matches', False):
                 setup_db.trial_match.drop()
@@ -192,9 +193,7 @@ class IntegrationTestMatchengine(TestCase):
                 os.unlink(filename)
             raise e
 
-    def test_run_log(self):
-        # TODO: rewrite test, test is invalid
-        return
+    def test_run_log_updated_sample_leads_to_new_trial_match_and_existing_sample_not_updated_does_not_cause_new_trial_matches(self):
 
         # run 1 - create matches and run log row
         self._reset(
@@ -208,25 +207,20 @@ class IntegrationTestMatchengine(TestCase):
             report_all_clinical=False
         )
         assert self.me.db_rw.name == 'integration'
+        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
+                                      {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
+                                                "_updated": datetime.datetime.now()}})
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
         trial_matches = list(self.me.db_ro.trial_match.find())
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find())
-        assert len(trial_matches) == 3
+        clinical_run_history_trial_match = list(self.me.db_ro.clinical_run_history_trial_match.find())
+        assert len(trial_matches) == 2
         assert len(run_log_trial_match) == 1
+        assert len(clinical_run_history_trial_match) == 1392
 
-        # time travel to the future, of the current past. to the delorean we go...
-        set_static_date_time(2001, 12, 9, 21)
-
-        # simulate patients being updated
-        sample_ids = ["5d2799df6756630d8dd068c9", "5d2799df6756630d8dd068ca"]
-        self.me.db_rw.clinical.update({"SAMPLE_ID": {"$in": sample_ids}},
-                                      {'$set': {"_updated": datetime.datetime(2001, 11, 11, 11)}}, multi=True)
-
-        # run 2
         self._reset(
             do_reset_trial_matches=False,
-            sample_ids=sample_ids,
             do_reset_trials=False,
             reset_run_log=False,
             match_on_closed=True,
@@ -234,78 +228,21 @@ class IntegrationTestMatchengine(TestCase):
             do_rm_clinical_run_history=False,
             do_reset_time=False,
             report_all_clinical=False,
-            skip_sample_id_reset=True
+            skip_sample_id_reset=False
         )
 
         # check that run log has 2 rows, and number of trial matches has not changed
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
         trial_matches = list(self.me.db_ro.trial_match.find())
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find())
-        assert len(trial_matches) == 3
-        assert len(run_log_trial_match) == 1
-
-        # simulate a trial update
-        self.me.db_rw.trial.update({"protocol_no": "10-002"}, {'$set': {"last_updated": "December 20, 2001"}})
-
-        # move time forward a little
-        set_static_date_time(2001, 12, 21, 21)
-
-        # run 3
-        self._reset(
-            do_reset_trial_matches=False,
-            do_reset_trials=False,
-            reset_run_log=False,
-            match_on_closed=True,
-            match_on_deceased=False,
-            do_rm_clinical_run_history=False,
-            do_reset_time=False,
-            report_all_clinical=False,
-            skip_sample_id_reset=True
-        )
-
-        self.me.get_matches_for_all_trials()
-        self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find())
+        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        clinical_run_history_trial_match = list(
+            self.me.db_ro.clinical_run_history_trial_match.find({'clinical_id': ObjectId("5d2799d86756630d8dd065b8")})
+        )[0]
         assert len(trial_matches) == 3
         assert len(run_log_trial_match) == 2
-        the_chosen_ids = list(self.me.db_ro.clinical.find({"SAMPLE_ID": {'$in': sample_ids}}, {"_id": 1}))
-        the_chosen = list(self.me.db_ro.clinical_run_history_trial_match.find(
-            {
-                'clinical_id': {
-                    '$in': [
-                        result['_id']
-                        for result
-                        in the_chosen_ids
-                    ]
-                }
-            }
-        ))
+        assert len(clinical_run_history_trial_match['run_history']) == 2
 
-        # these two sample ids should have 3 runs and most everyone else should have 2
-        assert len(the_chosen) == 2
-        assert len(the_chosen[0]['run_history']) == 2
-        assert len(the_chosen[1]['run_history']) == 2
-
-        the_others_ids = list(
-            self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids}, 'VITAL_STATUS': 'alive'}, {"_id": 1}))
-        the_others = list(self.me.db_ro.clinical_run_history_trial_match.find(
-            {
-                'clinical_id': {
-                    '$in': [
-                        result['_id']
-                        for result
-                        in the_others_ids
-                    ]
-                }
-            }
-        ))
-        assert len(the_others[0]['run_history']) == 2
-        assert len(the_others[1]['run_history']) == 2
-        assert len(the_others[2]['run_history']) == 2
-
-        # run 4
         self._reset(
             do_reset_trial_matches=False,
             do_reset_trials=False,
@@ -315,51 +252,21 @@ class IntegrationTestMatchengine(TestCase):
             do_rm_clinical_run_history=False,
             do_reset_time=False,
             report_all_clinical=False,
-            skip_sample_id_reset=True
+            skip_sample_id_reset=False
         )
 
+        # check that run log has 2 rows, and number of trial matches has not changed
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
         trial_matches = list(self.me.db_ro.trial_match.find())
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find())
+        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        clinical_run_history_trial_match = list(
+            self.me.db_ro.clinical_run_history_trial_match.find({'clinical_id': ObjectId("5d2799d86756630d8dd065b8")})
+        )[0]
         assert len(trial_matches) == 3
         assert len(run_log_trial_match) == 3
+        assert len(clinical_run_history_trial_match['run_history']) == 3
 
-        # now the chose should have 3, and the others should also have 3
-        the_chosen_ids = list(self.me.db_ro.clinical.find(
-            {"SAMPLE_ID": {'$in': sample_ids}}, {"_id": 1})
-        )
-        the_chosen = list(self.me.db_ro.clinical_run_history_trial_match.find(
-            {
-                'clinical_id': {
-                    '$in': [
-                        result['_id']
-                        for result
-                        in the_chosen_ids
-                    ]
-                }
-            }
-        ))
-        assert len(the_chosen[0]['run_history']) == 2
-        assert len(the_chosen[1]['run_history']) == 2
-
-        the_others_ids = list(
-            self.me.db_rw.clinical.find({"SAMPLE_ID": {'$nin': sample_ids},
-                                         'VITAL_STATUS': 'alive'}, {"_id: 1"}).limit(3))
-        the_others = list(self.me.db_ro.clinical_run_history_trial_match.find(
-            {
-                'clinical_id': {
-                    '$in': [
-                        result['_id']
-                        for result
-                        in the_others_ids
-                    ]
-                }
-            }
-        ))
-        assert len(the_others[0]['run_history']) == 2
-        assert len(the_others[1]['run_history']) == 2
-        assert len(the_others[2]['run_history']) == 2
 
     def test_visualize_match_paths(self):
         # pygraphviz doesn't install easily on macOS so skip in that case.
