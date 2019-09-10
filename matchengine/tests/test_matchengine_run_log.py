@@ -705,3 +705,7 @@ class RunLogTest(TestCase):
         self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
                                       {"$set": {"VITAL_STATUS": "alive",
                                                 "_updated": datetime.datetime(2002, 2, 1, 1, 1, 1, 1)}})
+
+    def test_run_log_9(self):
+        pass
+
