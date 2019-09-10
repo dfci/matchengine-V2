@@ -380,9 +380,11 @@ class RunLogTest(TestCase):
         trial_matches = list(self.me.db_ro.trial_match.find())
         disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        non_match = list(self.me.db_rw.trial_match.find({"clinical_id": ObjectId("5d2799df6756630d8dd068bc")}))
         assert len(trial_matches) == 3
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 1
+        assert len(non_match) == 0
 
         self._reset(
             do_reset_trial_matches=False,
@@ -405,3 +407,4 @@ class RunLogTest(TestCase):
         assert len(trial_matches) == 3
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 2
+        assert len(non_match) == 0
