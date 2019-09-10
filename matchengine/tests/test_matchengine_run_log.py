@@ -274,8 +274,9 @@ class RunLogTest(TestCase):
 
     def test_run_log_3(self):
         """
-        1. Updated sample leads to new trial match and existing sample not updated does not cause new trial matches
-        2. Sample that doesn't match never matches
+        Updated sample leads to new trial match
+        Existing sample not updated does not cause new trial matches
+        Sample that doesn't match never matches
         :return:
         """
 
@@ -380,7 +381,7 @@ class RunLogTest(TestCase):
         trial_matches = list(self.me.db_ro.trial_match.find())
         disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
-        non_match = list(self.me.db_rw.trial_match.find({"clinical_id": ObjectId("5d2799df6756630d8dd068bc")}))
+        non_match = list(self.me.db_rw.trial_match.find({"sample_id": ObjectId("5d2799df6756630d8dd068bc")}))
         assert len(trial_matches) == 3
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 1
@@ -398,13 +399,82 @@ class RunLogTest(TestCase):
             skip_sample_id_reset=False
         )
 
-        self.me.db_rw.trial.update({"protocol_no": "10-002"}, {"$set": {"unused_field": "ricky_bobby"}})
+        self.me.db_rw.trial.update({"protocol_no": "10-007"},
+                                   {"$set": {"unused_field": "ricky_bobby",
+                                             "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
+                                             }})
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
         trial_matches = list(self.me.db_ro.trial_match.find())
         disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
         assert len(trial_matches) == 3
+        assert len(disabled_trial_matches) == 0
+        assert len(run_log_trial_match) == 2
+        assert len(non_match) == 0
+
+    def test_run_log_5(self):
+        """
+        Update a trial arm status field.
+        Samples who have matches should continue to have matches.
+        Samples without matches should still not have matches.
+        :return:
+        """
+        self._reset(
+            do_reset_trial_matches=True,
+            do_reset_trials=True,
+            trials_to_load=['run_log_two_arms'],
+            reset_run_log=True,
+            match_on_closed=False,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=True,
+            report_all_clinical=False
+        )
+        assert self.me.db_rw.name == 'integration'
+
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        trial_matches = list(self.me.db_ro.trial_match.find())
+        disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
+        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        non_match = list(self.me.db_rw.trial_match.find({"sample_id": ObjectId("5d2799df6756630d8dd068bc")}))
+        assert len(trial_matches) == 3
+        for match in trial_matches:
+            assert match['internal_id'] == 101
+        assert len(disabled_trial_matches) == 0
+        assert len(run_log_trial_match) == 1
+        assert len(non_match) == 0
+
+        self._reset(
+            do_reset_trial_matches=False,
+            do_reset_trials=False,
+            reset_run_log=False,
+            match_on_closed=False,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=False,
+            do_reset_time=False,
+            report_all_clinical=False,
+            skip_sample_id_reset=False
+        )
+
+        self.me.db_rw.trial.update({"protocol_no": "10-007"},
+                                   {"$set": {"treatment_list.step.0.arm.1.arm_suspended": "N",
+                                             "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
+                                             }})
+        self.me.db_rw.trial.update({"protocol_no": "10-007"},
+                                   {"$set": {"unused_field": "ricky_bobby",
+                                             "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
+                                             }})
+
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        trial_matches = list(self.me.db_ro.trial_match.find())
+        disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
+        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        non_match = list(self.me.db_rw.trial_match.find({"sample_id": ObjectId("5d2799df6756630d8dd068bc")}))
+        assert len(trial_matches) == 3
+        for match in trial_matches:
+            assert match['internal_id'] == 101
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 2
         assert len(non_match) == 0

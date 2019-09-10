@@ -1,0 +1,73 @@
+{
+  "protocol_no": "10-007",
+  "last_updated": "June 17, 1999",
+  "status": "open to accrual",
+  "treatment_list": {
+    "step": [
+      {
+        "step_internal_id": 111,
+        "step_code": "1",
+        "step_type": "Registration",
+        "arm": [
+          {
+            "arm_code": "ARM 1",
+            "arm_description": "ARM DESCRIPTION",
+            "arm_suspended": "N",
+            "arm_internal_id": 101,
+            "match": [
+              {
+                "and": [
+                  {
+                    "genomic": {
+                      "variant_classification": "In_Frame_Del",
+                      "hugo_symbol": "EGFR",
+                      "variant_category": "Mutation"
+                    }
+                  },
+                  {
+                    "clinical": {
+                      "age_numerical": ">=18",
+                      "oncotree_primary_diagnosis": "Non-Small Cell Lung Cancer"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "arm_code": "ARM 2",
+            "arm_description": "ARM DESCRIPTION",
+            "arm_suspended": "Y",
+            "arm_internal_id": 202,
+            "match": [
+              {
+                "and": [
+                  {
+                    "genomic": {
+                      "variant_classification": "In_Frame_Del",
+                      "hugo_symbol": "EGFR",
+                      "variant_category": "Mutation"
+                    }
+                  },
+                  {
+                    "clinical": {
+                      "age_numerical": ">=18",
+                      "oncotree_primary_diagnosis": "Pleuropulmonary Blastoma"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "_summary": {
+    "status": [
+      {
+        "value": "open to accrual"
+      }
+    ]
+  }
+}
