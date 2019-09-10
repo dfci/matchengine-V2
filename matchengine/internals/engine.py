@@ -618,7 +618,10 @@ class MatchEngine(object):
                         clinical_ids_to_run.add(clinical_id)
 
             if is_all:
-                clinical_ids_to_not_run.update(self.clinical_ids - self.clinical_deceased - clinical_ids_to_run)
+                if self.match_on_deceased and not prev_run_matched_on_deceased:
+                    clinical_ids_to_not_run.update(self.clinical_ids - self.clinical_deceased - clinical_ids_to_run)
+                else:
+                    clinical_ids_to_not_run.update(self.clinical_ids - clinical_ids_to_run)
                 continue
 
             elif 'list' in run_log_clinical_ids:
