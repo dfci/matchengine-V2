@@ -602,10 +602,13 @@ class MatchEngine(object):
             run_log_clinical_ids = run_log['clinical_ids']
             is_all = 'all' in run_log_clinical_ids
             run_log_created_at = run_log['_created']
+            prev_run_matched_on_deceased = run_log['run_params']['match_on_deceased']
 
             # Check if clinical_id has been updated since last run with current protocol.
             # If it has been updated, run.
             for clinical_id, updated_at in self.clinical_update_mapping.items():
+                if self.match_on_deceased and clinical_id in self.clinical_deceased and not prev_run_matched_on_deceased:
+                    continue
                 if clinical_id not in self.clinical_ids:
                     continue
                 if updated_at is None:
@@ -615,15 +618,23 @@ class MatchEngine(object):
                         clinical_ids_to_run.add(clinical_id)
 
             if is_all:
-                clinical_ids_to_not_run.update(self.clinical_ids - clinical_ids_to_run)
+                clinical_ids_to_not_run.update(self.clinical_ids - self.clinical_deceased - clinical_ids_to_run)
                 continue
 
             elif 'list' in run_log_clinical_ids:
-                run_prev = set(run_log_clinical_ids['list']).intersection(self.clinical_ids)
-                run_now_not_run_prev = self.clinical_ids - run_prev
-                clinical_ids_to_run.update(run_now_not_run_prev - clinical_ids_to_not_run)
-                clinical_ids_to_not_run.update(run_prev - clinical_ids_to_run)
+                if self.match_on_deceased and not prev_run_matched_on_deceased:
+                    run_prev = set(run_log_clinical_ids['list']).intersection(self.clinical_ids - self.clinical_deceased)
+                    run_now_not_run_prev = self.clinical_ids - run_prev
+                    clinical_ids_to_run.update(run_now_not_run_prev - clinical_ids_to_not_run)
+                    clinical_ids_to_not_run.update(run_prev - clinical_ids_to_run)
+                else:
+                    run_prev = set(run_log_clinical_ids['list']).intersection(self.clinical_ids)
+                    run_now_not_run_prev = self.clinical_ids - run_prev
+                    clinical_ids_to_run.update(run_now_not_run_prev - clinical_ids_to_not_run)
+                    clinical_ids_to_not_run.update(run_prev - clinical_ids_to_run)
 
+        if self.match_on_deceased:
+            clinical_ids_to_run.update(self.clinical_deceased - clinical_ids_to_not_run)
         # ensure that we have accounted for all clinical ids
         assert clinical_ids_to_run.union(clinical_ids_to_not_run) == self.clinical_ids
 
