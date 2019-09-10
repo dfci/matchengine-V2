@@ -457,14 +457,23 @@ class RunLogTest(TestCase):
             skip_sample_id_reset=False
         )
 
+        # update trial matching field
         self.me.db_rw.trial.update({"protocol_no": "10-007"},
                                    {"$set": {"treatment_list.step.0.arm.1.arm_suspended": "N",
                                              "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
                                              }})
-        self.me.db_rw.trial.update({"protocol_no": "10-007"},
-                                   {"$set": {"unused_field": "ricky_bobby",
-                                             "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
-                                             }})
+        # update non-match
+        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799df6756630d8dd068bb"},
+                                      {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
+                                                "_updated": datetime.datetime.now()}})
+
+        # update matching
+        self.me.db_rw.genomic.insert({
+            "SAMPLE_ID": "5d2799da6756630d8dd066a6",
+            "clinical_id": ObjectId("5d2799da6756630d8dd066a6"),
+            "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1),
+            "TRUE_HUGO_SYMBOL": "sonic_the_hedgehog"
+        })
 
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
@@ -478,3 +487,5 @@ class RunLogTest(TestCase):
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 2
         assert len(non_match) == 0
+
+        self.me.db_rw.genomic.remove({"TRUE_HUGO_SYMBOL": "sonic_the_hedgehog"})
