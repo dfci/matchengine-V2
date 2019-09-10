@@ -413,6 +413,7 @@ class RunLogTest(TestCase):
         trial_matches = list(self.me.db_ro.trial_match.find())
         disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        non_match = list(self.me.db_rw.trial_match.find({"sample_id": ObjectId("5d2799df6756630d8dd068bc")}))
         assert len(trial_matches) == 3
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 2
@@ -498,7 +499,7 @@ class RunLogTest(TestCase):
 
     def test_run_log_6(self):
         """
-        Update a trial arm status field and non-matching field.
+        Update a trial arm status field.
         Update a sample's vital_status to deceased.
         Sample should no longer have matches.
         :return:
@@ -517,10 +518,10 @@ class RunLogTest(TestCase):
 
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
+        enabled_trial_matches = list(self.me.db_ro.trial_match.find())
         disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
-        assert len(trial_matches) == 3
+        assert len(enabled_trial_matches) == 3
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 1
 
@@ -548,10 +549,10 @@ class RunLogTest(TestCase):
 
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
+        enabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": False}))
         disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
-        assert len(trial_matches) == 5
+        assert len(enabled_trial_matches) == 3
         for match in disabled_trial_matches:
             assert match['sample_id'] == "5d2799da6756630d8dd066a6"
         assert len(disabled_trial_matches) == 2
@@ -576,10 +577,10 @@ class RunLogTest(TestCase):
 
         self.me.get_matches_for_all_trials()
         self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
+        enabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": False}))
         disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
-        assert len(trial_matches) == 5
+        assert len(enabled_trial_matches) == 3
         for match in disabled_trial_matches:
             assert match['sample_id'] == "5d2799da6756630d8dd066a6"
         assert len(disabled_trial_matches) == 2
@@ -761,3 +762,7 @@ class RunLogTest(TestCase):
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 2
         assert len(no_match) == 0
+
+    def tearDown(self) -> None:
+        if hasattr(self, 'me'):
+            self.me.__exit__(None, None, None)
