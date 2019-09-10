@@ -13,18 +13,20 @@ from matchengine.tests.timetravel_and_override import unoverride_datetime, set_s
 class RunLogTest(TestCase):
     """
     The run_log is a log which keeps track of protocols and sample ID's used by the engine
-    in previous runs, by protocol. There are four sources which are used to determine if any
-    trial and/or sample should be updated during any given matchengine run. Those sources are the:
+    in previous runs, by protocol. There are four sources used to determine if any trial and/or
+    sample should be updated during any given matchengine run. Those sources are the:
         (1) run_log,
         (2) trial _updated fields
         (3) clinical _updated fields,
         (4) clinical_run_history_trial_match
 
-    This is the default behavior of the matchengine unless otherwise specified through a
-     CLI flag.
+    Running and updating only the necessary trials and patients is the default behavior of the
+    matchengine unless otherwise specified through a CLI flag. These tests enumerate many
+    possible combinations of trial and/or patient data changes, and the subsequent expected states
+    of the trial_match collection as the matchengine is run on changing and updated data.
 
-     It is assumed that if a patient's genomic document is updated or added, the corresponding
-     clinical document's _updated date is updated as well.
+    It is assumed that if a patient's genomic document is updated or added, the corresponding
+    clinical document's _updated date is updated as well.
     """
 
     def __init__(self, *args, **kwargs):
@@ -273,7 +275,7 @@ class RunLogTest(TestCase):
     def test_run_log_3(self):
         """
         1. Updated sample leads to new trial match and existing sample not updated does not cause new trial matches
-        2. Sample that doesnt match never matches
+        2. Sample that doesn't match never matches
         :return:
         """
 
@@ -353,3 +355,53 @@ class RunLogTest(TestCase):
         assert len(run_log_trial_match) == 3
         assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
         assert len(clinical_run_history_trial_match['run_history']) == 3
+
+    def test_run_log_4(self):
+        """
+        Update a trial field not used in matching.
+        Samples who have matches should continue to have matches.
+        Samples without matches should still not have matches.
+        :return:
+        """
+        self._reset(
+            do_reset_trial_matches=True,
+            do_reset_trials=True,
+            trials_to_load=['run_log_arm_open'],
+            reset_run_log=True,
+            match_on_closed=True,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=True,
+            report_all_clinical=False
+        )
+        assert self.me.db_rw.name == 'integration'
+
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        trial_matches = list(self.me.db_ro.trial_match.find())
+        disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
+        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        assert len(trial_matches) == 3
+        assert len(disabled_trial_matches) == 0
+        assert len(run_log_trial_match) == 1
+
+        self._reset(
+            do_reset_trial_matches=False,
+            do_reset_trials=False,
+            reset_run_log=False,
+            match_on_closed=True,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=False,
+            do_reset_time=False,
+            report_all_clinical=False,
+            skip_sample_id_reset=False
+        )
+
+        self.me.db_rw.trial.update({"protocol_no": "10-002"}, {"$set": {"unused_field": "ricky_bobby"}})
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        trial_matches = list(self.me.db_ro.trial_match.find())
+        disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
+        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        assert len(trial_matches) == 3
+        assert len(disabled_trial_matches) == 0
+        assert len(run_log_trial_match) == 2
