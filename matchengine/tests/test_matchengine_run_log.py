@@ -700,3 +700,7 @@ class RunLogTest(TestCase):
             assert match['sample_id'] == "5d2799da6756630d8dd066a6"
         assert len(disabled_trial_matches) == 2
         assert len(run_log_trial_match) == 2
+
+        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
+                                      {"$set": {"VITAL_STATUS": "alive",
+                                                "_updated": datetime.datetime(2002, 2, 1, 1, 1, 1, 1)}})
