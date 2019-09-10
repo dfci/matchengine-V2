@@ -20,11 +20,13 @@ class IntegrationTestMatchengine(TestCase):
         self.first_run_done = False
 
     def _reset(self, **kwargs):
-        if not self.first_run_done:
-            if kwargs.get('do_reset_time', True):
-                set_static_date_time()
-            self.first_run_done = True
         with MongoDBConnection(read_only=False, db='integration', async_init=False) as setup_db:
+            if not self.first_run_done:
+                if kwargs.get('do_reset_time', True):
+                    set_static_date_time()
+
+                self.first_run_done = True
+
             assert setup_db.name == 'integration'
 
             if not kwargs.get("skip_sample_id_reset", False):
@@ -100,7 +102,9 @@ class IntegrationTestMatchengine(TestCase):
         assert len(self.me._matches['10-004']) == 5
 
     def test__match_on_deceased(self):
-        self._reset(match_on_deceased=True, match_on_closed=False,
+        self._reset(match_on_deceased=True,
+                    match_on_closed=False,
+                    skip_sample_id_reset=False,
                     do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         assert self.me.db_rw.name == 'integration'
@@ -110,7 +114,8 @@ class IntegrationTestMatchengine(TestCase):
         assert len(self.me._matches['10-003']) == 5
 
     def test__match_on_closed(self):
-        self._reset(match_on_deceased=False, match_on_closed=True,
+        self._reset(match_on_deceased=False,
+                    match_on_closed=True,
                     do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         assert self.me.db_rw.name == 'integration'
@@ -192,257 +197,6 @@ class IntegrationTestMatchengine(TestCase):
             if os.path.exists(filename):
                 os.unlink(filename)
             raise e
-
-    def test_run_log_updated_sample_updated_curation_trial_matches_before_trial_matches_after_but_different_hashes(self):
-
-        # run 1 - create matches and run log row
-        self._reset(
-            do_reset_trial_matches=True,
-            do_reset_trials=True,
-            trials_to_load=['run_log_arm_closed'],
-            reset_run_log=True,
-            match_on_closed=False,
-            match_on_deceased=False,
-            do_rm_clinical_run_history=True,
-            report_all_clinical=False
-        )
-        assert self.me.db_rw.name == 'integration'
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
-                                      {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
-                                                "_updated": datetime.datetime.now()}})
-        self.me.get_matches_for_all_trials()
-        self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find())
-        clinical_run_history_trial_match = list(self.me.db_ro.clinical_run_history_trial_match.find())
-        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
-        assert len(trial_matches) == 0
-        assert len(run_log_trial_match) == 1
-        assert len(clinical_run_history_trial_match) == 1392
-
-        self._reset(
-            do_reset_trial_matches=False,
-            do_reset_trials=True,
-            trials_to_load=["run_log_arm_open"],
-            reset_run_log=False,
-            match_on_closed=True,
-            match_on_deceased=False,
-            do_rm_clinical_run_history=False,
-            do_reset_time=False,
-            report_all_clinical=False,
-            skip_sample_id_reset=False
-        )
-
-        # check that run log has 2 rows, and number of trial matches has not changed
-        self.me.get_matches_for_all_trials()
-        self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
-        clinical_run_history_trial_match = list(
-            self.me.db_ro.clinical_run_history_trial_match.find({'clinical_id': ObjectId("5d2799d86756630d8dd065b8")})
-        )[0]
-        assert len(trial_matches) == 3
-        assert len(run_log_trial_match) == 2
-        assert len(clinical_run_history_trial_match['run_history']) == 2
-        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
-                                      {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Lung Adenocarcinoma",
-                                                "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)}})
-
-        self._reset(
-            do_reset_trial_matches=False,
-            do_reset_trials=False,
-            reset_run_log=False,
-            trials_to_load=["run_log_arm_open_criteria_change"],
-            match_on_closed=True,
-            match_on_deceased=False,
-            do_rm_clinical_run_history=False,
-            do_reset_time=False,
-            report_all_clinical=False,
-            skip_sample_id_reset=True
-        )
-
-        # check that run log has 2 rows, and number of trial matches has not changed
-        self.me.get_matches_for_all_trials()
-        self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
-        disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
-        clinical_run_history_trial_match = list(
-            self.me.db_ro.clinical_run_history_trial_match.find({'clinical_id': ObjectId("5d2799d86756630d8dd065b8")})
-        )[0]
-        assert len(trial_matches) == 4
-        assert len(disabled_trial_matches) == 1
-        assert len(run_log_trial_match) == 3
-        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
-        assert len(clinical_run_history_trial_match['run_history']) == 3
-
-    def test_run_log_updated_sample_updated_curation_trial_matches_after_but_not_before(self):
-
-        # run 1 - create matches and run log row
-        self._reset(
-            do_reset_trial_matches=True,
-            do_reset_trials=True,
-            trials_to_load=['run_log_arm_closed'],
-            reset_run_log=True,
-            match_on_closed=False,
-            match_on_deceased=False,
-            do_rm_clinical_run_history=True,
-            report_all_clinical=False
-        )
-        assert self.me.db_rw.name == 'integration'
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
-                                      {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
-                                                "_updated": datetime.datetime.now()}})
-        self.me.get_matches_for_all_trials()
-        self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find())
-        clinical_run_history_trial_match = list(self.me.db_ro.clinical_run_history_trial_match.find())
-        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
-        assert len(trial_matches) == 0
-        assert len(run_log_trial_match) == 1
-        assert len(clinical_run_history_trial_match) == 1392
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
-                                      {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Medullary Carcinoma of the Colon",
-                                                "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)}})
-
-        self._reset(
-            do_reset_trial_matches=False,
-            do_reset_trials=True,
-            trials_to_load=["run_log_arm_open"],
-            reset_run_log=False,
-            match_on_closed=True,
-            match_on_deceased=False,
-            do_rm_clinical_run_history=False,
-            do_reset_time=False,
-            report_all_clinical=False,
-            skip_sample_id_reset=True
-        )
-
-        # check that run log has 2 rows, and number of trial matches has not changed
-        self.me.get_matches_for_all_trials()
-        self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
-        clinical_run_history_trial_match = list(
-            self.me.db_ro.clinical_run_history_trial_match.find({'clinical_id': ObjectId("5d2799d86756630d8dd065b8")})
-        )[0]
-        assert len(trial_matches) == 2
-        assert len(run_log_trial_match) == 2
-        assert len(clinical_run_history_trial_match['run_history']) == 2
-        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
-
-        self._reset(
-            do_reset_trial_matches=False,
-            do_reset_trials=False,
-            reset_run_log=False,
-            trials_to_load=["run_log_arm_open_criteria_change"],
-            match_on_closed=True,
-            match_on_deceased=False,
-            do_rm_clinical_run_history=False,
-            do_reset_time=False,
-            report_all_clinical=False,
-            skip_sample_id_reset=False
-        )
-
-        # check that run log has 2 rows, and number of trial matches has not changed
-        self.me.get_matches_for_all_trials()
-        self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
-        disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
-        clinical_run_history_trial_match = list(
-            self.me.db_ro.clinical_run_history_trial_match.find({'clinical_id': ObjectId("5d2799d86756630d8dd065b8")})
-        )[0]
-        assert len(trial_matches) == 3
-        assert len(disabled_trial_matches) == 0
-        assert len(run_log_trial_match) == 3
-        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
-        assert len(clinical_run_history_trial_match['run_history']) == 3
-
-    def test_run_log_updated_sample_leads_to_new_trial_match_and_existing_sample_not_updated_does_not_cause_new_trial_matches_and_sample_that_doesnt_match_never_matches(
-            self):
-
-        # run 1 - create matches and run log row
-        self._reset(
-            do_reset_trial_matches=True,
-            do_reset_trials=True,
-            trials_to_load=['run_log_arm_closed'],
-            reset_run_log=True,
-            match_on_closed=True,
-            match_on_deceased=False,
-            do_rm_clinical_run_history=True,
-            report_all_clinical=False
-        )
-        assert self.me.db_rw.name == 'integration'
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
-                                      {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
-                                                "_updated": datetime.datetime.now()}})
-        self.me.get_matches_for_all_trials()
-        self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find())
-        clinical_run_history_trial_match = list(self.me.db_ro.clinical_run_history_trial_match.find())
-        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
-        assert len(trial_matches) == 2
-        assert len(run_log_trial_match) == 1
-        assert len(clinical_run_history_trial_match) == 1392
-
-        self._reset(
-            do_reset_trial_matches=False,
-            do_reset_trials=False,
-            reset_run_log=False,
-            match_on_closed=True,
-            match_on_deceased=False,
-            do_rm_clinical_run_history=False,
-            do_reset_time=False,
-            report_all_clinical=False,
-            skip_sample_id_reset=False
-        )
-
-        # check that run log has 2 rows, and number of trial matches has not changed
-        self.me.get_matches_for_all_trials()
-        self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
-        clinical_run_history_trial_match = list(
-            self.me.db_ro.clinical_run_history_trial_match.find({'clinical_id': ObjectId("5d2799d86756630d8dd065b8")})
-        )[0]
-        assert len(trial_matches) == 3
-        assert len(run_log_trial_match) == 2
-        assert len(clinical_run_history_trial_match['run_history']) == 2
-        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
-
-        self._reset(
-            do_reset_trial_matches=False,
-            do_reset_trials=False,
-            reset_run_log=False,
-            match_on_closed=True,
-            match_on_deceased=False,
-            do_rm_clinical_run_history=False,
-            do_reset_time=False,
-            report_all_clinical=False,
-            skip_sample_id_reset=False
-        )
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
-                                      {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
-                                                "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)}})
-
-        # check that run log has 2 rows, and number of trial matches has not changed
-        self.me.get_matches_for_all_trials()
-        self.me.update_all_matches()
-        trial_matches = list(self.me.db_ro.trial_match.find())
-        disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
-        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
-        clinical_run_history_trial_match = list(
-            self.me.db_ro.clinical_run_history_trial_match.find({'clinical_id': ObjectId("5d2799d86756630d8dd065b8")})
-        )[0]
-        assert len(trial_matches) == 3
-        assert len(disabled_trial_matches) == 1
-        assert len(run_log_trial_match) == 3
-        assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
-        assert len(clinical_run_history_trial_match['run_history']) == 3
 
     def test_visualize_match_paths(self):
         # pygraphviz doesn't install easily on macOS so skip in that case.
