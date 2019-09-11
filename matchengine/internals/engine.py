@@ -380,6 +380,12 @@ class MatchEngine(object):
         Synchronously iterates over each protocol number, updating the matches in the database for each
         """
         updated_time = datetime.datetime.now()
+        if self._protocol_nos_param is None and not self._drop:
+            self.task_q.put_nowait(
+                UpdateTask(
+                    [UpdateMany({'protocol_no': {'$nin': self.protocol_nos}},
+                                {'$set': {'is_disabled': True, '_updated': updated_time}})],
+                    'DELETED_PROTOCOLS'))
         for protocol_number in self.protocol_nos:
             if not self.match_on_deceased:
                 self.task_q.put_nowait(UpdateTask([UpdateMany({'clinical_id': {'$in': list(self.clinical_deceased)},
@@ -627,7 +633,8 @@ class MatchEngine(object):
 
             elif 'list' in run_log_clinical_ids:
                 if self.match_on_deceased and not prev_run_matched_on_deceased:
-                    run_prev = set(run_log_clinical_ids['list']).intersection(self.clinical_ids - self.clinical_deceased)
+                    run_prev = set(run_log_clinical_ids['list']).intersection(
+                        self.clinical_ids - self.clinical_deceased)
                     run_now_not_run_prev = self.clinical_ids - run_prev
                     clinical_ids_to_run.update(run_now_not_run_prev - clinical_ids_to_not_run)
                     clinical_ids_to_not_run.update(run_prev - clinical_ids_to_run)
