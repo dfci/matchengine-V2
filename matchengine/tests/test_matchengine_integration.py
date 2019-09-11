@@ -34,6 +34,11 @@ class IntegrationTestMatchengine(TestCase):
                                          {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Non-Small Cell Lung Cancer",
                                                    "_updated": datetime.datetime(2001, 1, 1, 1, 1, 1, 1)}})
 
+            if not kwargs.get("skip_vital_status_reset", False):
+                setup_db.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
+                                         {"$set": {"VITAL_STATUS": "alive",
+                                                   "_updated": datetime.datetime(2001, 1, 1, 1, 1, 1, 1)}})
+
             if kwargs.get('do_reset_trial_matches', False):
                 setup_db.trial_match.drop()
 

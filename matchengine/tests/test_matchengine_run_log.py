@@ -48,7 +48,8 @@ class RunLogTest(TestCase):
 
             if not kwargs.get("skip_vital_status_reset", False):
                 setup_db.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
-                                         {"$set": {"VITAL_STATUS": "alive"}})
+                                         {"$set": {"VITAL_STATUS": "alive",
+                                                   "_updated": datetime.datetime(2001, 1, 1, 1, 1, 1, 1)}})
 
             if kwargs.get('do_reset_trial_matches', False):
                 setup_db.trial_match.drop()
@@ -648,7 +649,7 @@ class RunLogTest(TestCase):
     def test_run_log_8(self):
         """
         Update a sample's vital_status to deceased.
-        Sample should no longer have matches.
+        Sample should have matches before run and not after.
         :return:
         """
         self._reset(
@@ -669,6 +670,11 @@ class RunLogTest(TestCase):
         disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
         assert len(enabled_trial_matches) == 3
+        sample_count = 0
+        for match in enabled_trial_matches:
+            if match['sample_id'] == "5d2799da6756630d8dd066a6":
+                sample_count += 1
+        assert sample_count == 2
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 1
 
@@ -731,9 +737,11 @@ class RunLogTest(TestCase):
         enabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": False}))
         disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        no_match = list(self.me.db_ro.trial_match.find({"sample_id": "5d2799df6756630d8dd068ba"}))
         assert len(enabled_trial_matches) == 0
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 1
+        assert len(no_match) == 0
 
         self.me.db_rw.trial.update({"protocol_no": "10-001"},
                                    {"$set": {"treatment_list.step.0.arm.0.arm_suspended": "N",
@@ -762,6 +770,135 @@ class RunLogTest(TestCase):
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 2
         assert len(no_match) == 0
+
+    def test_run_log_10(self):
+        """
+        Update a trial field not used in matching.
+        Run on a new sample.
+        Sample should have matches.
+        Sample which doesn't match should still not match.
+        :return:
+        """
+        self._reset(
+            do_reset_trial_matches=True,
+            do_reset_trials=True,
+            trials_to_load=['all_open'],
+            reset_run_log=True,
+            match_on_closed=False,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=True,
+            report_all_clinical=False
+        )
+        assert self.me.db_rw.name == 'integration'
+
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        enabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": False}))
+        disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
+        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        no_match = list(self.me.db_ro.trial_match.find({"sample_id": "5d2799df6756630d8dd068ba"}))
+        assert len(enabled_trial_matches) == 8
+        assert len(disabled_trial_matches) == 0
+        assert len(run_log_trial_match) == 1
+        assert len(no_match) == 0
+
+        self.me.db_rw.trial.update({"protocol_no": "10-001"},
+                                   {"$set": {"unused_field": "ricky_bobby",
+                                             "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
+                                             }})
+
+        self._reset(
+            do_reset_trial_matches=False,
+            do_reset_trials=False,
+            reset_run_log=False,
+            match_on_closed=False,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=False,
+            do_reset_time=False,
+            report_all_clinical=False,
+            skip_sample_id_reset=False
+        )
+
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        enabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": False}))
+        disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
+        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        no_match = list(self.me.db_ro.trial_match.find({"sample_id": "5d2799df6756630d8dd068ba"}))
+        assert len(enabled_trial_matches) == 8
+        assert len(disabled_trial_matches) == 0
+        assert len(run_log_trial_match) == 2
+        assert len(no_match) == 0
+
+    def test_run_log_11(self):
+        """
+        Update a sample's vital_status to deceased.
+        Sample should not have matches before or after run.
+        A third run with no trial changes should not produce matches.
+        :return:
+        """
+        self._reset(
+            do_reset_trial_matches=True,
+            do_reset_trials=True,
+            trials_to_load=['all_closed'],
+            reset_run_log=True,
+            match_on_closed=False,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=True,
+            report_all_clinical=False
+        )
+        assert self.me.db_rw.name == 'integration'
+
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        no_match = list(self.me.db_ro.trial_match.find({"sample_id": "5d2799da6756630d8dd066a6"}))
+        assert len(no_match) == 0
+        assert len(run_log_trial_match) == 1
+
+        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
+                                      {"$set": {"VITAL_STATUS": "deceased",
+                                                "_updated": datetime.datetime(2002, 2, 1, 1, 1, 1, 1)}})
+
+        self._reset(
+            do_reset_trial_matches=False,
+            do_reset_trials=False,
+            reset_run_log=False,
+            match_on_closed=False,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=False,
+            do_reset_time=False,
+            report_all_clinical=False,
+            skip_sample_id_reset=False,
+            skip_vital_status_reset=True
+        )
+
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        no_match = list(self.me.db_ro.trial_match.find({"sample_id": "5d2799da6756630d8dd066a6"}))
+        assert len(no_match) == 0
+        assert len(run_log_trial_match) == 2
+
+        self._reset(
+            do_reset_trial_matches=False,
+            do_reset_trials=False,
+            reset_run_log=False,
+            match_on_closed=False,
+            match_on_deceased=False,
+            do_rm_clinical_run_history=False,
+            do_reset_time=False,
+            report_all_clinical=False,
+            skip_sample_id_reset=False,
+            skip_vital_status_reset=True
+        )
+
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+        run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
+        no_match = list(self.me.db_ro.trial_match.find({"sample_id": "5d2799da6756630d8dd066a6"}))
+        assert len(no_match) == 0
+        assert len(run_log_trial_match) == 3
 
     def tearDown(self) -> None:
         if hasattr(self, 'me'):
