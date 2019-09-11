@@ -738,7 +738,7 @@ class RunLogTest(TestCase):
         disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
         no_match = list(self.me.db_ro.trial_match.find({"sample_id": "5d2799df6756630d8dd068ba"}))
-        known_match = list(self.me.db_ro.trial_match.find({"sample_id": "'5d2799d86756630d8dd065b8'"}))
+        known_match = list(self.me.db_ro.trial_match.find({"sample_id": "5d2799cc6756630d8dd06265"}))
         assert len(enabled_trial_matches) == 0
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 1
@@ -768,12 +768,12 @@ class RunLogTest(TestCase):
         disabled_trial_matches = list(self.me.db_ro.trial_match.find({"is_disabled": True}))
         run_log_trial_match = list(self.me.db_ro.run_log_trial_match.find({}))
         no_match = list(self.me.db_ro.trial_match.find({"sample_id": "5d2799df6756630d8dd068ba"}))
-        known_match = list(self.me.db_ro.trial_match.find({"sample_id": "'5d2799d86756630d8dd065b8'"}))
+        known_match = list(self.me.db_ro.trial_match.find({"sample_id": "5d2799cc6756630d8dd06265"}))
         assert len(enabled_trial_matches) == 8
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 2
         assert len(no_match) == 0
-        assert len(known_match) == 0
+        assert len(known_match) == 1
 
     def test_run_log_10(self):
         """
