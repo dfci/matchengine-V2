@@ -122,7 +122,7 @@ class RunLogTest(TestCase):
             match_on_closed=False,
             match_on_deceased=False,
             report_all_clinical=False,
-            skip_vital_status_reset=False,
+            skip_vital_status_reset=False
         )
         assert self.me.db_rw.name == 'integration'
         self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
