@@ -588,6 +588,8 @@ class MatchEngine(object):
         trial_last_update = self.trials[protocol_no].get('_updated',
                                                          datetime.datetime.strptime(default_datetime, fmt_string))
         query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
+        if self.match_on_closed:
+            query.update({'run_params.match_on_closed': True})
         run_log_entries = list(
             self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
                 [("_created", pymongo.DESCENDING)])
