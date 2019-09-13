@@ -31,7 +31,8 @@ def main(run_args):
             drop=run_args.drop or run_args.drop_and_exit,
             drop_accept=run_args.confirm_drop,
             exit_after_drop=run_args.drop_and_exit,
-            resource_dirs=run_args.extra_resource_dirs
+            resource_dirs=run_args.extra_resource_dirs,
+            bypass_warnings=run_args.bypass_warnings
     ) as me:
         me.get_matches_for_all_trials()
         if not args.dry:
@@ -119,6 +120,8 @@ if __name__ == "__main__":
                         help="Like --drop, but exits directly after")
     subp_p.add_argument("--drop-confirm", dest="confirm_drop", action="store_true", default=False,
                         help="Confirm you wish --drop; skips confirmation prompt")
+    subp_p.add_argument("--bypass-warnings", dest="bypass_warnings", action="store_true", default=False,
+                        help="Bypass warnings")
     subp_p.add_argument("--workers", nargs=1, type=int, default=[cpu_count() * 5])
     subp_p.add_argument('--db', dest='db_name', default=None, required=False, help=db_name_help)
     subp_p.add_argument('--o', dest="csv_output", action="store_true", default=False, required=False,
