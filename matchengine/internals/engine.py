@@ -207,7 +207,8 @@ class MatchEngine(object):
             if exit_after_drop:
                 exit(0)
 
-        self.check_run_log_flags(trial_match_collection, match_on_deceased, match_on_closed)
+        if not ignore_run_log:
+            self.check_run_log_flags(trial_match_collection, match_on_deceased, match_on_closed)
 
         # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
@@ -271,15 +272,15 @@ class MatchEngine(object):
         for r_log in run_logs:
             if r_log['run_params']['match_on_deceased'] != match_on_deceased:
                 log.error("\n\n\nWARNING\n===============================\n"
-                          " The matchengine was previously run without the --match-on-deceased flag. \n"
-                          "Adding this after a previous run without the flag may NOT work correctly.\n\n"
+                          "The --match-on-deceased flag has been used in a way different from a previous run. \n"
+                          "Adding this flag after a previous run without the flag may NOT work correctly.\n\n"
                           "Please re-run and save trial matches to a custom collection with the flag \n"
                           "--trial-match-collection [collection] to ensure data integrity.\n\n")
                 sys.exit(1)
             elif r_log['run_params']['match_on_closed'] != match_on_closed:
                 log.error("\n\n\nWARNING\n===============================\n"
-                          "The matchengine was previously run without the --match-on-closed flag. \n"
-                          "Adding this after a previous run without the flag may NOT work correctly.\n"
+                          "The --match-on-closed flag has been used in a way different from a previous run. \n"
+                          "Adding this flag after a previous run without the flag may NOT work correctly.\n"
                           "Please re-run and save trial matches to a custom collection with the flag \n\n"
                           "--trial-match-collection [collection] to ensure data integrity.\n\n")
                 sys.exit(1)
