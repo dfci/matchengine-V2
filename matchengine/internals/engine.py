@@ -468,11 +468,11 @@ class MatchEngine(object):
         match_clauses = extract_match_clauses_from_trial(self, protocol_no)
 
         clinical_ids_to_run = self.get_clinical_ids_for_protocol(protocol_no)
+        if not self.skip_run_log_entry:
+            self.create_run_log_entry(protocol_no, clinical_ids_to_run)
         if not clinical_ids_to_run:
             log.info(f"No need to re-run trial {protocol_no}; skipping")
             return {}
-        if not self.skip_run_log_entry:
-            self.create_run_log_entry(protocol_no, clinical_ids_to_run)
 
         # for each match clause, create the match tree, and extract each possible match path from the tree
         for match_clause in match_clauses:
