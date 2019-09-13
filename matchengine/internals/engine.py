@@ -397,7 +397,7 @@ class MatchEngine(object):
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
         """
-        Synchronously iterates over each protocol number, getting trial matches for each #TODO: FIX display
+        Synchronously iterates over each protocol number, getting trial matches for each
         """
         for protocol_no in self.protocol_nos:
             if protocol_no not in self._trials_to_match_on:
@@ -766,8 +766,6 @@ class MatchEngine(object):
         return mapping
 
     def drop_existing_matches(self, protocol_nos: List[str] = None, sample_ids: List[str] = None):
-        # TODO: rm before prod
-        assert self.db_ro.name != "matchminer"
         drop_query = dict()
         if protocol_nos is not None:
             drop_query.update({'protocol_no': {'$in': protocol_nos}})
