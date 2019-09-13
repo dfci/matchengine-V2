@@ -405,6 +405,7 @@ class MatchEngine(object):
                               f'has status {self.trials[protocol_no]["status"]}, skipping'))
                 self._matches[protocol_no] = dict()
                 self._clinical_ids_for_protocol_cache[protocol_no] = self.get_clinical_ids_for_protocol(protocol_no)
+                self.create_run_log_entry(protocol_no, set())
                 continue
             self.get_matches_for_trial(protocol_no)
         return self._matches
@@ -587,13 +588,26 @@ class MatchEngine(object):
         fmt_string = '%B %d, %Y'
         trial_last_update = self.trials[protocol_no].get('_updated',
                                                          datetime.datetime.strptime(default_datetime, fmt_string))
-        query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
-        cursor = self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
-            [("_created", pymongo.DESCENDING)])
         if self.match_on_closed:
-            cursor = cursor.limit(1)
-        run_log_entries = list(cursor)
-
+            query = {"_created": {'$gte': trial_last_update},
+                     "$or": [{"run_params.trials": None},
+                             {"run_params.trials": protocol_no}]}
+            most_recent_relevant = list(self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
+                [("_created", pymongo.DESCENDING)]).limit(1))
+            if most_recent_relevant and not most_recent_relevant[0]['run_params']['match_on_closed']:
+                run_log_entries = list()
+            elif most_recent_relevant and most_recent_relevant[0]['run_params']['match_on_closed']:
+                query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
+                run_log_entries = list(self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
+                    [("_created", pymongo.DESCENDING)]).limit(1))
+            else:
+                run_log_entries = list()
+        else:
+            query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
+            run_log_entries = list(self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
+                [("_created", pymongo.DESCENDING)]))
+            if self.match_on_closed:
+                pass
         if not run_log_entries or (self.match_on_closed and not run_log_entries[0]['run_params']['match_on_closed']):
             self._clinical_ids_for_protocol_cache[protocol_no] = self.clinical_ids
             return self._clinical_ids_for_protocol_cache[protocol_no]
