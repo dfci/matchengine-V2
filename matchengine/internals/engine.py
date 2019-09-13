@@ -280,6 +280,8 @@ class MatchEngine(object):
                           "--trial-match-collection [collection] to ensure data integrity.\n\n")
                 if not bypass_warnings:
                     sys.exit(1)
+                else:
+                    break
             elif r_log['run_params']['match_on_closed'] != match_on_closed:
                 log.error("\n\n\nWARNING\n===============================\n"
                           "The --match-on-closed flag has been used in a way different from a previous run. \n"
@@ -288,6 +290,8 @@ class MatchEngine(object):
                           "--trial-match-collection [collection] to ensure data integrity.\n\n")
                 if not bypass_warnings:
                     sys.exit(1)
+                else:
+                    break
 
     async def _async_init(self, db_name: str):
         """
