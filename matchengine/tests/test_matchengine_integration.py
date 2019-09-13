@@ -97,6 +97,7 @@ class IntegrationTestMatchengine(TestCase):
 
     def test__match_on_deceased_match_on_closed(self):
         self._reset(do_reset_trials=True,
+                    reset_run_log=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
@@ -109,6 +110,7 @@ class IntegrationTestMatchengine(TestCase):
     def test__match_on_deceased(self):
         self._reset(match_on_deceased=True,
                     match_on_closed=False,
+                    reset_run_log=True,
                     skip_sample_id_reset=False,
                     do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
@@ -121,6 +123,7 @@ class IntegrationTestMatchengine(TestCase):
     def test__match_on_closed(self):
         self._reset(match_on_deceased=False,
                     match_on_closed=True,
+                    reset_run_log=True,
                     do_reset_trials=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'])
         assert self.me.db_rw.name == 'integration'
@@ -145,6 +148,7 @@ class IntegrationTestMatchengine(TestCase):
     def test_wildcard_protein_change(self):
         self._reset(do_reset_trial_matches=True,
                     do_reset_trials=True,
+                    reset_run_log=True,
                     trials_to_load=['wildcard_protein_found', 'wildcard_protein_not_found'])
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
@@ -153,6 +157,7 @@ class IntegrationTestMatchengine(TestCase):
     def test_match_on_individual_protocol_no(self):
         self._reset(do_reset_trial_matches=True,
                     do_reset_trials=True,
+                    reset_run_log=True,
                     trials_to_load=['wildcard_protein_not_found'],
                     protocol_nos={'10-006'})
         assert self.me.db_rw.name == 'integration'
@@ -163,6 +168,7 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(
             do_reset_trial_matches=True,
             do_reset_trials=True,
+            reset_run_log=True,
             trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'],
             sample_ids={'5d2799cb6756630d8dd0621d'}
         )
@@ -176,6 +182,7 @@ class IntegrationTestMatchengine(TestCase):
     def test_output_csv(self):
         self._reset(do_reset_trial_matches=True,
                     do_reset_trials=True,
+                    reset_run_log=True,
                     trials_to_load=['all_closed', 'all_open', 'closed_dose', 'closed_step_arm'],
                     report_all_clinical=False)
         assert self.me.db_rw.name == 'integration'
@@ -225,6 +232,7 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(
             do_reset_trial_matches=True,
             do_reset_trials=True,
+            reset_run_log=True,
             trials_to_load=['all_closed'],
             sample_ids={'5d2799cb6756630d8dd0621d'},
             visualize_match_paths=True,
@@ -244,6 +252,7 @@ class IntegrationTestMatchengine(TestCase):
                     trials_to_load=['massive_match_clause'],
                     match_on_deceased=True,
                     match_on_closed=True,
+                    reset_run_log=True,
                     num_workers=1)
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
@@ -253,6 +262,7 @@ class IntegrationTestMatchengine(TestCase):
         self._reset(
             do_reset_trial_matches=True,
             do_reset_trials=True,
+            reset_run_log=True,
             trials_to_load=['all_closed']
         )
         assert self.me.db_rw.name == 'integration'
@@ -276,6 +286,7 @@ class IntegrationTestMatchengine(TestCase):
 
     def test_signatures(self):
         self._reset(do_reset_trials=True,
+                    reset_run_log=True,
                     trials_to_load=['signatures'])
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
@@ -284,6 +295,7 @@ class IntegrationTestMatchengine(TestCase):
     def test_tmb(self):
         self._reset(do_reset_trials=True,
                     trials_to_load=['tmb'],
+                    reset_run_log=True,
                     report_all_clinical=False)
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
@@ -293,6 +305,7 @@ class IntegrationTestMatchengine(TestCase):
 
     def test_unstructured_sv(self):
         self._reset(do_reset_trials=True,
+                    reset_run_log=True,
                     trials_to_load=['unstructured_sv'])
         assert self.me.db_rw.name == 'integration'
         self.me.get_matches_for_all_trials()
@@ -302,6 +315,7 @@ class IntegrationTestMatchengine(TestCase):
 
     def test_structured_sv(self):
         self._reset(do_reset_trials=True,
+                    reset_run_log=True,
                     trials_to_load=['structured_sv'],
                     report_all_clinical=False)
         assert self.me.db_rw.name == 'integration'
@@ -341,6 +355,78 @@ class IntegrationTestMatchengine(TestCase):
         }
         for alteration, count in caught_matches.items():
             assert check_against[alteration] == count
+
+    def changed_deceased_flag_fail(self):
+        """
+        The matchengine should always run with the same deceased flag in order
+        to guarantee data integrity
+        """
+        self._reset(
+            do_reset_trial_matches=True,
+            do_reset_trials=True,
+            do_rm_clinical_run_history=True,
+            trials_to_load=['run_log_arm_closed'],
+            reset_run_log=True,
+            match_on_closed=False,
+            match_on_deceased=False,
+            report_all_clinical=False,
+            skip_vital_status_reset=False,
+        )
+        assert self.me.db_rw.name == 'integration'
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+
+        with self.assertRaises(SystemExit) as cm:
+            self._reset(
+                do_reset_trial_matches=False,
+                do_reset_trials=True,
+                trials_to_load=["run_log_arm_open"],
+                reset_run_log=False,
+                match_on_closed=False,
+                match_on_deceased=True,
+                do_rm_clinical_run_history=False,
+                do_reset_time=False,
+                report_all_clinical=False,
+                skip_sample_id_reset=False
+            )
+        self.assertEqual(cm.exception.code, 1)
+        self.me.__exit__(None, None, None)
+
+    def changed_match_on_closed_to_open_fail(self):
+        """
+        The matchengine should always run with the same trial open/closed flag
+        in order to guarantee data integrity
+        """
+        self._reset(
+            do_reset_trial_matches=True,
+            do_reset_trials=True,
+            do_rm_clinical_run_history=True,
+            trials_to_load=['run_log_arm_closed'],
+            reset_run_log=False,
+            match_on_closed=False,
+            match_on_deceased=False,
+            report_all_clinical=False,
+            skip_vital_status_reset=False,
+        )
+        assert self.me.db_rw.name == 'integration'
+        self.me.get_matches_for_all_trials()
+        self.me.update_all_matches()
+
+        with self.assertRaises(SystemExit) as cm:
+            self._reset(
+                do_reset_trial_matches=False,
+                do_reset_trials=True,
+                trials_to_load=["run_log_arm_open"],
+                reset_run_log=False,
+                match_on_closed=True,
+                match_on_deceased=False,
+                do_rm_clinical_run_history=False,
+                do_reset_time=False,
+                report_all_clinical=False,
+                skip_sample_id_reset=False
+            )
+        self.assertEqual(cm.exception.code, 1)
+        self.me.__exit__(None, None, None)
 
     def tearDown(self) -> None:
         if hasattr(self, 'me'):
