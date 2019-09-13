@@ -5,6 +5,7 @@ import datetime
 import json
 import logging
 import os
+import sys
 import uuid
 from collections import defaultdict
 from multiprocessing import cpu_count
@@ -147,7 +148,6 @@ class MatchEngine(object):
             resource_dirs: List = None,
             chunk_size: int = 1000
     ):
-
         self.resource_dirs = list()
         self.resource_dirs.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'ref'))
         if resource_dirs is not None:
@@ -207,6 +207,9 @@ class MatchEngine(object):
             if exit_after_drop:
                 exit(0)
 
+        if not ignore_run_log:
+            self.check_run_log_flags(trial_match_collection, match_on_deceased, match_on_closed)
+
         # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
         self.sample_ids = sample_ids
@@ -251,6 +254,37 @@ class MatchEngine(object):
         self._loop = asyncio.get_event_loop()
         self._loop.run_until_complete(self._async_init(db_name))
 
+    def check_run_log_flags(self,
+                            trial_match_collection: str,
+                            match_on_deceased: bool,
+                            match_on_closed: bool):
+        """
+        When running the matchengine, the flags used from run to run MUST be consistent
+        in order to ensure data integrity. This applies to the --match-on-closed and --match-on-deceased flags
+        specifically.
+        :param trial_match_collection:
+        :param match_on_deceased:
+        :param match_on_closed:
+        :return:
+        """
+        run_log_collection = 'run_log_' + trial_match_collection
+        run_logs = list(self.db_ro[run_log_collection].find())
+        for r_log in run_logs:
+            if r_log['run_params']['match_on_deceased'] != match_on_deceased:
+                log.error("\n\n\nWARNING\n===============================\n"
+                          "The --match-on-deceased flag has been used in a way different from a previous run. \n"
+                          "Adding this flag after a previous run without the flag may NOT work correctly.\n\n"
+                          "Please re-run and save trial matches to a custom collection with the flag \n"
+                          "--trial-match-collection [collection] to ensure data integrity.\n\n")
+                sys.exit(1)
+            elif r_log['run_params']['match_on_closed'] != match_on_closed:
+                log.error("\n\n\nWARNING\n===============================\n"
+                          "The --match-on-closed flag has been used in a way different from a previous run. \n"
+                          "Adding this flag after a previous run without the flag may NOT work correctly.\n"
+                          "Please re-run and save trial matches to a custom collection with the flag \n\n"
+                          "--trial-match-collection [collection] to ensure data integrity.\n\n")
+                sys.exit(1)
+
     async def _async_init(self, db_name: str):
         """
         Instantiate asynchronous db connections and workers.
@@ -267,6 +301,8 @@ class MatchEngine(object):
         }
         self._task_q.put_nowait(CheckIndicesTask())
         await self._task_q.join()
+
+
 
     async def run_query(self,
                         multi_collection_query: MultiCollectionQuery,
