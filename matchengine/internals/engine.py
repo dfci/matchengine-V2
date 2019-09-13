@@ -588,14 +588,13 @@ class MatchEngine(object):
         trial_last_update = self.trials[protocol_no].get('_updated',
                                                          datetime.datetime.strptime(default_datetime, fmt_string))
         query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
+        cursor = self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
+            [("_created", pymongo.DESCENDING)])
         if self.match_on_closed:
-            query.update({'run_params.match_on_closed': True})
-        run_log_entries = list(
-            self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
-                [("_created", pymongo.DESCENDING)])
-        )
+            cursor = cursor.limit(1)
+        run_log_entries = list(cursor)
 
-        if not run_log_entries:
+        if not run_log_entries or (self.match_on_closed and not run_log_entries[0]['run_params']['match_on_closed']):
             self._clinical_ids_for_protocol_cache[protocol_no] = self.clinical_ids
             return self._clinical_ids_for_protocol_cache[protocol_no]
 
