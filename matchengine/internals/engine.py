@@ -146,7 +146,8 @@ class MatchEngine(object):
             exit_after_drop: bool = False,
             drop_accept: bool = False,
             resource_dirs: List = None,
-            chunk_size: int = 1000
+            chunk_size: int = 1000,
+            bypass_warnings: bool = False
     ):
         self.resource_dirs = list()
         self.resource_dirs.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'ref'))
@@ -208,7 +209,7 @@ class MatchEngine(object):
                 exit(0)
 
         if not ignore_run_log:
-            self.check_run_log_flags(trial_match_collection, match_on_deceased, match_on_closed)
+            self.check_run_log_flags(trial_match_collection, match_on_deceased, match_on_closed, bypass_warnings)
 
         # A cache-like object used to accumulate query results
         self.cache = Cache() if cache is None else cache
@@ -257,7 +258,8 @@ class MatchEngine(object):
     def check_run_log_flags(self,
                             trial_match_collection: str,
                             match_on_deceased: bool,
-                            match_on_closed: bool):
+                            match_on_closed: bool,
+                            bypass_warnings: bool):
         """
         When running the matchengine, the flags used from run to run MUST be consistent
         in order to ensure data integrity. This applies to the --match-on-closed and --match-on-deceased flags
@@ -276,14 +278,16 @@ class MatchEngine(object):
                           "Adding this flag after a previous run without the flag may NOT work correctly.\n\n"
                           "Please re-run and save trial matches to a custom collection with the flag \n"
                           "--trial-match-collection [collection] to ensure data integrity.\n\n")
-                sys.exit(1)
+                if not bypass_warnings:
+                    sys.exit(1)
             elif r_log['run_params']['match_on_closed'] != match_on_closed:
                 log.error("\n\n\nWARNING\n===============================\n"
                           "The --match-on-closed flag has been used in a way different from a previous run. \n"
                           "Adding this flag after a previous run without the flag may NOT work correctly.\n"
                           "Please re-run and save trial matches to a custom collection with the flag \n\n"
                           "--trial-match-collection [collection] to ensure data integrity.\n\n")
-                sys.exit(1)
+                if not bypass_warnings:
+                    sys.exit(1)
 
     async def _async_init(self, db_name: str):
         """
