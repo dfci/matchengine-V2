@@ -18,6 +18,7 @@ setup(
     author='Eric Marriott, Ethan Siegel',
     author_email='marriott@ds.dfci.harvard.edu, esiegel@ds.dfci.harvard.edu',
     description='Open source engine for matching cancer patients to precision medicine clinical trials (V2).',
+    long_description=long_description,
     entrypoints={
         "console-scripts": [
             "matchengine =  matchengine.main"
