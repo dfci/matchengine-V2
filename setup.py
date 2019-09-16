@@ -1,5 +1,8 @@
 from setuptools import setup
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name="matchengine-V2",
     version="2.0.0",
@@ -12,6 +15,9 @@ setup(
         "matchengine.internals.utilities",
         "matchengine.plugins"
     ],
+    author='Eric Marriott, Ethan Siegel',
+    author_email='marriott@ds.dfci.harvard.edu, esiegel@ds.dfci.harvard.edu',
+    description='Open source engine for matching cancer patients to precision medicine clinical trials (V2).',
     entrypoints={
         "console-scripts": [
             "matchengine =  matchengine.main"
@@ -26,5 +32,23 @@ setup(
         "networkx==2.3",
         "motor==2.0.0"
     ],
-    include_package_data=True
+    include_package_data=True,
+    python_requires='>=3.7',
+    classifiers=[
+        "Environment :: Console",
+        "Intended Audience :: Healthcare Industry",
+        "Intended Audience :: Science/Research",
+        "Operating System :: MacOS",
+        "Operating System :: POSIX",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: POSIX :: BSD",
+        "Operating System :: Unix",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3 :: Only",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
+        "Topic :: Scientific/Engineering :: Medical Science Apps.",
+        "Topic :: Utilities",
+        "Typing :: Typed"
+    ]
 )
