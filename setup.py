@@ -19,6 +19,7 @@ setup(
     author_email='marriott@ds.dfci.harvard.edu, esiegel@ds.dfci.harvard.edu',
     description='Open source engine for matching cancer patients to precision medicine clinical trials (V2).',
     long_description=long_description,
+    long_description_content_type='text/markdown',
     entrypoints={
         "console-scripts": [
             "matchengine =  matchengine.main"
