@@ -1,8 +1,8 @@
 from setuptools import setup
 
 setup(
-    name="MatchEngine V2",
-    version="0.0.1",
+    name="matchengine",
+    version="2.0.0",
     packages=[
         "matchengine",
         "matchengine.internals",
