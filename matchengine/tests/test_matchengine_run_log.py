@@ -7,6 +7,20 @@ from bson import ObjectId
 
 from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
 from matchengine.internals.engine import MatchEngine
+import matchengine.main
+import matchengine.internals
+import matchengine.internals.utilities
+import matchengine.internals.database_connectivity
+import matchengine.internals.plugin_helpers
+import matchengine.internals.typing
+import matchengine.config
+import matchengine.plugins
+import matchengine
+import matchengine.tests
+import motor
+import pymongo
+
+import matchengine
 from matchengine.tests.timetravel_and_override import unoverride_datetime, set_static_date_time
 
 
@@ -106,6 +120,11 @@ class RunLogTest(TestCase):
                 set_static_date_time()
         if kwargs.get("unreplace_dt", False):
             unoverride_datetime()
+        else:
+            for protocol_no, run_log_entries in self.me._run_log_history.items():
+                for run_log_entry in run_log_entries:
+                    dt = run_log_entry['_created']
+                    run_log_entry['_created'] = datetime.datetime(*dt.timetuple()[0:6])
 
     def test_run_log_1(self):
         """
