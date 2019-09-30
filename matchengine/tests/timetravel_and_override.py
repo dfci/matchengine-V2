@@ -61,7 +61,7 @@ def perform_override(override_class, base_class, scope):
             if referrer.__class__ is dict:
                 # iterate over each key in the referrer
                 for k in list(referrer.keys()):
-                    if referrer is _scope_handler and k in {'old_datetime', 'old_date'}:
+                    if k in {'old_datetime', 'old_date'}:
                         continue
                     if referrer is scope:
                         continue
@@ -77,7 +77,7 @@ def perform_override(override_class, base_class, scope):
             # so raise an Exception to alert of this fact
             else:
                 print('%s' % UnknownReferenceTypeForOverrideException(
-                    (f"ERROR: Found a hashable object of type {type(referrer)} "
+                    (f"WARNING: Found a hashable object of type {type(referrer)} "
                      f"referring to {base_class} "
                      f"while performing overrides for {override_class} "
                      f"please implement logic for handling overriding references from this type.")

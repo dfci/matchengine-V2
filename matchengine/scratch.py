@@ -1,8 +1,13 @@
+# This file produces a mapping between oncotree types and all their subtypes from a tab delimited oncotree file...
+# just make sure ONCOTREE_TXT_FILE_PATH is set in your env and points to the desired TSV file
 import csv
+import os
 from collections import defaultdict
 
+ONCOTREE_TXT_FILE_PATH = os.getenv("ONCOTREE_TXT_FILE_PATH", None)
+
 with open(
-        "/Users/emarriott/PycharmProjects/data_push_matchengine_new/matchminer-engine/matchengine/data/tumor_tree.txt") as f:
+        ONCOTREE_TXT_FILE_PATH) as f:
     r = csv.DictReader(f, delimiter='\t')
     rows = [row for row in r]
 mapping = defaultdict(set)

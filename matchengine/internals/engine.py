@@ -229,10 +229,11 @@ class MatchEngine(object):
         self._trials_to_match_on = self._get_trials_to_match_on(self.trials)
         if self.protocol_nos is None:
             self.protocol_nos = list(self.trials.keys())
-
+        self._run_log_history = self._populate_run_log_history()
         self._clinical_data = self._get_clinical_data()
         self.clinical_mapping = self.get_clinical_ids_from_sample_ids()
         self.clinical_deceased = self.get_clinical_deceased()
+        self.clinical_birth_dates = self.get_clinical_birth_dates()
         self.clinical_update_mapping = dict() if self.ignore_run_log else self.get_clinical_updated_mapping()
         self.clinical_run_log_mapping = (dict()
                                          if self.get_clinical_ids_from_sample_ids()
@@ -264,6 +265,7 @@ class MatchEngine(object):
         When running the matchengine, the flags used from run to run MUST be consistent
         in order to ensure data integrity. This applies to the --match-on-closed and --match-on-deceased flags
         specifically.
+        :param bypass_warnings:
         :param trial_match_collection:
         :param match_on_deceased:
         :param match_on_closed:
@@ -275,7 +277,7 @@ class MatchEngine(object):
             if r_log['run_params']['match_on_deceased'] != match_on_deceased:
                 log.error("\n\n\nWARNING\n===============================\n"
                           "The --match-on-deceased flag has been used in a way different from a previous run. \n"
-                          "Adding this flag after a previous run without the flag may NOT work correctly.\n\n"
+                          "Toggling this flag this may cause trial matching to NOT work correctly.\n\n"
                           "Please re-run and save trial matches to a custom collection with the flag \n"
                           "--trial-match-collection [collection] to ensure data integrity.\n\n")
                 if not bypass_warnings:
@@ -285,7 +287,7 @@ class MatchEngine(object):
             elif r_log['run_params']['match_on_closed'] != match_on_closed:
                 log.error("\n\n\nWARNING\n===============================\n"
                           "The --match-on-closed flag has been used in a way different from a previous run. \n"
-                          "Adding this flag after a previous run without the flag may NOT work correctly.\n"
+                          "Toggling this flag may cause trial matching to NOT work correctly.\n"
                           "Please re-run and save trial matches to a custom collection with the flag \n\n"
                           "--trial-match-collection [collection] to ensure data integrity.\n\n")
                 if not bypass_warnings:
@@ -309,8 +311,6 @@ class MatchEngine(object):
         }
         self._task_q.put_nowait(CheckIndicesTask())
         await self._task_q.join()
-
-
 
     async def run_query(self,
                         multi_collection_query: MultiCollectionQuery,
@@ -441,15 +441,15 @@ class MatchEngine(object):
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
         """
-        Synchronously iterates over each protocol number, getting trial matches for each
+        Synchronously iterates over each protocol number, getting trial matches for each #TODO: FIX display
         """
         for protocol_no in self.protocol_nos:
             if protocol_no not in self._trials_to_match_on:
                 logging.info((f'Trial {protocol_no} '
                               f'has status {self.trials[protocol_no]["status"]}, skipping'))
                 self._matches[protocol_no] = dict()
-                self._clinical_ids_for_protocol_cache[protocol_no] = self.get_clinical_ids_for_protocol(protocol_no)
-                self.create_run_log_entry(protocol_no, set())
+                self._clinical_ids_for_protocol_cache[protocol_no] = self.get_clinical_ids_for_protocol(protocol_no,
+                                                                                                        set())
                 continue
             self.get_matches_for_trial(protocol_no)
         return self._matches
@@ -471,14 +471,9 @@ class MatchEngine(object):
         trial = self.trials[protocol_no]
         match_clauses = extract_match_clauses_from_trial(self, protocol_no)
 
-        clinical_ids_to_run = self.get_clinical_ids_for_protocol(protocol_no)
-        if not self.skip_run_log_entry:
-            self.create_run_log_entry(protocol_no, clinical_ids_to_run)
-        if not clinical_ids_to_run:
-            log.info(f"No need to re-run trial {protocol_no}; skipping")
-            return {}
-
         # for each match clause, create the match tree, and extract each possible match path from the tree
+        tasks = list()
+        age_criteria = set()
         for match_clause in match_clauses:
             match_tree = create_match_tree(self, match_clause)
             match_paths = get_match_paths(match_tree)
@@ -486,14 +481,25 @@ class MatchEngine(object):
             # for each match path, translate the path into valid mongo queries
             for match_path in match_paths:
                 query = translate_match_path(self, match_clause, match_path)
+                for criteria_node in match_path.criteria_list:
+                    for criteria in criteria_node.criteria:
+                        for k, v in criteria.get('clinical', dict()).items():
+                            if k == 'age_numerical':
+                                age_criteria.add(v)
                 if self.debug:
                     log.info(f"Query: {query}")
                 # put the query onto the task queue for execution
-                self._task_q.put_nowait(QueryTask(trial,
-                                                  match_clause,
-                                                  match_path,
-                                                  query,
-                                                  clinical_ids_to_run))
+                tasks.append((trial, match_clause, match_path, query))
+
+        clinical_ids_to_run = self.get_clinical_ids_for_protocol(protocol_no, age_criteria)
+        if not clinical_ids_to_run:
+            log.info(f"No need to re-run trial {protocol_no}; skipping")
+            return {}
+        if not self.skip_run_log_entry:
+            self.create_run_log_entry(protocol_no, clinical_ids_to_run)
+        for task in tasks:
+            self._task_q.put_nowait(QueryTask(*task,
+                                              clinical_ids_to_run))
         if self.debug:
             log.info(f"Submitted {self._task_q.qsize()} QueryTasks to queue")
         if not self._task_q.qsize():
@@ -502,12 +508,26 @@ class MatchEngine(object):
         logging.info(f"Total results: {len(self._matches.get(protocol_no, dict()))}")
         return self._matches.get(protocol_no, dict())
 
+    def _populate_run_log_history(self) -> Dict[str, List[Dict]]:
+        default_datetime = datetime.datetime.strptime('January 01, 0001', '%B %d, %Y')
+        run_log_entries_by_protocol = dict()
+        for protocol_no in self.protocol_nos:
+            trial = self.trials[protocol_no]
+            trial_last_update = trial.get('_updated', default_datetime)
+            query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
+            cursor = self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
+                [("_created", pymongo.DESCENDING)])
+            if self.match_on_closed:
+                cursor = cursor.limit(1)
+            run_log_entries_by_protocol[protocol_no] = list(cursor)
+        return run_log_entries_by_protocol
+
     def _get_clinical_data(self):
         # if no sample ids are passed in as args, get all clinical documents
         query: Dict = {}
         if self.sample_ids is not None:
             query.update({"SAMPLE_ID": {"$in": list(self.sample_ids)}})
-        projection = {'_id': 1, 'SAMPLE_ID': 1, 'VITAL_STATUS': 1}
+        projection = {'_id': 1, 'SAMPLE_ID': 1, 'VITAL_STATUS': 1, 'BIRTH_DATE': 1}
         if not self.ignore_run_log:
             projection.update({'_updated': 1, 'run_history': 1})
         projection.update({
@@ -543,6 +563,12 @@ class MatchEngine(object):
                 for clinical_id, clinical_data
                 in self._clinical_data.items()
                 if clinical_data['VITAL_STATUS'] == 'deceased'}
+
+    def get_clinical_birth_dates(self) -> Dict[ClinicalID, datetime.datetime]:
+        return {clinical_id: clinical_data['BIRTH_DATE']
+                for clinical_id, clinical_data
+                in self._clinical_data.items()
+                }
 
     def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
         """
@@ -616,7 +642,7 @@ class MatchEngine(object):
         }
         self.clinical_run_log_entries[protocol_no] = clinical_ids
 
-    def get_clinical_ids_for_protocol(self, protocol_no: str) -> Set(ObjectId):
+    def get_clinical_ids_for_protocol(self, protocol_no: str, age_criterion: Set[str]) -> Set(ObjectId):
         """
         Take protocol from args and lookup all run_log entries after protocol_no._updated_date.
         Subset self.clinical_ids which have already been run since the trial's been updated.
@@ -628,30 +654,8 @@ class MatchEngine(object):
         if protocol_no in self._clinical_ids_for_protocol_cache:
             return self._clinical_ids_for_protocol_cache[protocol_no]
         # run logs since trial has been last updated
-        default_datetime = 'January 01, 0001'
-        fmt_string = '%B %d, %Y'
-        trial_last_update = self.trials[protocol_no].get('_updated',
-                                                         datetime.datetime.strptime(default_datetime, fmt_string))
-        if self.match_on_closed:
-            query = {"_created": {'$gte': trial_last_update},
-                     "$or": [{"run_params.trials": None},
-                             {"run_params.trials": protocol_no}]}
-            most_recent_relevant = list(self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
-                [("_created", pymongo.DESCENDING)]).limit(1))
-            if most_recent_relevant and not most_recent_relevant[0]['run_params']['match_on_closed']:
-                run_log_entries = list()
-            elif most_recent_relevant and most_recent_relevant[0]['run_params']['match_on_closed']:
-                query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
-                run_log_entries = list(self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
-                    [("_created", pymongo.DESCENDING)]).limit(1))
-            else:
-                run_log_entries = list()
-        else:
-            query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
-            run_log_entries = list(self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
-                [("_created", pymongo.DESCENDING)]))
-            if self.match_on_closed:
-                pass
+        run_log_entries = self._run_log_history[protocol_no]
+
         if not run_log_entries or (self.match_on_closed and not run_log_entries[0]['run_params']['match_on_closed']):
             self._clinical_ids_for_protocol_cache[protocol_no] = self.clinical_ids
             return self._clinical_ids_for_protocol_cache[protocol_no]
@@ -677,12 +681,19 @@ class MatchEngine(object):
                     continue
                 if clinical_id not in self.clinical_ids:
                     continue
+                if not self.match_on_deceased and clinical_id in self.clinical_deceased:
+                    clinical_ids_to_not_run.add(clinical_id)
+                    continue
                 if updated_at is None:
                     clinical_ids_to_run.add(clinical_id)
                 elif updated_at > run_log_created_at and clinical_id not in clinical_ids_to_not_run:
                     if is_all or clinical_id in run_log_clinical_ids['list']:
                         clinical_ids_to_run.add(clinical_id)
 
+            newly_qualifying = self.get_newly_qualifying_patients(run_log, age_criterion,
+                                                                  (self.clinical_ids - clinical_ids_to_run) - (
+                                                                      set() if self.match_on_deceased else self.clinical_deceased))
+            clinical_ids_to_run.update(newly_qualifying)
             if is_all:
                 if self.match_on_deceased and not prev_run_matched_on_deceased:
                     clinical_ids_to_not_run.update(self.clinical_ids - self.clinical_deceased - clinical_ids_to_run)
@@ -696,11 +707,13 @@ class MatchEngine(object):
                         self.clinical_ids - self.clinical_deceased)
                     run_now_not_run_prev = self.clinical_ids - run_prev
                     clinical_ids_to_run.update(run_now_not_run_prev - clinical_ids_to_not_run)
+                    clinical_ids_to_run.update(newly_qualifying)
                     clinical_ids_to_not_run.update(run_prev - clinical_ids_to_run)
                 else:
                     run_prev = set(run_log_clinical_ids['list']).intersection(self.clinical_ids)
                     run_now_not_run_prev = self.clinical_ids - run_prev
                     clinical_ids_to_run.update(run_now_not_run_prev - clinical_ids_to_not_run)
+                    clinical_ids_to_run.update(newly_qualifying)
                     clinical_ids_to_not_run.update(run_prev - clinical_ids_to_run)
 
         if self.match_on_deceased:
@@ -710,6 +723,47 @@ class MatchEngine(object):
 
         self._clinical_ids_for_protocol_cache[protocol_no] = clinical_ids_to_run
         return self._clinical_ids_for_protocol_cache[protocol_no]
+
+    def get_newly_qualifying_patients(self, run_log, age_criterion, clinical_ids):
+        clinical_ids_to_run = set()
+        age_range_to_date_query = getattr(self.match_criteria_transform.query_transformers, 'age_range_to_date_query')
+        result_criteria_key_map = {
+            '$lte': lambda x, y: x <= y,
+            '$gte': lambda x, y: x >= y
+        }
+        run_log_created_at = run_log['_created']
+        for clinical_id in clinical_ids:
+            birth_date = self.clinical_birth_dates[clinical_id]
+            continue_matching_age = True
+            for age_criteria in age_criterion:
+                translated_age_criteria_at_run = age_range_to_date_query(sample_key=None,
+                                                                         trial_value=age_criteria,
+                                                                         compare_date=run_log_created_at).results
+                translated_age_criteria__today = age_range_to_date_query(sample_key=None,
+                                                                         trial_value=age_criteria,
+                                                                         compare_date=self.starttime).results
+                if not continue_matching_age:
+                    break
+                for at_run, today in zip(translated_age_criteria_at_run, translated_age_criteria__today):
+                    if not continue_matching_age:
+                        break
+                    for ((_, at_run_criteria), (_, today_criteria)) in zip(at_run._query.items(),
+                                                                           today._query.items()):
+                        if not continue_matching_age:
+                            break
+                        for ((at_run_criteria_key, at_run_criteria_value),
+                             (today_criteria_key, today_criteria_value)) in zip(at_run_criteria.items(),
+                                                                                today_criteria.items()):
+                            if not continue_matching_age:
+                                break
+                            qualified_at_run = result_criteria_key_map[at_run_criteria_key](birth_date,
+                                                                                            at_run_criteria_value)
+                            qualifies_now = result_criteria_key_map[today_criteria_key](birth_date,
+                                                                                        today_criteria_value)
+                            if (qualified_at_run and not qualifies_now) or (qualifies_now and not qualified_at_run):
+                                clinical_ids_to_run.add(clinical_id)
+                                continue_matching_age = False
+        return clinical_ids_to_run
 
     def pre_process_trial_matches(self, trial_match: TrialMatch) -> Dict:
         """
