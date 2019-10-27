@@ -1,4 +1,5 @@
 import csv
+from datetime import datetime
 import json
 import logging
 import os
@@ -164,6 +165,9 @@ def load_file(db_rw, filetype: str, path: str, collection: str):
         if filetype == 'csv':
             file_handle = csv.DictReader(file_handle, delimiter=',')
             for row in file_handle:
+                for key in row:
+                    if key == 'BIRTH_DATE':
+                        row[key] = convert_birthdate(row[key])
                 db_rw[collection].insert_one(row)
         else:
             raw_file_data = file_handle.read()
@@ -173,8 +177,22 @@ def load_file(db_rw, filetype: str, path: str, collection: str):
             elif filetype == 'json':
                 if is_valid_single_json(path):
                     data = json_util.loads(raw_file_data)
+                    for key in data:
+                        if key == 'BIRTH_DATE':
+                            data[key] = convert_birthdate(data[key])
                     db_rw[collection].insert_one(data)
 
+
+def convert_birthdate(birth_date):
+    """Convert a string birthday to to datetime object"""
+    try:
+        birth_date_dt = datetime.strptime(birth_date, "%Y-%m-%d")
+    except Exception as e:
+        log.warn("Unable to import clinical data due to malformed "
+                 "patient birth date. \n\nBirthdates must be strings with "
+                 "the following format \n %Y-%m-%d \n 2019-10-27 ")
+        raise ImportError
+    return birth_date_dt
 
 def is_valid_single_json(path: str):
     """Check if a JSON file is a single object or an array of JSON objects"""
