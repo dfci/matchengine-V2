@@ -249,9 +249,7 @@
       "POLE_STATUS",
       "TABACCO_STATUS",
       "TEMOZOLOMIDE_STATUS",
-      "UVA_STATUS",
-      "LEFT_PARTNER_GENE",
-      "RIGHT_PARTNER_GENE"
+      "UVA_STATUS"
     ],
     "clinical": [
       "GENDER",

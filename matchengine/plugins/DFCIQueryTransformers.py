@@ -10,6 +10,30 @@ from matchengine.internals.typing.matchengine_types import QueryTransformerResul
 
 
 class DFCIQueryTransformers(QueryTransformerContainer):
+    def age_range_to_date_query(self, **kwargs):
+        sample_key = kwargs['sample_key']
+        trial_value = kwargs['trial_value']
+        operator_map = {
+            "==": "$eq",
+            "<=": "$gte",
+            ">=": "$lte",
+            ">": "$lte",
+            "<": "$gte"
+        }
+        # funky logic is because 1 month curation is curated as "0.083" (1/12 a year)
+        operator = ''.join([i for i in trial_value if not i.isdigit() and i != '.'])
+        numeric = "".join([i for i in trial_value if i.isdigit() or i == '.'])
+        if numeric.startswith('.'):
+            numeric = '0' + numeric
+        split_time = numeric.split('.')
+        years = int(split_time[0] if split_time[0].isdigit() else 0)
+        months_fraction = float('0.' + split_time[1]) if len(split_time) > 1 else 0
+        months = round(months_fraction * 12)
+        current_date = datetime.date.today()
+        query_date = current_date + (- relativedelta(years=years, months=months) + relativedelta(hours=6))
+        query_datetime = datetime.datetime(query_date.year, query_date.month, query_date.day, query_date.hour, 0, 0, 0)
+        return QueryTransformerResult({sample_key: {operator_map[operator]: query_datetime}}, False)
+
     def tmb_range_to_query(self, **kwargs):
         sample_key = kwargs['sample_key']
         trial_value = kwargs['trial_value']

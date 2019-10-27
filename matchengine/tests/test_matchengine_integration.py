@@ -7,14 +7,12 @@ from collections import defaultdict
 from contextlib import redirect_stderr
 from unittest import TestCase
 
+from bson import ObjectId
+
 from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
 from matchengine.internals.engine import MatchEngine
-from matchengine.tests.timetravel_and_override import set_static_date_time, unoverride_datetime
+from matchengine.tests.timetravel_and_override import set_static_date_time, perform_override, unoverride_datetime
 
-try:
-    __import__('pandas')
-except ImportError:
-    pass
 
 class IntegrationTestMatchengine(TestCase):
     def __init__(self, *args, **kwargs):
@@ -214,11 +212,6 @@ class IntegrationTestMatchengine(TestCase):
 
     def test_visualize_match_paths(self):
         # pygraphviz doesn't install easily on macOS so skip in that case.
-        try:
-            __import__('pandas')
-        except ImportError:
-            print('WARNING: pandas is not installed, skipping this test')
-            return
         try:
             __import__('pygraphviz')
         except ImportError:
