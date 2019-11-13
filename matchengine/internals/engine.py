@@ -235,9 +235,6 @@ class MatchEngine(object):
         self.clinical_deceased = self.get_clinical_deceased()
         self.clinical_birth_dates = self.get_clinical_birth_dates()
         self.clinical_update_mapping = dict() if self.ignore_run_log else self.get_clinical_updated_mapping()
-        self.clinical_run_log_mapping = (dict()
-                                         if self.get_clinical_ids_from_sample_ids()
-                                         else self.get_clinical_run_log_mapping())
         self.clinical_extra_field_mapping = self.get_extra_field_mapping(self._clinical_data,
                                                                          "clinical")
         self.clinical_extra_field_lookup = self.get_extra_field_lookup(self._clinical_data,
@@ -246,6 +243,9 @@ class MatchEngine(object):
         self.sample_mapping = {sample_id: clinical_id for clinical_id, sample_id in
                                self.clinical_mapping.items()}
         self.clinical_ids = set(self.clinical_mapping.keys())
+        self.clinical_run_log_mapping = (dict()
+                                         if self.get_clinical_ids_from_sample_ids()
+                                         else self.get_clinical_run_log_mapping())
         if self.sample_ids is None:
             self.sample_ids = list(self.clinical_mapping.values())
         self._param_cache = dict()
