@@ -134,8 +134,8 @@
     },
     "clinical": {
       "AGE_NUMERICAL": {
-        "sample_key": "BIRTH_DATE",
-        "sample_value": "age_range_to_date_query"
+        "sample_key": "BIRTH_DATE_INT",
+        "sample_value": "age_range_to_date_int_query"
       },
       "ONCOTREE_PRIMARY_DIAGNOSIS": {
         "sample_key": "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
@@ -259,7 +259,8 @@
       "MRN",
       "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
       "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
-      "VITAL_STATUS"
+      "VITAL_STATUS",
+      "BIRTH_DATE_INT"
     ],
     "trial_match": [
       "hash",
