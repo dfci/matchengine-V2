@@ -165,9 +165,10 @@ def load_file(db_rw, filetype: str, path: str, collection: str):
         if filetype == 'csv':
             file_handle = csv.DictReader(file_handle, delimiter=',')
             for row in file_handle:
-                for key in row:
+                for key in file_handle.fieldnames:
                     if key == 'BIRTH_DATE':
                         row[key] = convert_birthdate(row[key])
+                        row['BIRTH_DATE_INT'] = int(row[key].strftime('%Y%m%d'))
                 db_rw[collection].insert_one(row)
         else:
             raw_file_data = file_handle.read()
@@ -177,9 +178,10 @@ def load_file(db_rw, filetype: str, path: str, collection: str):
             elif filetype == 'json':
                 if is_valid_single_json(path):
                     data = json_util.loads(raw_file_data)
-                    for key in data:
+                    for key in list(data.keys()):
                         if key == 'BIRTH_DATE':
                             data[key] = convert_birthdate(data[key])
+                            data['BIRTH_DATE_INT'] = int(data['BIRTH_DATE'].strftime('%Y%m%d'))
                     db_rw[collection].insert_one(data)
 
 
