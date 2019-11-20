@@ -181,7 +181,7 @@ def load_file(db_rw, filetype: str, path: str, collection: str):
                     for key in list(data.keys()):
                         if key == 'BIRTH_DATE':
                             data[key] = convert_birthdate(data[key])
-                            data['BIRTH_DATE_INT'] = int(data['BIRTH_DATE'].strftime('%Y%m%d'))
+                            data['BIRTH_DATE_INT'] = int(data[key].strftime('%Y%m%d'))
                     db_rw[collection].insert_one(data)
 
 
