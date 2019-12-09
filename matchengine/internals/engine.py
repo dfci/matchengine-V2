@@ -500,11 +500,11 @@ class MatchEngine(object):
                 tasks.append((trial, match_clause, match_path, query))
 
         clinical_ids_to_run = self.get_clinical_ids_for_protocol(protocol_no, age_criteria)
+        if not self.skip_run_log_entry:
+            self.create_run_log_entry(protocol_no, clinical_ids_to_run)
         if not clinical_ids_to_run:
             log.info(f"No need to re-run trial {protocol_no}; skipping")
             return {}
-        if not self.skip_run_log_entry:
-            self.create_run_log_entry(protocol_no, clinical_ids_to_run)
         for task in tasks:
             self._task_q.put_nowait(QueryTask(*task,
                                               clinical_ids_to_run))
