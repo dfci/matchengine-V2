@@ -3,7 +3,6 @@
     "genomic": [
       "TRUE_CDNA_CHANGE",
       "REFERENCE_ALLELE",
-      "CANONICAL_STRAND",
       "ALLELE_FRACTION",
       "STRUCTURAL_VARIANT_COMMENT",
       "SAMPLE_ID",
@@ -49,12 +48,18 @@
   },
   "extra_initial_mapping_fields": {
     "clinical": [
-      ["PANEL_VERSION", "raw"]
+      [
+        "PANEL_VERSION",
+        "raw"
+      ]
     ]
   },
   "extra_initial_lookup_fields": {
     "clinical": [
-      ["REPORT_DATE", "date"]
+      [
+        "REPORT_DATE",
+        "date"
+      ]
     ]
   },
   "trial_key_mappings": {
@@ -161,35 +166,61 @@
   },
   "trial_match_sorting": [
     {
+      "show_in_ui": {
+        "True": 1,
+        "False": -1
+      },
       "trial_curation_level_status": {
         "closed": -1,
-        "open": 0
+        "open": 1
+      }
+    },
+    {
+      "match_type": {
+        "mmr": 20,
+        "tmb": 30
       },
-      "mmr_status": {
-        "Deficient(MMR - D / MSI - H)": 1,
-        "Proficient(MMR - P / MSS)": 2
+      "temozolomide_status": {
+        "Yes": 40
+      },
+      "apobec_status": {
+        "Yes": 40
+      },
+      "tabacco_status": {
+        "Yes": 40
+      },
+      "pole_status": {
+        "Yes": 40
+      },
+      "uva_status": {
+        "Yes": 40
       },
       "tier": {
-        "1": 3,
-        "2": 4,
-        "3": 7,
-        "4": 8
+        "1": 50,
+        "2": 60,
+        "3": 80,
+        "4": 90
       },
       "cnv_call": {
-        "Homozygous deletion": 5,
-        "High level amplification": 7,
-        "Gain": 9,
-        "Heterozygous deletion": 10
+        "Homozygous deletion": 70,
+        "High level amplification": 71,
+        "Gain": 72,
+        "Heterozygous deletion": 73
       },
       "wildtype": {
-        "False": 11,
-        "True": 12
+        "False": 100,
+        "True": 100
       }
     },
     {
       "match_type": {
         "variant": 0,
         "gene": 1
+      }
+    },
+    {
+      "variant_category": {
+        "SV": 0
       }
     },
     {
@@ -218,7 +249,10 @@
       "POLE_STATUS",
       "TABACCO_STATUS",
       "TEMOZOLOMIDE_STATUS",
-      "UVA_STATUS"
+      "UVA_STATUS",
+      "LEFT_PARTNER_GENE",
+      "RIGHT_PARTNER_GENE",
+      "TRUE_HUGO_SYMBOL"
     ],
     "clinical": [
       "GENDER",
@@ -226,14 +260,17 @@
       "MRN",
       "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
       "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
-      "VITAL_STATUS"
+      "VITAL_STATUS",
+      "BIRTH_DATE_INT"
     ],
     "trial_match": [
       "hash",
       "mrn",
       "sample_id",
       "clinical_id",
-      "protocol_no"
+      "protocol_no",
+      "is_disabled",
+      "show_in_ui"
     ]
   },
   "valid_clinical_reasons": [
