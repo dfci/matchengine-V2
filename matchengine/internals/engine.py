@@ -37,7 +37,8 @@ from matchengine.internals.utilities.query import (
     execute_clinical_queries,
     execute_genomic_queries,
     get_docs_results,
-    get_valid_reasons)
+    get_valid_reasons
+)
 from matchengine.internals.utilities.task_utils import (
     run_query_task,
     run_poison_pill,
@@ -47,7 +48,8 @@ from matchengine.internals.utilities.task_utils import (
 )
 from matchengine.internals.utilities.update_match_utils import async_update_matches_by_protocol_no
 from matchengine.internals.utilities.utilities import (
-    find_plugins)
+    find_plugins
+)
 
 if TYPE_CHECKING:
     from typing import (
@@ -432,10 +434,16 @@ class MatchEngine(object):
                     'DELETED_PROTOCOLS'))
         for protocol_number in self.protocol_nos:
             if not self.match_on_deceased:
-                self.task_q.put_nowait(UpdateTask([UpdateMany({'clinical_id': {'$in': list(self.clinical_deceased)},
-                                                               'protocol_no': protocol_number},
-                                                              {'$set': {'is_disabled': True,
-                                                                        '_updated': updated_time}})],
+                self.task_q.put_nowait(UpdateTask([UpdateMany({
+                                                                  'clinical_id': {'$in': list(self.clinical_deceased)},
+                                                                  'protocol_no': protocol_number
+                                                              },
+                                                              {
+                                                                  '$set': {
+                                                                      'is_disabled': True,
+                                                                      '_updated': updated_time
+                                                                  }
+                                                              })],
                                                   protocol_number))
             self.update_matches_for_protocol_number(protocol_number)
 
@@ -492,11 +500,11 @@ class MatchEngine(object):
                 tasks.append((trial, match_clause, match_path, query))
 
         clinical_ids_to_run = self.get_clinical_ids_for_protocol(protocol_no, age_criteria)
+        if not self.skip_run_log_entry:
+            self.create_run_log_entry(protocol_no, clinical_ids_to_run)
         if not clinical_ids_to_run:
             log.info(f"No need to re-run trial {protocol_no}; skipping")
             return {}
-        if not self.skip_run_log_entry:
-            self.create_run_log_entry(protocol_no, clinical_ids_to_run)
         for task in tasks:
             self._task_q.put_nowait(QueryTask(*task,
                                               clinical_ids_to_run))
@@ -527,7 +535,7 @@ class MatchEngine(object):
         query: Dict = {}
         if self.sample_ids is not None:
             query.update({"SAMPLE_ID": {"$in": list(self.sample_ids)}})
-        projection = {'_id': 1, 'SAMPLE_ID': 1, 'VITAL_STATUS': 1, 'BIRTH_DATE': 1}
+        projection = {'_id': 1, 'SAMPLE_ID': 1, 'VITAL_STATUS': 1, 'BIRTH_DATE_INT': 1}
         if not self.ignore_run_log:
             projection.update({'_updated': 1, 'run_history': 1})
         projection.update({
@@ -564,8 +572,8 @@ class MatchEngine(object):
                 in self._clinical_data.items()
                 if clinical_data['VITAL_STATUS'] == 'deceased'}
 
-    def get_clinical_birth_dates(self) -> Dict[ClinicalID, datetime.datetime]:
-        return {clinical_id: clinical_data['BIRTH_DATE']
+    def get_clinical_birth_dates(self) -> Dict[ClinicalID, int]:
+        return {clinical_id: clinical_data['BIRTH_DATE_INT']
                 for clinical_id, clinical_data
                 in self._clinical_data.items()
                 }
@@ -592,7 +600,8 @@ class MatchEngine(object):
 
         if self.protocol_nos is not None:
             trial_find_query['protocol_no'] = {
-                "$in": [protocol_no for protocol_no in self.protocol_nos]}
+                "$in": [protocol_no for protocol_no in self.protocol_nos]
+            }
 
         all_trials = {
             result['protocol_no']: result
@@ -726,10 +735,14 @@ class MatchEngine(object):
 
     def get_newly_qualifying_patients(self, run_log, age_criterion, clinical_ids):
         clinical_ids_to_run = set()
-        age_range_to_date_query = getattr(self.match_criteria_transform.query_transformers, 'age_range_to_date_query')
+        age_range_to_date_query = getattr(self.match_criteria_transform.query_transformers,
+                                          'age_range_to_date_int_query')
         result_criteria_key_map = {
             '$lte': lambda x, y: x <= y,
-            '$gte': lambda x, y: x >= y
+            '$gte': lambda x, y: x >= y,
+            '$eq': lambda x, y: x == y,
+            '$lt': lambda x, y: x < y,
+            '$gt': lambda x, y: x > y
         }
         run_log_created_at = run_log['_created']
         for clinical_id in clinical_ids:
@@ -799,8 +812,10 @@ class MatchEngine(object):
         })
 
         new_trial_match.update(
-            {'match_path': '.'.join(
-                [str(item) for item in trial_match.match_clause_data.parent_path])})
+            {
+                'match_path': '.'.join(
+                    [str(item) for item in trial_match.match_clause_data.parent_path])
+            })
 
         new_trial_match['combo_coord'] = nested_object_hash(
             {
