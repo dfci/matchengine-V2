@@ -300,11 +300,20 @@ class MatchEngine(object):
         Instantiate asynchronous db connections and workers.
         Create a task que which holds all matching and update tasks for processing via workers.
         """
+        # create a task queue for async tasks
         self._task_q = asyncio.queues.Queue()
         self._async_db_ro = MongoDBConnection(read_only=True, db=db_name)
         self.async_db_ro = self._async_db_ro.__enter__()
         self._async_db_rw = MongoDBConnection(read_only=False, db=db_name)
         self.async_db_rw = self._async_db_rw.__enter__()
+        # create "workers" which handle async tasks from the task_q
+        # general pattern is to put a series of tasks in the queue, then await task_q.join()
+        # and the workers will complete the tasks.
+        # this is done instead of using asyncio.gather as the event loop will hang if >100s of coroutines/futures
+        # are placed at once, especially if they're I/O related. The epoll (linux) and kqueue (macOS/BSD)
+        # selectors used in the event loop implementation will grind to a halt with too many open sockets, and
+        # as we can have 1000's of requests for a single trial, we need to limit the effective I/O concurrency.
+        # In effect, the effective concurrency is the number of workers.
         self._workers = {
             worker_id: self._loop.create_task(self._queue_worker(worker_id))
             for worker_id in range(0, self.num_workers)
