@@ -86,7 +86,7 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                     still_waiting_for.intersection_update(matchengine.cache.in_process[query_hash])
                     if not still_waiting_for:
                         break
-                    await asyncio.sleep(0)
+                    await asyncio.sleep(0.01)
                 for clinical_id in list(clinical_ids):
 
                     # an exclusion criteria returned a clinical document hence doc is not a match
@@ -173,7 +173,7 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                 still_waiting_for.intersection_update(matchengine.cache.in_process[query_hash])
                 if not still_waiting_for:
                     break
-                await asyncio.sleep(0)
+                await asyncio.sleep(0.01)
             returned_clinical_ids = {clinical_id
                                      for clinical_id, genomic_docs
                                      in id_cache.items()
