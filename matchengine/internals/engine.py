@@ -359,8 +359,8 @@ class MatchEngine(object):
             all_match_reasons = clinical_match_reasons
 
         needed_clinical = list(clinical_ids)
-        needed_genomic = extended_attribute_id_map
-        results = await get_docs_results(self, needed_clinical, needed_genomic)
+        needed_extended = extended_attribute_id_map
+        results = await get_docs_results(self, needed_clinical, needed_extended)
 
         # asyncio.gather returns [[],[]]. Save the resulting values on the cache for use when creating trial matches
         for outer_result in results:

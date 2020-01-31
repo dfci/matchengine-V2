@@ -3,6 +3,7 @@
     "clinical": {
       "query_collection": "clinical",
       "join_field": "_id",
+      "id_field": "_id",
       "trial_key_mappings": {
         "AGE_NUMERICAL": {
           "sample_key": "BIRTH_DATE_INT",
@@ -38,6 +39,7 @@
     "genomic": {
       "query_collection": "genomic",
       "join_field": "CLINICAL_ID",
+      "id_field": "_id",
       "trial_key_mappings": {
         "HUGO_SYMBOL": {
           "sample_key": "TRUE_HUGO_SYMBOL",
@@ -111,6 +113,7 @@
     "prior_treatments": {
       "query_collection": "prior_treatments",
       "join_field": "CLINICAL_ID",
+      "id_field": "_id",
       "trial_key_mappings": {
         "DRUG": {
           "sample_key": "DRUG",

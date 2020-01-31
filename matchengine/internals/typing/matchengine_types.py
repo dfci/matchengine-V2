@@ -369,10 +369,10 @@ class MatchClauseData(object):
         self.match_clause = match_clause
 
 
-class GenomicMatchReason(object):
+class ExtendedMatchReason(object):
     __slots__ = (
         "query_node", "width", "clinical_id",
-        "genomic_id", "clinical_width", "depth",
+        "reference_id", "clinical_width", "depth",
         "show_in_ui", "reason_name"
     )
 
@@ -382,12 +382,12 @@ class GenomicMatchReason(object):
             width: int,
             clinical_width: int,
             clinical_id: ClinicalID,
-            genomic_id: Union[GenomicID, None],
+            reference_id: Union[GenomicID, None],
             show_in_ui: bool,
     ):
         self.show_in_ui = show_in_ui
         self.clinical_width = clinical_width
-        self.genomic_id = genomic_id
+        self.reference_id = reference_id
         self.clinical_id = clinical_id
         self.width = width
         self.query_node = query_node
@@ -422,7 +422,7 @@ class ClinicalMatchReason(object):
         return self.query_part.query
 
 
-MatchReason = NewType("MatchReason", Union[GenomicMatchReason, ClinicalMatchReason])
+MatchReason = NewType("MatchReason", Union[ExtendedMatchReason, ClinicalMatchReason])
 
 
 class TrialMatch(object):

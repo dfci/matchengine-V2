@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Dict
 
 from matchengine.internals.typing.matchengine_types import (
     ClinicalMatchReason,
-    GenomicMatchReason,
+    ExtendedMatchReason,
     MongoQuery,
     Cache, MatchReason
 )
@@ -43,13 +43,15 @@ async def execute_clinical_queries(matchengine: MatchEngine,
 
     Match Reasons are not used by default, but are composed of QueryNode objects and a clinical ID.
     """
-    collection = matchengine.match_criteria_transform.ctml_collection_mappings["clinical"]["query_collection"]
-    join_field = matchengine.match_criteria_transform.ctml_collection_mappings["clinical"]["join_field"]
     reasons = defaultdict(list)
     reasons_cache = set()
     query_parts_by_hash = dict()
     for _clinical in multi_collection_query.clinical:
         for query_node in _clinical.query_nodes:
+            query_level_mappings = matchengine.match_criteria_transform.ctml_collection_mappings[query_node.query_level]
+            collection = query_level_mappings["query_collection"]
+            join_field = query_level_mappings["join_field"]
+            id_field = query_level_mappings["id_field"]
             show_in_ui, clinical_ids = matchengine.clinical_query_node_clinical_ids_subsetter(query_node, clinical_ids)
             for query_part in query_node.query_parts:
                 if not query_part.render:
@@ -73,11 +75,12 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                     new_query = {'$and': [{join_field: {'$in': list(need_new)}}, query_part.query]}
                     if matchengine.debug:
                         log.info(f"{query_part.query}")
-                    docs = await matchengine.async_db_ro[collection].find(new_query, {join_field: 1}).to_list(None)
+                    projection = {id_field: 1, join_field: 1}
+                    docs = await matchengine.async_db_ro[collection].find(new_query, projection).to_list(None)
 
                     # save returned ids
                     for doc in docs:
-                        id_cache[doc[join_field]] = doc[join_field]
+                        id_cache[doc[id_field]] = doc[join_field]
 
                     # save IDs NOT returned as None so if a query is run in the future which is the same, it will skip
                     for unfound in need_new - set(id_cache.keys()):
@@ -133,8 +136,10 @@ async def execute_extended_queries(
         if not query_node_container.query_nodes:
             continue
         for qn_idx, query_node in enumerate(query_node_container.query_nodes):
-            join_field = matchengine.match_criteria_transform.ctml_collection_mappings[query_node.query_level][
-                'join_field']
+            query_level_mappings = matchengine.match_criteria_transform.ctml_collection_mappings[query_node.query_level]
+            collection = query_level_mappings["query_collection"]
+            join_field = query_level_mappings["join_field"]
+            id_field = query_level_mappings["id_field"]
             query_node_container_clinical_ids.append(
                 matchengine.extended_query_node_clinical_ids_subsetter(query_node, clinical_ids.keys())
             )
@@ -159,10 +164,8 @@ async def execute_extended_queries(
                 new_query['$and'] = new_query.get('$and', list())
                 new_query['$and'].insert(0, {join_field: {'$in': list(need_new)}})
 
-                projection = {"_id": 1, join_field: 1}
-                query_collection = matchengine.match_criteria_transform.ctml_collection_mappings[
-                    query_node.query_level]["query_collection"]
-                genomic_docs = await matchengine.async_db_ro[query_collection].find(new_query, projection).to_list(None)
+                projection = {id_field: 1, join_field: 1}
+                genomic_docs = await matchengine.async_db_ro[collection].find(new_query, projection).to_list(None)
                 if matchengine.debug:
                     log.info(f"{new_query} returned {genomic_docs}")
 
@@ -170,7 +173,7 @@ async def execute_extended_queries(
                     # If the clinical id of a returned extended_attributes doc is not present in the cache, add it.
                     if genomic_doc[join_field] not in id_cache:
                         id_cache[genomic_doc[join_field]] = set()
-                    id_cache[genomic_doc[join_field]].add(genomic_doc["_id"])
+                    id_cache[genomic_doc[join_field]].add(genomic_doc[id_field])
 
                 # Clinical IDs which do not return extended_attributes docs need to be recorded to cache exclusions
                 for unfound in need_new - set(id_cache.keys()):
@@ -206,8 +209,8 @@ async def execute_extended_queries(
                 clinical_ids[valid_clinical_id].add((qnc_idx, qn_idx))
             qnc_qn_tracker[(qnc_idx, qn_idx)] = qn_results
 
-    reasons, all_genomic = get_reasons(qnc_qn_tracker, multi_collection_query, matchengine.cache, reasons)
-    return set(clinical_ids.keys()), all_genomic, reasons
+    reasons, all_extended = get_reasons(qnc_qn_tracker, multi_collection_query, matchengine.cache, reasons)
+    return set(clinical_ids.keys()), all_extended, reasons
 
 
 def get_reasons(qnc_qn_tracker: Dict[Tuple: int, List[ClinicalID]],
@@ -215,40 +218,47 @@ def get_reasons(qnc_qn_tracker: Dict[Tuple: int, List[ClinicalID]],
                 cache: Cache,
                 reasons: Dict[ClinicalID, List[MatchReason]]) -> Tuple[
     Dict[ClinicalID, List[MatchReason]], Dict[str, Set[ObjectId]]]:
-    all_genomic = defaultdict(set)
+    all_extended = defaultdict(set)
 
     for (qnc_idx, qn_idx), (show_in_ui, found_clinical_ids) in qnc_qn_tracker.items():
         genomic_query_node_container = multi_collection_query.extended_attributes[qnc_idx]
         query_node = genomic_query_node_container.query_nodes[qn_idx]
         for clinical_id in found_clinical_ids:
-            genomic_ids = cache.ids[query_node.raw_query_hash()][clinical_id]
-            if genomic_ids is not None:
-                all_genomic[query_node.query_level].update(genomic_ids)
-            for genomic_id in (genomic_ids if genomic_ids is not None else [None]):
+            reference_ids = cache.ids[query_node.raw_query_hash()][clinical_id]
+            if reference_ids is not None:
+                all_extended[query_node.query_level].update(reference_ids)
+            for reference_id in (reference_ids if reference_ids is not None else [None]):
                 id_cache = cache.ids[query_node.raw_query_hash()]
-                genomic_width = len(id_cache[clinical_id]) if genomic_id is not None else -1
+                reference_width = len(id_cache[clinical_id]) if reference_id is not None else -1
                 clinical_width = len(id_cache)
                 reasons[clinical_id].append(
-                    GenomicMatchReason(query_node, genomic_width, clinical_width, clinical_id, genomic_id, show_in_ui))
-    return reasons, all_genomic
+                    ExtendedMatchReason(
+                        query_node,
+                        reference_width,
+                        clinical_width,
+                        clinical_id,
+                        reference_id,
+                        show_in_ui
+                    ))
+    return reasons, all_extended
 
 
-async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_genomic):
+async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_extended):
     """
     Matching criteria for clinical and extended_attributes values can be set/extended in config.json
     :param matchengine:
     :param needed_clinical:
-    :param needed_genomic:
+    :param needed_extended:
     :return:
     """
     clinical_projection = matchengine.match_criteria_transform.projections["clinical"]
     clinical_query = MongoQuery({"_id": {"$in": list(needed_clinical)}})
     db_calls = list()
     db_calls.append(perform_db_call(matchengine, "clinical", clinical_query, clinical_projection))
-    for collection, genomic_ids in needed_genomic.items():
-        genomic_query = MongoQuery({"_id": {"$in": list(genomic_ids)}})
-        projection = matchengine.match_criteria_transform.projections[collection]
-        db_calls.append(perform_db_call(matchengine, collection, genomic_query, projection))
+    for extended_collection, extended_ids in needed_extended.items():
+        genomic_query = MongoQuery({"_id": {"$in": list(extended_ids)}})
+        projection = matchengine.match_criteria_transform.projections[extended_collection]
+        db_calls.append(perform_db_call(matchengine, extended_collection, genomic_query, projection))
 
     results = await asyncio.gather(*db_calls)
     return results
@@ -260,7 +270,7 @@ def get_valid_reasons(matchengine: MatchEngine, possible_reasons, clinical_ids, 
         if clinical_id in clinical_ids:
             list_o_reasons = list()
             for reason in reasons:
-                if ((reason.__class__ is GenomicMatchReason
+                if ((reason.__class__ is ExtendedMatchReason
                      and (reason.query_node.exclusion or reason.genomic_id in genomic_ids[
                             reason.query_node.query_level]))
                         or (reason.__class__ is ClinicalMatchReason

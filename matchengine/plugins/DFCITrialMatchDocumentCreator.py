@@ -113,7 +113,7 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
     return {
         'match_type': is_variant,
         'genomic_alteration': ''.join(alteration),
-        'genomic_id': genomic_doc['_id'],
+        'reference_id': genomic_doc['_id'],
         **genomic_doc
     }
 
