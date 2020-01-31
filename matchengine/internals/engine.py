@@ -522,7 +522,8 @@ class MatchEngine(object):
         if not self._task_q.qsize():
             self._matches[protocol_no] = dict()
         await self._task_q.join()
-        logging.info(f"Total results: {len(self._matches.get(protocol_no, dict()))}")
+        logging.info(f"Total patient matches: {len(self._matches.get(protocol_no, dict()))}")
+        logging.info(f"Total trial match documents: {sum([len(matches) for matches in self._matches.get(protocol_no, dict())])}")
         return self._matches.get(protocol_no, dict())
 
     def _populate_run_log_history(self) -> Dict[str, List[Dict]]:
