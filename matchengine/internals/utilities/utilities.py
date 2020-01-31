@@ -101,9 +101,9 @@ def find_plugins(matchengine: MatchEngine):
                 if item_name == matchengine.query_node_subsetter_class:
                     log.info(f"Loading QueryNodeClinicalIDsSubsetter {item_name} type: {item}")
                     setattr(matchengine,
-                            "genomic_query_node_clinical_ids_subsetter",
+                            "extended_query_node_clinical_ids_subsetter",
                             MethodType(getattr(item,
-                                               "genomic_query_node_clinical_ids_subsetter"),
+                                               "extended_query_node_clinical_ids_subsetter"),
                                        matchengine))
                     setattr(matchengine,
                             "clinical_query_node_clinical_ids_subsetter",

@@ -332,7 +332,7 @@ class IntegrationTestMatchengine(TestCase):
         caught_matches = defaultdict(int)
         for match in self.me.matches['99-9999']['5d2799df6756630d8dd068c6']:
             alteration = match.get('genomic_alteration')
-            if match['reason_type'] == 'extended_attributes':
+            if match['reason_type'] == 'genomic':
                 if match['internal_id'] == 1234566:
                     assert (alteration
                             not in

@@ -42,9 +42,9 @@ def load(args: Namespace):
 
         if args.genomic:
             if len(list(db_ro.clinical.find({}))) == 0:
-                log.warning("No clinical documents in db. Please load clinical documents before loading extended_attributes.")
+                log.warning("No clinical documents in db. Please load clinical documents before loading genomic.")
 
-            log.info('Adding extended_attributes data to mongo...')
+            log.info('Adding genomic data to mongo...')
             load_genomic(db_rw, db_ro, args)
 
         log.info('Done.')
@@ -125,17 +125,17 @@ def load_genomic(db_rw, db_ro, args: Namespace, ):
     if args.patient_format == 'json':
         # load directory of clinical json files
         if os.path.isdir(args.genomic):
-            load_dir(args, db_rw, 'json', args.genomic, 'extended_attributes')
+            load_dir(args, db_rw, 'json', args.genomic, 'genomic')
         else:
-            load_file(db_rw, 'json', args.genomic, 'extended_attributes')
+            load_file(db_rw, 'json', args.genomic, 'genomic')
     elif args.patient_format == 'csv':
-        load_file(db_rw, 'csv', args.genomic, 'extended_attributes')
+        load_file(db_rw, 'csv', args.genomic, 'genomic')
 
     map_clinical_to_genomic(db_rw, db_ro)
 
 
 def map_clinical_to_genomic(db_rw, db_ro):
-    """Ensure that all extended_attributes docs are linked to their corresponding clinical docs by _id"""
+    """Ensure that all genomic docs are linked to their corresponding clinical docs by _id"""
     clinical_docs = list(db_ro.clinical.find({}, {"_id": 1, "SAMPLE_ID": 1}))
     clinical_dict = dict(zip([i['SAMPLE_ID'] for i in clinical_docs], [i['_id'] for i in clinical_docs]))
 

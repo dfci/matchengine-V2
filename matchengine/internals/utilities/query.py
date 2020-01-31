@@ -44,6 +44,7 @@ async def execute_clinical_queries(matchengine: MatchEngine,
     Match Reasons are not used by default, but are composed of QueryNode objects and a clinical ID.
     """
     collection = matchengine.match_criteria_transform.ctml_collection_mappings["clinical"]["query_collection"]
+    join_field = matchengine.match_criteria_transform.ctml_collection_mappings["clinical"]["join_field"]
     reasons = defaultdict(list)
     reasons_cache = set()
     query_parts_by_hash = dict()
@@ -69,14 +70,14 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                 matchengine.cache.in_process.setdefault(query_hash, set()).update(need_new)
 
                 if need_new:
-                    new_query = {'$and': [{'_id': {'$in': list(need_new)}}, query_part.query]}
+                    new_query = {'$and': [{join_field: {'$in': list(need_new)}}, query_part.query]}
                     if matchengine.debug:
                         log.info(f"{query_part.query}")
-                    docs = await matchengine.async_db_ro[collection].find(new_query, {'_id': 1}).to_list(None)
+                    docs = await matchengine.async_db_ro[collection].find(new_query, {join_field: 1}).to_list(None)
 
                     # save returned ids
                     for doc in docs:
-                        id_cache[doc['_id']] = doc['_id']
+                        id_cache[doc[join_field]] = doc[join_field]
 
                     # save IDs NOT returned as None so if a query is run in the future which is the same, it will skip
                     for unfound in need_new - set(id_cache.keys()):
@@ -116,25 +117,26 @@ async def execute_clinical_queries(matchengine: MatchEngine,
     return clinical_ids, reasons
 
 
-async def execute_genomic_queries(matchengine: MatchEngine,
-                                  multi_collection_query: MultiCollectionQuery,
-                                  initial_clinical_ids: Set[ClinicalID],
-                                  reasons: Dict[ClinicalID, List[MatchReason]]) -> Tuple[
-    Set[ObjectId], Dict[str, Set[ObjectId]],
-    Dict[ClinicalID, List[
-        MatchReason]]]:
+async def execute_extended_queries(
+        matchengine: MatchEngine,
+        multi_collection_query: MultiCollectionQuery,
+        initial_clinical_ids: Set[ClinicalID],
+        reasons: Dict[ClinicalID, List[MatchReason]]) -> Tuple[Set[ObjectId],
+                                                               Dict[str, Set[ObjectId]],
+                                                               Dict[ClinicalID, List[MatchReason]]]:
+    # This function will execute to filter patients on extended clinical/genomic attributes
     clinical_ids = {clinical_id: set() for clinical_id in initial_clinical_ids}
     qnc_qn_tracker = dict()
-    for qnc_idx, genomic_query_node_container in enumerate(multi_collection_query.extended_attributes):
+    for qnc_idx, query_node_container in enumerate(multi_collection_query.extended_attributes):
         query_node_container_clinical_ids = list()
         # TODO: add test for this - duplicate criteria causing empty qnc
-        if not genomic_query_node_container.query_nodes:
+        if not query_node_container.query_nodes:
             continue
-        for qn_idx, genomic_query_node in enumerate(genomic_query_node_container.query_nodes):
-            join_field = matchengine.match_criteria_transform.ctml_collection_mappings[genomic_query_node.query_level][
+        for qn_idx, query_node in enumerate(query_node_container.query_nodes):
+            join_field = matchengine.match_criteria_transform.ctml_collection_mappings[query_node.query_level][
                 'join_field']
             query_node_container_clinical_ids.append(
-                matchengine.genomic_query_node_clinical_ids_subsetter(genomic_query_node, clinical_ids.keys())
+                matchengine.extended_query_node_clinical_ids_subsetter(query_node, clinical_ids.keys())
             )
             show_in_ui, working_clinical_ids = query_node_container_clinical_ids[qn_idx]
             if not working_clinical_ids:
@@ -142,7 +144,7 @@ async def execute_genomic_queries(matchengine: MatchEngine,
 
             # Create a nested id_cache where the key is the clinical ID being queried and the vals
             # are the extended_attributes IDs returned
-            query_hash = genomic_query_node.raw_query_hash()
+            query_hash = query_node.raw_query_hash()
             if query_hash not in matchengine.cache.ids:
                 matchengine.cache.ids[query_hash] = dict()
             id_cache = matchengine.cache.ids[query_hash]
@@ -150,7 +152,7 @@ async def execute_genomic_queries(matchengine: MatchEngine,
             still_waiting_for = matchengine.cache.in_process.setdefault(query_hash, set())
             need_new = working_clinical_ids - queried_ids - still_waiting_for
             matchengine.cache.in_process.setdefault(query_hash, set()).update(need_new)
-            query = genomic_query_node.extract_raw_query()
+            query = query_node.extract_raw_query()
 
             if need_new:
                 new_query = query
@@ -159,7 +161,7 @@ async def execute_genomic_queries(matchengine: MatchEngine,
 
                 projection = {"_id": 1, join_field: 1}
                 query_collection = matchengine.match_criteria_transform.ctml_collection_mappings[
-                    genomic_query_node.query_level]["query_collection"]
+                    query_node.query_level]["query_collection"]
                 genomic_docs = await matchengine.async_db_ro[query_collection].find(new_query, projection).to_list(None)
                 if matchengine.debug:
                     log.info(f"{new_query} returned {genomic_docs}")
@@ -186,7 +188,7 @@ async def execute_genomic_queries(matchengine: MatchEngine,
             not_returned_clinical_ids = working_clinical_ids - returned_clinical_ids
             working_clinical_ids.intersection_update((
                 not_returned_clinical_ids
-                if genomic_query_node.exclusion
+                if query_node.exclusion
                 else returned_clinical_ids
             ))
         current_clinical_ids = set(clinical_ids.keys())

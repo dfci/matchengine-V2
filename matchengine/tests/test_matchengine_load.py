@@ -168,7 +168,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          upsert_fields='')
         load(args)
 
-        # load extended_attributes doc
+        # load genomic doc
         args = Namespace(genomic='matchengine/tests/data/genomic_json/test_patient_1.json',
                          trial=None,
                          db_name='integration_load',
@@ -195,7 +195,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          upsert_fields='')
         load(args)
 
-        # load extended_attributes docs
+        # load genomic docs
         args = Namespace(genomic='matchengine/tests/data/genomic_json/',
                          trial=None,
                          db_name='integration_load',
@@ -224,7 +224,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          upsert_fields='')
         load(args)
 
-        # load extended_attributes doc
+        # load genomic doc
         args = Namespace(genomic='matchengine/tests/data/genomic_csv/test_patients.csv',
                          trial=None,
                          db_name='integration_load',

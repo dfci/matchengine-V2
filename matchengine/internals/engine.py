@@ -35,7 +35,7 @@ from matchengine.internals.typing.matchengine_types import (
 from matchengine.internals.utilities.object_comparison import nested_object_hash
 from matchengine.internals.utilities.query import (
     execute_clinical_queries,
-    execute_genomic_queries,
+    execute_extended_queries,
     get_docs_results,
     get_valid_reasons
 )
@@ -248,7 +248,6 @@ class MatchEngine(object):
                                          else self.get_clinical_run_log_mapping())
         if self.sample_ids is None:
             self.sample_ids = list(self.clinical_mapping.values())
-        self._param_cache = dict()
 
         # instantiate a new async event loop to allow class to be used as if it is synchronous
         if asyncio.get_event_loop().is_closed():
@@ -343,24 +342,24 @@ class MatchEngine(object):
             return dict()
 
         if multi_collection_query.extended_attributes:
-            new_clinical_ids, genomic_ids, all_match_reasons = await (
-                execute_genomic_queries(self,
-                                        multi_collection_query,
-                                        clinical_ids
-                                        if clinical_ids
-                                        else set(
-                                            initial_clinical_ids),
-                                        clinical_match_reasons)
+            new_clinical_ids, extended_attribute_id_map, all_match_reasons = await (
+                execute_extended_queries(self,
+                                         multi_collection_query,
+                                         clinical_ids
+                                         if clinical_ids
+                                         else set(
+                                             initial_clinical_ids),
+                                         clinical_match_reasons)
             )
             clinical_ids = new_clinical_ids
             if not all_match_reasons:
                 return dict()
         else:
-            genomic_ids = dict()
+            extended_attribute_id_map = dict()
             all_match_reasons = clinical_match_reasons
 
         needed_clinical = list(clinical_ids)
-        needed_genomic = genomic_ids
+        needed_genomic = extended_attribute_id_map
         results = await get_docs_results(self, needed_clinical, needed_genomic)
 
         # asyncio.gather returns [[],[]]. Save the resulting values on the cache for use when creating trial matches
@@ -368,7 +367,7 @@ class MatchEngine(object):
             for result in outer_result:
                 self.cache.docs[result["_id"]] = result
 
-        valid_reasons = get_valid_reasons(self, all_match_reasons, clinical_ids, genomic_ids)
+        valid_reasons = get_valid_reasons(self, all_match_reasons, clinical_ids, extended_attribute_id_map)
 
         return valid_reasons
 
@@ -408,17 +407,19 @@ class MatchEngine(object):
         """Stub function to be overriden by plugin"""
         pass
 
-    def genomic_query_node_clinical_ids_subsetter(self,
-                                                  query_node: QueryNode,
-                                                  clinical_ids: Iterable[ClinicalID]) -> Tuple[
-        bool, Set[ClinicalID]]:
+    def extended_query_node_clinical_ids_subsetter(
+            self,
+            query_node: QueryNode,
+            clinical_ids: Iterable[ClinicalID]
+    ) -> Tuple[bool, Set[ClinicalID]]:
         """Stub function to be overriden by plugin"""
         return True, {clinical_id for clinical_id in clinical_ids}
 
-    def clinical_query_node_clinical_ids_subsetter(self,
-                                                   query_node: QueryNode,
-                                                   clinical_ids: Iterable[ClinicalID]) -> Tuple[
-        bool, Set[ClinicalID]]:
+    def clinical_query_node_clinical_ids_subsetter(
+            self,
+            query_node: QueryNode,
+            clinical_ids: Iterable[ClinicalID]
+    ) -> Tuple[bool, Set[ClinicalID]]:
         """Stub function to be overriden by plugin"""
         return True, {clinical_id for clinical_id in clinical_ids}
 
@@ -498,6 +499,8 @@ class MatchEngine(object):
                 query = translate_match_path(self, match_clause, match_path)
                 for criteria_node in match_path.criteria_list:
                     for criteria in criteria_node.criteria:
+                        # check if node has any age criteria, to know to check for newly qualifying patients
+                        # or patients aging out
                         for k, v in criteria.get('clinical', dict()).items():
                             if k == 'age_numerical':
                                 age_criteria.add(v)
@@ -547,10 +550,6 @@ class MatchEngine(object):
         projection = {'_id': 1, 'SAMPLE_ID': 1, 'VITAL_STATUS': 1, 'BIRTH_DATE_INT': 1}
         if not self.ignore_run_log:
             projection.update({'_updated': 1, 'run_history': 1})
-        projection.update({
-            item[0]: 1
-            for item
-            in self.config.get("extra_initial_mapping_fields", dict()).get("clinical", list())})
         projection.update({
             item[0]: 1
             for item
@@ -743,6 +742,9 @@ class MatchEngine(object):
         return self._clinical_ids_for_protocol_cache[protocol_no]
 
     def get_newly_qualifying_patients(self, run_log, age_criterion, clinical_ids):
+        # This function handles all the logic for when patients age in and out of trials, for when the run log
+        # would otherwise skip them
+        # TODO: Age inclusion logic fix
         clinical_ids_to_run = set()
         age_range_to_date_query = getattr(self.match_criteria_transform.query_transformers,
                                           'age_range_to_date_int_query')
