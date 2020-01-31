@@ -1,5 +1,5 @@
 {
-  "match_criteria": {
+  "projections": {
     "genomic": [
       "TRUE_CDNA_CHANGE",
       "REFERENCE_ALLELE",

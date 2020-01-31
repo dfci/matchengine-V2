@@ -18,7 +18,8 @@ from matchengine.internals.typing.matchengine_types import (
     MultiCollectionQuery,
     QueryNode,
     QueryTransformerResult,
-    QueryNodeContainer)
+    QueryNodeContainer
+)
 
 if TYPE_CHECKING:
     from typing import (
@@ -62,6 +63,7 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
         if parent_value.__class__ is dict:
             for inner_key, inner_value in parent_value.items():
                 parent_path = ParentPath(path + (parent_key, inner_key))
+                # this funky logic is so that level/internal is None if node is not a match clause
                 level = MatchClauseLevel(
                     matchengine.match_criteria_transform.level_mapping.get(
                         next(
@@ -268,14 +270,13 @@ def translate_match_path(matchengine,
     for node in match_criterion.criteria_list:
         for criteria in node.criteria:
             for node_name, values in criteria.items():
+                trial_key_mappings = matchengine.match_criteria_transform.ctml_collection_mappings[node_name][
+                    'trial_key_mappings']
                 initial_query_node = QueryNode(node_name, node.node_id, criteria, node.depth, list(), None)
                 query_nodes = list()
                 query_nodes.append(initial_query_node)
                 for trial_key, trial_value in values.items():
-                    trial_key_settings = matchengine.match_criteria_transform.trial_key_mappings[
-                        node_name].get(
-                        trial_key.upper(),
-                        dict())
+                    trial_key_settings = trial_key_mappings.get(trial_key.upper(), dict())
 
                     if trial_key_settings.get('ignore', False):
                         continue

@@ -40,8 +40,6 @@ class MatchCriteriaTransform(object):
 
     For more details and examples, please see the README.
     """
-    CLINICAL: str = "clinical"
-    GENOMIC: str = "extended_attributes"
 
     resources: dict = None
     query_transformers: AllTransformersContainer
@@ -50,14 +48,7 @@ class MatchCriteriaTransform(object):
     config: dict = None
     trial_key_mappings: dict = None
     primary_collection_unique_field: str = "_id"
-    collection_mappings: dict = {
-        "extended_attributes": {
-            "join_field": "CLINICAL_ID"
-        },
-        "clinical": {
-            "join_field": "_id"
-        }
-    }
+    ctml_collection_mappings: dict = None
     level_mapping = {
         'dose_level': 'dose',
         'arm': 'arm',
@@ -81,13 +72,12 @@ class MatchCriteriaTransform(object):
             for file_path in os.listdir(resource_dir):
                 self.resource_paths[os.path.basename(file_path)] = os.path.join(resource_dir, file_path)
         self.config = config
-        self.trial_key_mappings = config['trial_key_mappings']
+        self.ctml_collection_mappings = config['ctml_collection_mappings']
 
         # values used to match extended_attributes/clinical information to trials. for more details and explanation, see the README
         self.projections = {
-            collection: {field: 1 for field in fields} for collection, fields in config["match_criteria"].items()
+            collection: {field: 1 for field in fields} for collection, fields in config["projections"].items()
         }
-        self.trial_projection = {proj: 1 for proj in config["match_criteria"]['trial']}
         self.query_transformers = AllTransformersContainer(self)
         self.transform = TransformFunctions()
         self.valid_clinical_reasons = {
