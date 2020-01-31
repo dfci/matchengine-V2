@@ -123,8 +123,8 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                                                                                              MatchReason]]]:
     clinical_ids = {clinical_id: set() for clinical_id in initial_clinical_ids}
     qnc_qn_tracker = dict()
-    join_field = matchengine.match_criteria_transform.collection_mappings['genomic']['join_field']
-    for qnc_idx, genomic_query_node_container in enumerate(multi_collection_query.genomic):
+    join_field = matchengine.match_criteria_transform.collection_mappings['extended_attributes']['join_field']
+    for qnc_idx, genomic_query_node_container in enumerate(multi_collection_query.extended_attributes):
         query_node_container_clinical_ids = list()
         # TODO: add test for this - duplicate criteria causing empty qnc
         if not genomic_query_node_container.query_nodes:
@@ -138,7 +138,7 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                 continue
 
             # Create a nested id_cache where the key is the clinical ID being queried and the vals
-            # are the genomic IDs returned
+            # are the extended_attributes IDs returned
             query_hash = genomic_query_node.raw_query_hash()
             if query_hash not in matchengine.cache.ids:
                 matchengine.cache.ids[query_hash] = dict()
@@ -160,12 +160,12 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                     log.info(f"{new_query} returned {genomic_docs}")
 
                 for genomic_doc in genomic_docs:
-                    # If the clinical id of a returned genomic doc is not present in the cache, add it.
+                    # If the clinical id of a returned extended_attributes doc is not present in the cache, add it.
                     if genomic_doc[join_field] not in id_cache:
                         id_cache[genomic_doc[join_field]] = set()
                     id_cache[genomic_doc[join_field]].add(genomic_doc["_id"])
 
-                # Clinical IDs which do not return genomic docs need to be recorded to cache exclusions
+                # Clinical IDs which do not return extended_attributes docs need to be recorded to cache exclusions
                 for unfound in need_new - set(id_cache.keys()):
                     id_cache[unfound] = None
                 matchengine.cache.in_process[query_hash].difference_update(need_new)
@@ -211,7 +211,7 @@ def get_reasons(qnc_qn_tracker: Dict[Tuple: int, List[ClinicalID]],
     all_genomic = defaultdict(set)
 
     for (qnc_idx, qn_idx), (show_in_ui, found_clinical_ids) in qnc_qn_tracker.items():
-        genomic_query_node_container = multi_collection_query.genomic[qnc_idx]
+        genomic_query_node_container = multi_collection_query.extended_attributes[qnc_idx]
         query_node = genomic_query_node_container.query_nodes[qn_idx]
         for clinical_id in found_clinical_ids:
             genomic_ids = cache.ids[query_node.raw_query_hash()][clinical_id]
@@ -228,7 +228,7 @@ def get_reasons(qnc_qn_tracker: Dict[Tuple: int, List[ClinicalID]],
 
 async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_genomic):
     """
-    Matching criteria for clinical and genomic values can be set/extended in config.json
+    Matching criteria for clinical and extended_attributes values can be set/extended in config.json
     :param matchengine:
     :param needed_clinical:
     :param needed_genomic:

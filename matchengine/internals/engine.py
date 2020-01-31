@@ -327,7 +327,7 @@ class MatchEngine(object):
                         multi_collection_query: MultiCollectionQuery,
                         initial_clinical_ids: Set[ClinicalID]) -> Dict[MatchReason]:
         """
-        Execute a mongo query on the clinical and genomic collections to find trial matches.
+        Execute a mongo query on the clinical and extended_attributes collections to find trial matches.
         First execute the clinical query. If no records are returned short-circuit and return.
         """
         clinical_ids = set(initial_clinical_ids)
@@ -344,7 +344,7 @@ class MatchEngine(object):
         if not clinical_ids:
             return dict()
 
-        if multi_collection_query.genomic:
+        if multi_collection_query.extended_attributes:
             new_clinical_ids, genomic_ids, all_match_reasons = await (
                 execute_genomic_queries(self,
                                         multi_collection_query,
@@ -607,7 +607,7 @@ class MatchEngine(object):
         trial_find_query = dict()
 
         # matching criteria can be set and extended in config.json. for more details see the README
-        projection = self.match_criteria_transform.trial_projection
+        projection = self.match_criteria_transform.projections['trial']
 
         if self.protocol_nos is not None:
             trial_find_query['protocol_no'] = {

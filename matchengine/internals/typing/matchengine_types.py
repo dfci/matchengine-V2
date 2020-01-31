@@ -316,22 +316,22 @@ class QueryNodeContainer(object):
 
 class MultiCollectionQuery(object):
     __slots__ = (
-        "genomic", "clinical"
+        "extended_attributes", "clinical"
     )
 
     def __init__(
             self,
-            genomic: List[QueryNodeContainer],
-            clinical=List[QueryNodeContainer]
+            extended_attributes: List[QueryNodeContainer],
+            clinical: List[QueryNodeContainer]
     ):
-        self.genomic = genomic
+        self.extended_attributes = extended_attributes
         self.clinical = clinical
 
     def __copy__(self):
         return MultiCollectionQuery(
             [query_node_container.__copy__()
              for query_node_container
-             in self.genomic],
+             in self.extended_attributes],
             [query_node_container.__copy__()
              for query_node_container
              in self.clinical],

@@ -35,13 +35,13 @@ class TransformFunctions(object):
 
 class MatchCriteriaTransform(object):
     """
-    A class used to transform values used in trial curation into values which can be used to query genomic and
+    A class used to transform values used in trial curation into values which can be used to query extended_attributes and
     clinical collections.
 
     For more details and examples, please see the README.
     """
     CLINICAL: str = "clinical"
-    GENOMIC: str = "genomic"
+    GENOMIC: str = "extended_attributes"
 
     resources: dict = None
     query_transformers: AllTransformersContainer
@@ -51,7 +51,7 @@ class MatchCriteriaTransform(object):
     trial_key_mappings: dict = None
     primary_collection_unique_field: str = "_id"
     collection_mappings: dict = {
-        "genomic": {
+        "extended_attributes": {
             "join_field": "CLINICAL_ID"
         },
         "clinical": {
@@ -83,12 +83,10 @@ class MatchCriteriaTransform(object):
         self.config = config
         self.trial_key_mappings = config['trial_key_mappings']
 
-        # values used to match genomic/clinical information to trials. for more details and explanation, see the README
+        # values used to match extended_attributes/clinical information to trials. for more details and explanation, see the README
         self.projections = {
             collection: {field: 1 for field in fields} for collection, fields in config["match_criteria"].items()
         }
-        self.clinical_projection = {proj: 1 for proj in config["match_criteria"]['clinical']}
-        self.genomic_projection = {proj: 1 for proj in config["match_criteria"]['genomic']}
         self.trial_projection = {proj: 1 for proj in config["match_criteria"]['trial']}
         self.query_transformers = AllTransformersContainer(self)
         self.transform = TransformFunctions()

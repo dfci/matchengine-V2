@@ -184,7 +184,7 @@ class TestMatchEngine(TestCase):
         match_paths = translate_match_path(self.me, match_clause_data=match_clause_data,
                                            match_criterion=MatchCriterion([MatchCriteria({}, 0, 0)]))
         assert len(match_paths.clinical) == 0
-        assert len(match_paths.genomic) == 0
+        assert len(match_paths.extended_attributes) == 0
 
     def test_comparable_dict(self):
         assert nested_object_hash({}) == nested_object_hash({})
