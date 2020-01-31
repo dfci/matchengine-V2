@@ -244,7 +244,11 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
                 new_trial_match.update(
                     format_trial_match_k_v(get_genomic_details(genomic_doc, trial_match)))
         elif trial_match.match_reason.reason_name == 'prior_treatments':
+            prior_treatments_doc = self.cache.docs[trial_match.match_reason.genomic_id]
             new_trial_match.update({"prior_treatment_id": trial_match.match_reason.genomic_id})
+            new_trial_match.update(
+                {k: v for k, v in prior_treatments_doc.items() if
+                 not k.startswith('_')})
         elif trial_match.match_reason.reason_name == 'clinical':
             new_trial_match.update(
                 format_trial_match_k_v(get_clinical_details(clinical_doc, query)))

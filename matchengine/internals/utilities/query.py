@@ -234,14 +234,14 @@ async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_gen
     :param needed_genomic:
     :return:
     """
-    genomic_projection = matchengine.match_criteria_transform.genomic_projection
-    clinical_projection = matchengine.match_criteria_transform.clinical_projection
+    clinical_projection = matchengine.match_criteria_transform.projections["clinical"]
     clinical_query = MongoQuery({"_id": {"$in": list(needed_clinical)}})
     db_calls = list()
     db_calls.append(perform_db_call(matchengine, "clinical", clinical_query, clinical_projection))
     for collection, genomic_ids in needed_genomic.items():
         genomic_query = MongoQuery({"_id": {"$in": list(genomic_ids)}})
-        db_calls.append(perform_db_call(matchengine, collection, genomic_query, genomic_projection))
+        projection = matchengine.match_criteria_transform.projections[collection]
+        db_calls.append(perform_db_call(matchengine, collection, genomic_query, projection))
 
     results = await asyncio.gather(*db_calls)
     return results

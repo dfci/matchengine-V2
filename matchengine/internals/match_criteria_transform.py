@@ -84,6 +84,9 @@ class MatchCriteriaTransform(object):
         self.trial_key_mappings = config['trial_key_mappings']
 
         # values used to match genomic/clinical information to trials. for more details and explanation, see the README
+        self.projections = {
+            collection: {field: 1 for field in fields} for collection, fields in config["match_criteria"].items()
+        }
         self.clinical_projection = {proj: 1 for proj in config["match_criteria"]['clinical']}
         self.genomic_projection = {proj: 1 for proj in config["match_criteria"]['genomic']}
         self.trial_projection = {proj: 1 for proj in config["match_criteria"]['trial']}

@@ -29,6 +29,9 @@
       "RIGHT_PARTNER_GENE",
       "STRUCTURAL_VARIANT_TYPE"
     ],
+    "prior_treatments": [
+      "DRUG"
+    ],
     "clinical": [
       "REPORT_DATE",
       "GENDER",
