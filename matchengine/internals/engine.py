@@ -444,16 +444,16 @@ class MatchEngine(object):
         for protocol_number in self.protocol_nos:
             if not self.match_on_deceased:
                 self.task_q.put_nowait(UpdateTask([UpdateMany({
-                                                                  'clinical_id': {'$in': list(self.clinical_deceased)},
-                                                                  'protocol_no': protocol_number
-                                                              },
-                                                              {
-                                                                  '$set': {
-                                                                      'is_disabled': True,
-                                                                      '_updated': updated_time
-                                                                  }
-                                                              })],
-                                                  protocol_number))
+                    'clinical_id': {'$in': list(self.clinical_deceased)},
+                    'protocol_no': protocol_number
+                },
+                    {
+                        '$set': {
+                            'is_disabled': True,
+                            '_updated': updated_time
+                        }
+                    })],
+                    protocol_number))
             self.update_matches_for_protocol_number(protocol_number)
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
@@ -523,7 +523,8 @@ class MatchEngine(object):
             self._matches[protocol_no] = dict()
         await self._task_q.join()
         logging.info(f"Total patient matches: {len(self._matches.get(protocol_no, dict()))}")
-        logging.info(f"Total trial match documents: {sum([len(matches) for matches in self._matches.get(protocol_no, dict())])}")
+        logging.info(
+            f"Total trial match documents: {sum([len(matches) for matches in self._matches.get(protocol_no, dict()).values()])}")
         return self._matches.get(protocol_no, dict())
 
     def _populate_run_log_history(self) -> Dict[str, List[Dict]]:
