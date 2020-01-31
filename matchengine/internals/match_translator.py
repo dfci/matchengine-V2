@@ -319,5 +319,5 @@ def translate_match_path(matchengine,
                             query_cache.add(query_node_hash)
                             query_node_container.query_nodes.append(query_node)
                 matchengine.query_node_container_transform(query_node_container)
-                getattr(multi_collection_query, genomic_or_clinical).append(query_node_container)
+                getattr(multi_collection_query, matchengine.config['ctml_collection_mappings'][genomic_or_clinical]).append(query_node_container)
     return multi_collection_query

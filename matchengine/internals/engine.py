@@ -358,11 +358,11 @@ class MatchEngine(object):
             if not all_match_reasons:
                 return dict()
         else:
-            genomic_ids = set()
+            genomic_ids = dict()
             all_match_reasons = clinical_match_reasons
 
         needed_clinical = list(clinical_ids)
-        needed_genomic = list(genomic_ids)
+        needed_genomic = genomic_ids
         results = await get_docs_results(self, needed_clinical, needed_genomic)
 
         # asyncio.gather returns [[],[]]. Save the resulting values on the cache for use when creating trial matches

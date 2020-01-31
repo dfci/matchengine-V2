@@ -118,7 +118,7 @@ async def execute_clinical_queries(matchengine: MatchEngine,
 async def execute_genomic_queries(matchengine: MatchEngine,
                                   multi_collection_query: MultiCollectionQuery,
                                   initial_clinical_ids: Set[ClinicalID],
-                                  reasons: Dict[ClinicalID, List[MatchReason]]) -> Tuple[Set[ObjectId], Set[ObjectId],
+                                  reasons: Dict[ClinicalID, List[MatchReason]]) -> Tuple[Set[ObjectId], Dict[str, Set[ObjectId]],
                                                                                          Dict[ClinicalID, List[
                                                                                              MatchReason]]]:
     clinical_ids = {clinical_id: set() for clinical_id in initial_clinical_ids}
@@ -155,7 +155,7 @@ async def execute_genomic_queries(matchengine: MatchEngine,
                 new_query['$and'].insert(0, {join_field: {'$in': list(need_new)}})
 
                 projection = {"_id": 1, join_field: 1}
-                genomic_docs = await matchengine.async_db_ro['genomic'].find(new_query, projection).to_list(None)
+                genomic_docs = await matchengine.async_db_ro[genomic_query_node.query_level].find(new_query, projection).to_list(None)
                 if matchengine.debug:
                     log.info(f"{new_query} returned {genomic_docs}")
 
@@ -207,8 +207,8 @@ def get_reasons(qnc_qn_tracker: Dict[Tuple: int, List[ClinicalID]],
                 multi_collection_query: MultiCollectionQuery,
                 cache: Cache,
                 reasons: Dict[ClinicalID, List[MatchReason]]) -> Tuple[
-    Dict[ClinicalID, List[MatchReason]], Set[ObjectId]]:
-    all_genomic = set()
+    Dict[ClinicalID, List[MatchReason]], Dict[str, Set[ObjectId]]]:
+    all_genomic = defaultdict(set)
 
     for (qnc_idx, qn_idx), (show_in_ui, found_clinical_ids) in qnc_qn_tracker.items():
         genomic_query_node_container = multi_collection_query.genomic[qnc_idx]
@@ -216,7 +216,7 @@ def get_reasons(qnc_qn_tracker: Dict[Tuple: int, List[ClinicalID]],
         for clinical_id in found_clinical_ids:
             genomic_ids = cache.ids[query_node.raw_query_hash()][clinical_id]
             if genomic_ids is not None:
-                all_genomic.update(genomic_ids)
+                all_genomic[query_node.query_level].update(genomic_ids)
             for genomic_id in (genomic_ids if genomic_ids is not None else [None]):
                 id_cache = cache.ids[query_node.raw_query_hash()]
                 genomic_width = len(id_cache[clinical_id]) if genomic_id is not None else -1
@@ -237,9 +237,13 @@ async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_gen
     genomic_projection = matchengine.match_criteria_transform.genomic_projection
     clinical_projection = matchengine.match_criteria_transform.clinical_projection
     clinical_query = MongoQuery({"_id": {"$in": list(needed_clinical)}})
-    genomic_query = MongoQuery({"_id": {"$in": list(needed_genomic)}})
-    results = await asyncio.gather(perform_db_call(matchengine, "clinical", clinical_query, clinical_projection),
-                                   perform_db_call(matchengine, "genomic", genomic_query, genomic_projection))
+    db_calls = list()
+    db_calls.append(perform_db_call(matchengine, "clinical", clinical_query, clinical_projection))
+    for collection, genomic_ids in needed_genomic.items():
+        genomic_query = MongoQuery({"_id": {"$in": list(genomic_ids)}})
+        db_calls.append(perform_db_call(matchengine, collection, genomic_query, genomic_projection))
+
+    results = await asyncio.gather(*db_calls)
     return results
 
 
@@ -250,7 +254,7 @@ def get_valid_reasons(matchengine: MatchEngine, possible_reasons, clinical_ids, 
             list_o_reasons = list()
             for reason in reasons:
                 if ((reason.__class__ is GenomicMatchReason
-                    and (reason.query_node.exclusion or reason.genomic_id in genomic_ids))
+                    and (reason.query_node.exclusion or reason.genomic_id in genomic_ids[reason.query_node.query_level]))
                     or (reason.__class__ is ClinicalMatchReason
                         and (matchengine.report_all_clinical_reasons
                         or frozenset(reason.query_part.query.keys())

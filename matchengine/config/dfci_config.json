@@ -162,6 +162,12 @@
       "DISEASE_STATUS": {
         "ignore": true
       }
+    },
+    "prior_treatments": {
+      "DRUG": {
+        "sample_key": "DRUG",
+        "sample_value": "nomap"
+      }
     }
   },
   "trial_match_sorting": [
@@ -277,5 +283,10 @@
     [
       "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE"
     ]
-  ]
+  ],
+  "ctml_collection_mappings": {
+    "clinical": "clinical",
+    "genomic": "genomic",
+    "prior_treatments": "genomic"
+  }
 }
