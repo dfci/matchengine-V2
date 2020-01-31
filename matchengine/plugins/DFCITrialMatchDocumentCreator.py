@@ -243,6 +243,8 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
             else:
                 new_trial_match.update(
                     format_trial_match_k_v(get_genomic_details(genomic_doc, trial_match)))
+        elif trial_match.match_reason.reason_name == 'prior_treatments':
+            new_trial_match.update({"prior_treatment_id": trial_match.match_reason.genomic_id})
         elif trial_match.match_reason.reason_name == 'clinical':
             new_trial_match.update(
                 format_trial_match_k_v(get_clinical_details(clinical_doc, query)))

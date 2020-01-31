@@ -373,9 +373,8 @@ class GenomicMatchReason(object):
     __slots__ = (
         "query_node", "width", "clinical_id",
         "genomic_id", "clinical_width", "depth",
-        "show_in_ui"
+        "show_in_ui", "reason_name"
     )
-    reason_name = "genomic"
 
     def __init__(
             self,
@@ -384,7 +383,7 @@ class GenomicMatchReason(object):
             clinical_width: int,
             clinical_id: ClinicalID,
             genomic_id: Union[GenomicID, None],
-            show_in_ui: bool
+            show_in_ui: bool,
     ):
         self.show_in_ui = show_in_ui
         self.clinical_width = clinical_width
@@ -393,6 +392,7 @@ class GenomicMatchReason(object):
         self.width = width
         self.query_node = query_node
         self.depth = query_node.query_depth
+        self.reason_name = query_node.query_level
 
     def extract_raw_query(self):
         return self.query_node.extract_raw_query()
