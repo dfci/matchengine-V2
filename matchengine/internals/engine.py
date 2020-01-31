@@ -237,8 +237,6 @@ class MatchEngine(object):
         self.clinical_deceased = self.get_clinical_deceased()
         self.clinical_birth_dates = self.get_clinical_birth_dates()
         self.clinical_update_mapping = dict() if self.ignore_run_log else self.get_clinical_updated_mapping()
-        self.clinical_extra_field_mapping = self.get_extra_field_mapping(self._clinical_data,
-                                                                         "clinical")
         self.clinical_extra_field_lookup = self.get_extra_field_lookup(self._clinical_data,
                                                                        "clinical")
         self._clinical_ids_for_protocol_cache = dict()
@@ -886,8 +884,7 @@ class MatchEngine(object):
                 mapping[field_name][field_value].add(obj_id)
         return mapping
 
-    def get_extra_field_lookup(self, raw_mapping: Dict[ObjectId, Any], key: str) -> Dict[Any: Set[
-        ObjectId]]:
+    def get_extra_field_lookup(self, raw_mapping: Dict[ObjectId, Any], key: str) -> Dict[Any: Set[ObjectId]]:
         fields = self.config.get("extra_initial_lookup_fields", dict()).get(key, list())
         mapping = defaultdict(dict)
         for obj_id, raw_map in raw_mapping.items():

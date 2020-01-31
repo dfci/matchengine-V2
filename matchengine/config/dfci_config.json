@@ -169,14 +169,6 @@
       "_summary"
     ]
   },
-  "extra_initial_mapping_fields": {
-    "clinical": [
-      [
-        "PANEL_VERSION",
-        "raw"
-      ]
-    ]
-  },
   "extra_initial_lookup_fields": {
     "clinical": [
       [

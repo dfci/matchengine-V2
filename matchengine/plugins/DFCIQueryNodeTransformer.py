@@ -61,6 +61,8 @@ class DFCIQueryNodeClinicalIDSubsetter(QueryNodeClinicalIDsSubsetter):
     def genomic_query_node_clinical_ids_subsetter(self: MatchEngine,
                                                   query_node: QueryNode,
                                                   clinical_ids: Iterable[ClinicalID]) -> Tuple[bool, Set[ClinicalID]]:
+        # DFCI provided structural variant data in a structured format only starting Dec. 1st 2018
+        # Patients with reports from before this date should not have structural variants shown in UI
         if query_node.get_query_part_by_key('STRUCTURED_SV') is not None:
             return True, {
                 clinical_id
