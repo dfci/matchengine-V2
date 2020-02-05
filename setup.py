@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="matchengine-V2",
-    version="2.0.0",
+    version="2.0.1",
     packages=[
         "matchengine",
         "matchengine.internals",
@@ -28,7 +28,7 @@ setup(
     install_requires=[
         "bson>=0.5.8",
         "python-dateutil==2.8.0",
-        "PyYAML==5.1",
+        "PyYAML>=5.1",
         "Pandas>=0.25.0",
         "pymongo==3.8.0",
         "networkx==2.3",
