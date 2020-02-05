@@ -169,7 +169,7 @@ def get_sort_order(matchengine: MatchEngine, match_document: Dict) -> list:
 
     # If an idenfitifer is not a protocol id (e.g. 17-251) then skip replacing
     identifier = match_document[matchengine.match_criteria_transform.trial_identifier]
-    if isinstance(identifier, ObjectId):
+    if isinstance(identifier, ObjectId) or identifier is None:
         pass
     else:
         sort_array.append(int(identifier.replace("-", "")))
