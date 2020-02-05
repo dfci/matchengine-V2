@@ -53,7 +53,17 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
         # include top level match clauses
         if key == 'match':
             parent_path = ParentPath(tuple())
-            yield parent_path, val
+            match_clause_data = MatchClauseData(val,
+                                                None,
+                                                None,
+                                                None,
+                                                None,
+                                                None,
+                                                parent_path,
+                                                None,
+                                                None,
+                                                trial[matchengine.match_criteria_transform.trial_identifier])
+            yield match_clause_data
         else:
             process_q.append((tuple(), key, val))
 
