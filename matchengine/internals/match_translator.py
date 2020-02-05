@@ -108,7 +108,7 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
                                           parent_path,
                                           level,
                                           parent_value,
-                                          trial['protocol_no'])
+                                          trial[matchengine.match_criteria_transform.trial_identifier])
                 else:
                     process_q.append((path + (parent_key,), inner_key, inner_value))
         elif parent_value.__class__ is list:

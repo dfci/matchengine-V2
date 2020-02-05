@@ -437,14 +437,14 @@ class MatchEngine(object):
         if self._protocol_nos_param is None and not self._drop:
             self.task_q.put_nowait(
                 UpdateTask(
-                    [UpdateMany({'protocol_no': {'$nin': self.protocol_nos}},
+                    [UpdateMany({self.match_criteria_transform.trial_identifier: {'$nin': self.protocol_nos}},
                                 {'$set': {'is_disabled': True, '_updated': updated_time}})],
                     'DELETED_PROTOCOLS'))
         for protocol_number in self.protocol_nos:
             if not self.match_on_deceased:
                 self.task_q.put_nowait(UpdateTask([UpdateMany({
                     'clinical_id': {'$in': list(self.clinical_deceased)},
-                    'protocol_no': protocol_number
+                    self.match_criteria_transform.trial_identifier: protocol_number
                 },
                     {
                         '$set': {
@@ -534,7 +534,7 @@ class MatchEngine(object):
         for protocol_no in self.protocol_nos:
             trial = self.trials[protocol_no]
             trial_last_update = trial.get('_updated', default_datetime)
-            query = {"protocol_no": protocol_no, "_created": {'$gte': trial_last_update}}
+            query = {self.match_criteria_transform.trial_identifier: protocol_no, "_created": {'$gte': trial_last_update}}
             cursor = self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
                 [("_created", pymongo.DESCENDING)])
             if self.match_on_closed:
@@ -604,15 +604,16 @@ class MatchEngine(object):
         trial_find_query = dict()
 
         # matching criteria can be set and extended in config.json. for more details see the README
-        projection = self.match_criteria_transform.projections['trial']
+        projection = self.match_criteria_transform.projections[self.match_criteria_transform.trial_collection]
+        trial_identifier = self.match_criteria_transform.trial_identifier
 
         if self.protocol_nos is not None:
-            trial_find_query['protocol_no'] = {
+            trial_find_query[trial_identifier] = {
                 "$in": [protocol_no for protocol_no in self.protocol_nos]
             }
 
         all_trials = {
-            result['protocol_no']: result
+            result[trial_identifier]: result
             for result in
             self.db_ro.trial.find(trial_find_query,
                                   dict({"_updated": 1, "last_updated": 1}, **projection))
@@ -643,7 +644,7 @@ class MatchEngine(object):
             run_log_clinical_ids_new['list'] = list(self.clinical_ids)
 
         self.run_log_entries[protocol_no] = {
-            'protocol_no': protocol_no,
+            self.match_criteria_transform.trial_identifier: protocol_no,
             'clinical_ids': run_log_clinical_ids_new,
             'run_id': self.run_id.hex,
             'run_params': {
@@ -832,7 +833,8 @@ class MatchEngine(object):
             {
                 'query_hash': new_trial_match['query_hash'],
                 'match_path': new_trial_match['match_path'],
-                'protocol_no': new_trial_match['protocol_no']
+                self.match_criteria_transform.trial_identifier: new_trial_match[
+                    self.match_criteria_transform.trial_identifier]
             })
 
         new_trial_match['is_disabled'] = False
@@ -905,7 +907,7 @@ class MatchEngine(object):
     def drop_existing_matches(self, protocol_nos: List[str] = None, sample_ids: List[str] = None):
         drop_query = dict()
         if protocol_nos is not None:
-            drop_query.update({'protocol_no': {'$in': protocol_nos}})
+            drop_query.update({self.match_criteria_transform.trial_identifier: {'$in': protocol_nos}})
         if sample_ids is not None:
             drop_query.update({'sample_id': {'$in': sample_ids}})
         if protocol_nos is None and sample_ids is None:

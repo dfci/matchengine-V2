@@ -271,7 +271,7 @@ def get_valid_reasons(matchengine: MatchEngine, possible_reasons, clinical_ids, 
             list_o_reasons = list()
             for reason in reasons:
                 if ((reason.__class__ is ExtendedMatchReason
-                     and (reason.query_node.exclusion or reason.genomic_id in genomic_ids[
+                     and (reason.query_node.exclusion or reason.reference_id in genomic_ids[
                             reason.query_node.query_level]))
                         or (reason.__class__ is ClinicalMatchReason
                             and (matchengine.report_all_clinical_reasons

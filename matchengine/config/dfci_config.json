@@ -1,4 +1,6 @@
 {
+  "trial_collection": "trial",
+  "trial_identifier": "protocol_no",
   "ctml_collection_mappings": {
     "clinical": {
       "query_collection": "clinical",

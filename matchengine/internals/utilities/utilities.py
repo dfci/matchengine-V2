@@ -120,7 +120,7 @@ def find_plugins(matchengine: MatchEngine):
                                        matchengine))
 
 
-def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
+def get_sort_order(matchengine: MatchEngine, match_document: Dict) -> list:
     """
     Sort trial matches based on sorting order specified in config.json under the key 'trial_match_sorting'.
 
@@ -147,7 +147,7 @@ def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
     15. All other Coordinating centers
     16. Protocol Number
     """
-
+    sort_map = matchengine.config['trial_match_sorting']
     sort_array = list()
 
     for sort_dimension in sort_map:
@@ -164,6 +164,6 @@ def get_sort_order(sort_map: Dict, match_document: Dict) -> list:
                         sort_index = matched_sort_int
 
         sort_array.append(sort_index)
-    sort_array.append(int(match_document['protocol_no'].replace("-", "")))
+    sort_array.append(int(match_document[matchengine.match_criteria_transform.trial_identifier].replace("-", "")))
 
     return sort_array

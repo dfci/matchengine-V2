@@ -95,8 +95,9 @@ async def run_index_update_task(matchengine: MatchEngine, task: IndexUpdateTask,
 
 
 async def run_query_task(matchengine: MatchEngine, task, worker_id):
+    trial_identifier = matchengine.match_criteria_transform.trial_identifier
     if matchengine.debug:
-        log.info((f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask, "
+        log.info((f"Worker: {worker_id}, {trial_identifier}: {task.trial[trial_identifier]} got new QueryTask, "
                   f"{matchengine._task_q.qsize()} tasks left in queue"))
     try:
         results: Dict[ClinicalID, List[MatchReason]] = await matchengine.run_query(task.query,
@@ -141,13 +142,13 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
                 # generate sort_order and hash fields after all fields are added
                 new_match_proto = matchengine.pre_process_trial_matches(match_context_data)
                 match_document = matchengine.create_trial_matches(match_context_data, new_match_proto)
-                sort_order = get_sort_order(matchengine.config['trial_match_sorting'], match_document)
+                sort_order = get_sort_order(matchengine, match_document)
                 match_document['sort_order'] = sort_order
                 to_hash = {key: match_document[key] for key in match_document if key not in {'hash', 'is_disabled'}}
                 match_document['hash'] = nested_object_hash(to_hash)
                 match_document['_me_id'] = matchengine.run_id.hex
 
-                matchengine.matches.setdefault(task.trial['protocol_no'],
+                matchengine.matches.setdefault(task.trial[trial_identifier],
                                                dict()).setdefault(match_document['sample_id'],
                                                                   list()).append(match_document)
                 by_sample_id[match_document['sample_id']].append(match_document)

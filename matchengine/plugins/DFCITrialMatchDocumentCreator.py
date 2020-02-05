@@ -237,7 +237,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         new_trial_match.update({'cancer_type_match': get_cancer_type_match(trial_match)})
 
         if trial_match.match_reason.reason_name == 'genomic':
-            genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.genomic_id, None)
+            genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.reference_id, None)
             if genomic_doc is None:
                 new_trial_match.update(format_trial_match_k_v(format_exclusion_match(trial_match)))
             else:

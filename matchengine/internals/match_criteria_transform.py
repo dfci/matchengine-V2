@@ -47,6 +47,8 @@ class MatchCriteriaTransform(object):
     valid_clinical_reasons: set
     config: dict = None
     trial_key_mappings: dict = None
+    trial_collection: str = None
+    trial_identifier: str = None
     primary_collection_unique_field: str = "_id"
     ctml_collection_mappings: dict = None
     level_mapping = {
@@ -79,6 +81,8 @@ class MatchCriteriaTransform(object):
             collection: {field: 1 for field in fields} for collection, fields in config["projections"].items()
         }
         self.query_transformers = AllTransformersContainer(self)
+        self.trial_collection = config.get('trial_collection', 'trial')
+        self.trial_identifier = config.get('trial_identifier', 'protocol_no')
         self.transform = TransformFunctions()
         self.valid_clinical_reasons = {
             frozenset(reasons)
