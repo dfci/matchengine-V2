@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="MatchEngine V2",
-    version="0.0.1",
+    version="2.1",
     packages=[
         "matchengine",
         "matchengine.internals",
