@@ -7,6 +7,8 @@ import sys
 from types import MethodType
 from typing import TYPE_CHECKING
 
+from bson import ObjectId
+
 from matchengine.internals import query_transform
 from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
 from matchengine.internals.plugin_helpers.plugin_stub import (
@@ -164,6 +166,12 @@ def get_sort_order(matchengine: MatchEngine, match_document: Dict) -> list:
                         sort_index = matched_sort_int
 
         sort_array.append(sort_index)
-    sort_array.append(int(match_document[matchengine.match_criteria_transform.trial_identifier].replace("-", "")))
+
+    # If an idenfitifer is not a protocol id (e.g. 17-251) then skip replacing
+    identifier = match_document[matchengine.match_criteria_transform.trial_identifier]
+    if isinstance(identifier, ObjectId):
+        pass
+    else:
+        sort_array.append(int(identifier.replace("-", "")))
 
     return sort_array

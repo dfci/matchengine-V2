@@ -827,7 +827,7 @@ class MatchEngine(object):
         new_trial_match.update({
             k: v
             for k, v in trial_match.trial.items()
-            if k not in {'treatment_list', '_summary', 'status', '_id', '_elasticsearch', 'match'} - {self.match_criteria_transform.trial_identifier}
+            if k not in {'treatment_list', '_summary', 'status', '_elasticsearch', 'match'}
         })
 
         new_trial_match.update(
@@ -847,6 +847,7 @@ class MatchEngine(object):
         new_trial_match['is_disabled'] = False
         new_trial_match.pop("_updated", None)
         new_trial_match.pop("last_updated", None)
+        new_trial_match.pop("_id", None)
         return new_trial_match
 
     def format_trial_match_k_v(self, clinical_doc):
