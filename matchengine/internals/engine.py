@@ -250,10 +250,17 @@ class MatchEngine(object):
             self.sample_ids = list(self.clinical_mapping.values())
 
         # instantiate a new async event loop to allow class to be used as if it is synchronous
-        if asyncio.get_event_loop().is_closed():
-            asyncio.set_event_loop(asyncio.new_event_loop())
-        self._loop = asyncio.get_event_loop()
+        try:
+            if asyncio.get_event_loop().is_closed():
+                asyncio.set_event_loop(asyncio.new_event_loop())
+            self._loop = asyncio.get_event_loop()
+        except RuntimeError as e:
+            logging.error(e)
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+
         self._loop.run_until_complete(self._async_init(db_name))
+
 
     def check_run_log_flags(self,
                             trial_match_collection: str,
