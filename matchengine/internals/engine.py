@@ -827,7 +827,7 @@ class MatchEngine(object):
         new_trial_match.update({
             k: v
             for k, v in trial_match.trial.items()
-            if k not in {'treatment_list', '_summary', 'status', '_id', '_elasticsearch', 'match'}
+            if k not in {'treatment_list', '_summary', 'status', '_id', '_elasticsearch', 'match'} - {self.match_criteria_transform.trial_identifier}
         })
 
         new_trial_match.update(
