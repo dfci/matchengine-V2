@@ -622,7 +622,7 @@ class MatchEngine(object):
         all_trials = {
             result[trial_identifier]: result
             for result in
-            self.db_ro.trial.find(trial_find_query,
+            self.db_ro[self.match_criteria_transform.trial_collection].find(trial_find_query,
                                   dict({"_updated": 1, "last_updated": 1}, **projection))
         }
         return all_trials
