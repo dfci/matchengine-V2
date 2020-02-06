@@ -655,7 +655,7 @@ class MatchEngine(object):
             'clinical_ids': run_log_clinical_ids_new,
             'run_id': self.run_id.hex,
             'run_params': {
-                'trials': self._protocol_nos_param,
+                self.match_criteria_transform.trial_collection: self._protocol_nos_param,
                 'sample_ids': self._sample_ids_param,
                 'match_on_deceased': self.match_on_deceased,
                 'match_on_closed': self.match_on_closed,
@@ -665,6 +665,9 @@ class MatchEngine(object):
             },
             '_created': self.starttime
         }
+        # If _id is used as trial collection identifier, do not use
+        # in run log entries as it will create duplicate key errors
+        self.run_log_entries[protocol_no].pop('_id')
         self.clinical_run_log_entries[protocol_no] = clinical_ids
 
     def get_clinical_ids_for_protocol(self, protocol_no: str, age_criterion: Set[str]) -> Set(ObjectId):

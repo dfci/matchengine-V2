@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 
 async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol_no: str):
-    # TODO: Verify match updating without --force still works before go live
     """
     Update trial matches by diff'ing the newly created trial matches against existing matches in
     the db. Delete matches by adding {is_disabled: true} and insert all new matches.
