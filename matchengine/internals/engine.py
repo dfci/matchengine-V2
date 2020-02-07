@@ -444,14 +444,14 @@ class MatchEngine(object):
         if self._protocol_nos_param is None and not self._drop:
             self.task_q.put_nowait(
                 UpdateTask(
-                    [UpdateMany({self.match_criteria_transform.trial_identifier: {'$nin': self.protocol_nos}},
+                    [UpdateMany({self.match_criteria_transform.match_trial_link_identifier: {'$nin': self.protocol_nos}},
                                 {'$set': {'is_disabled': True, '_updated': updated_time}})],
                     'DELETED_PROTOCOLS'))
         for protocol_number in self.protocol_nos:
             if not self.match_on_deceased:
                 self.task_q.put_nowait(UpdateTask([UpdateMany({
                     'clinical_id': {'$in': list(self.clinical_deceased)},
-                    self.match_criteria_transform.trial_identifier: protocol_number
+                    self.match_criteria_transform.match_trial_link_identifier: protocol_number
                 },
                     {
                         '$set': {

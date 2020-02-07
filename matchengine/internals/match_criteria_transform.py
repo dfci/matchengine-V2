@@ -83,6 +83,7 @@ class MatchCriteriaTransform(object):
         self.query_transformers = AllTransformersContainer(self)
         self.trial_collection = config.get('trial_collection', 'trial')
         self.trial_identifier = config.get('trial_identifier', 'protocol_no')
+        self.match_trial_link_id = config.get('match_trial_link_id', 'protocol_no')
         self.transform = TransformFunctions()
         self.valid_clinical_reasons = {
             frozenset(reasons)
