@@ -251,7 +251,7 @@ class MatchEngine(object):
 
         # instantiate a new async event loop to allow class to be used as if it is synchronous
         try:
-            if asyncio.get_event_loop().is_closed():
+            if asyncio.get_event_loop().is_closed() or not hasattr(self, '_loop'):
                 asyncio.set_event_loop(asyncio.new_event_loop())
             self._loop = asyncio.get_event_loop()
         except RuntimeError as e:
