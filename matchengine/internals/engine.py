@@ -667,7 +667,8 @@ class MatchEngine(object):
         }
         # If _id is used as trial collection identifier, do not use
         # in run log entries as it will create duplicate key errors
-        self.run_log_entries[protocol_no].pop('_id')
+        if 'id' in self.run_log_entries[protocol_no]:
+            self.run_log_entries[protocol_no].pop('_id')
         self.clinical_run_log_entries[protocol_no] = clinical_ids
 
     def get_clinical_ids_for_protocol(self, protocol_no: str, age_criterion: Set[str]) -> Set(ObjectId):
