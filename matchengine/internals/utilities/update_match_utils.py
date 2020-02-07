@@ -32,7 +32,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
             matchengine.task_q.put_nowait(RunLogUpdateTask(protocol_no))
         await matchengine.task_q.join()
         return
-    log.info(f"Updating trial matches for {protocol_no}")
+    log.info(f"Updating matches for {protocol_no}")
     if not matchengine.drop:
         if not matchengine.matches[protocol_no]:
             matchengine.task_q.put_nowait(
