@@ -532,7 +532,7 @@ class MatchEngine(object):
         await self._task_q.join()
         logging.info(f"Total patient matches: {len(self._matches.get(protocol_no, dict()))}")
         logging.info(
-            f"Total trial match documents: {sum([len(matches) for matches in self._matches.get(protocol_no, dict()).values()])}")
+            f"Total {self.trial_match_collection} documents: {sum([len(matches) for matches in self._matches.get(protocol_no, dict()).values()])}")
         return self._matches.get(protocol_no, dict())
 
     def _populate_run_log_history(self) -> Dict[str, List[Dict]]:
