@@ -441,25 +441,27 @@ class MatchEngine(object):
         Synchronously iterates over each protocol number, updating the matches in the database for each
         """
         updated_time = datetime.datetime.now()
+        match_identifier = self.match_criteria_transform.match_trial_link_id
         if self._protocol_nos_param is None and not self._drop:
             self.task_q.put_nowait(
                 UpdateTask(
-                    [UpdateMany({self.match_criteria_transform.match_trial_link_id: {'$nin': self.protocol_nos}},
+                    [UpdateMany({match_identifier: {'$nin': self.protocol_nos}},
                                 {'$set': {'is_disabled': True, '_updated': updated_time}})],
                     'DELETED_PROTOCOLS'))
         for protocol_number in self.protocol_nos:
             if not self.match_on_deceased:
-                self.task_q.put_nowait(UpdateTask([UpdateMany({
+                query = {
                     'clinical_id': {'$in': list(self.clinical_deceased)},
-                    self.match_criteria_transform.match_trial_link_id: protocol_number
-                },
-                    {
-                        '$set': {
-                            'is_disabled': True,
-                            '_updated': updated_time
-                        }
-                    })],
-                    protocol_number))
+                    match_identifier: protocol_number
+                }
+                update = {
+                    '$set': {
+                        'is_disabled': True,
+                        '_updated': updated_time
+                    }
+                }
+                self.task_q.put_nowait(UpdateTask([UpdateMany(query, update)],
+                                                  protocol_number))
             self.update_matches_for_protocol_number(protocol_number)
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
@@ -669,6 +671,7 @@ class MatchEngine(object):
         # in run log entries as it will create duplicate key errors
         if 'id' in self.run_log_entries[protocol_no]:
             self.run_log_entries[protocol_no].pop('_id')
+
         self.clinical_run_log_entries[protocol_no] = clinical_ids
 
     def get_clinical_ids_for_protocol(self, protocol_no: str, age_criterion: Set[str]) -> Set(ObjectId):
