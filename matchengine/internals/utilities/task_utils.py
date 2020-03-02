@@ -205,13 +205,12 @@ async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTa
     try:
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new RunLogUpdateTask {task.protocol_no}")
+        logging.error(matchengine.run_log_entries[task.protocol_no])
         dont_need_insert, _ = await asyncio.gather(
-            matchengine.async_db_ro.get_collection(clinical_run_history_collection).distinct(
-                "clinical_id"),
-            matchengine.async_db_rw[run_log_collection].insert_one(
-                matchengine.run_log_entries[task.protocol_no]))
-        new_clinical_run_log_docs = set(
-            matchengine.clinical_run_log_entries[task.protocol_no]) - set(dont_need_insert)
+            matchengine.async_db_ro.get_collection(clinical_run_history_collection).distinct("clinical_id"),
+            matchengine.async_db_rw[run_log_collection].insert_one(matchengine.run_log_entries[task.protocol_no])
+        )
+        new_clinical_run_log_docs = set(matchengine.clinical_run_log_entries[task.protocol_no]) - set(dont_need_insert)
         clinical_update_ops = [
             InsertOne({"clinical_id": clinical_id, "run_history": list()})
             for clinical_id
