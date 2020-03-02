@@ -205,7 +205,11 @@ async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTa
     try:
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new RunLogUpdateTask {task.protocol_no}")
-        logging.error(matchengine.run_log_entries[task.protocol_no])
+            logging.error(matchengine.run_log_entries[task.protocol_no])
+
+        if "_id" in matchengine.run_log_entries[task.protocol_no]:
+            matchengine.run_log_entries[task.protocol_no].pop('_id')
+
         dont_need_insert, _ = await asyncio.gather(
             matchengine.async_db_ro.get_collection(clinical_run_history_collection).distinct("clinical_id"),
             matchengine.async_db_rw[run_log_collection].insert_one(matchengine.run_log_entries[task.protocol_no])
