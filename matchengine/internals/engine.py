@@ -543,7 +543,15 @@ class MatchEngine(object):
         for protocol_no in self.protocol_nos:
             trial = self.trials[protocol_no]
             trial_last_update = trial.get('_updated', default_datetime)
-            query = {self.match_criteria_transform.trial_identifier: protocol_no, "_created": {'$gte': trial_last_update}}
+            trial_identifier = self.match_criteria_transform.trial_identifier
+
+            # If trial identifier is the same as mongoDB _id,
+            # prefix identifier with trial collection name to avoid
+            # duplicated key issues
+            if trial_identifier == '_id':
+                trial_identifier = self.match_criteria_transform.trial_collection + trial_identifier
+
+            query = {trial_identifier: protocol_no, "_created": {'$gte': trial_last_update}}
             cursor = self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
                 [("_created", pymongo.DESCENDING)])
             if self.match_on_closed:
@@ -652,8 +660,14 @@ class MatchEngine(object):
         else:
             run_log_clinical_ids_new['list'] = list(self.clinical_ids)
 
+        trial_identifier = self.match_criteria_transform.trial_identifier
+        # If trial identifier is the same as mongoID, prefix with trial
+        # collection name to avoid duplicated key issues downstream
+        if trial_identifier == '_id':
+            trial_identifier = self.match_criteria_transform.trial_collection + trial_identifier
+
         self.run_log_entries[protocol_no] = {
-            self.match_criteria_transform.trial_identifier: protocol_no,
+            trial_identifier: protocol_no,
             'clinical_ids': run_log_clinical_ids_new,
             'run_id': self.run_id.hex,
             'run_params': {
@@ -667,10 +681,7 @@ class MatchEngine(object):
             },
             '_created': self.starttime
         }
-        # If _id is used as trial collection identifier, do not use
-        # in run log entries as it will create duplicate key errors
-        if 'id' in self.run_log_entries[protocol_no]:
-            self.run_log_entries[protocol_no].pop('_id')
+
 
         self.clinical_run_log_entries[protocol_no] = clinical_ids
 
