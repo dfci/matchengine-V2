@@ -165,6 +165,7 @@ class MatchEngine(object):
         self._protocol_nos_param = list(protocol_nos) if protocol_nos is not None else protocol_nos
         self._sample_ids_param = list(sample_ids) if sample_ids is not None else sample_ids
         self.chunk_size = chunk_size
+        self.debug = debug
 
         if config.__class__ is str:
             with open(config) as config_file_handle:
@@ -220,7 +221,6 @@ class MatchEngine(object):
         self.match_on_closed = match_on_closed
         self.match_on_deceased = match_on_deceased
         self.report_all_clinical_reasons = report_all_clinical_reasons
-        self.debug = debug
         self.num_workers = num_workers
         self.visualize_match_paths = visualize_match_paths
         self.fig_dir = fig_dir

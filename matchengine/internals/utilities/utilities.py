@@ -62,18 +62,22 @@ def find_plugins(matchengine: MatchEngine):
         if dir_path is not None:
             sys.path.pop()
         for item_name in getattr(module, '__shared__', list()):
-            log.info(f"Found shared plugin resource {item_name} in module {module_name}, path {dir_path}")
+            if matchengine.debug:
+                log.info(f"Found shared plugin resource {item_name} in module {module_name}, path {dir_path}")
             setattr(matchengine.match_criteria_transform.transform, item_name, getattr(module, item_name))
         for item_name in module.__export__:
             item = getattr(module, item_name)
-            log.info(f"Found exported plugin item {item_name} in module {module_name}, path {dir_path}")
+            if matchengine.debug:
+                log.info(f"Found exported plugin item {item_name} in module {module_name}, path {dir_path}")
             if issubclass(item, QueryTransformerContainer):
-                log.info(f"Loading QueryTransformerContainer {item_name} type: {item}")
+                if matchengine.debug:
+                    log.info(f"Loading QueryTransformerContainer {item_name} type: {item}")
                 query_transform.attach_transformers_to_match_criteria_transform(matchengine.match_criteria_transform,
                                                                                 item)
             elif issubclass(item, TrialMatchDocumentCreator):
                 if item_name == matchengine.match_document_creator_class:
-                    log.info(f"Loading TrialMatchDocumentCreator {item_name} type: {item}")
+                    if matchengine.debug:
+                        log.info(f"Loading TrialMatchDocumentCreator {item_name} type: {item}")
                     setattr(matchengine,
                             'create_trial_matches',
                             MethodType(getattr(item,
@@ -88,12 +92,14 @@ def find_plugins(matchengine: MatchEngine):
                                        matchengine))
             elif issubclass(item, DBSecrets):
                 if item_name == matchengine.db_secrets_class:
-                    log.info(f"Loading DBSecrets {item_name} type: {item}")
+                    if matchengine.debug:
+                        log.info(f"Loading DBSecrets {item_name} type: {item}")
                     secrets = item().get_secrets()
                     setattr(MongoDBConnection, 'secrets', secrets)
             elif issubclass(item, QueryNodeTransformer):
                 if item_name == matchengine.query_node_transformer_class:
-                    log.info(f"Loading QueryNodeTransformer {item_name} type: {item}")
+                    if matchengine.debug:
+                        log.info(f"Loading QueryNodeTransformer {item_name} type: {item}")
                     setattr(matchengine,
                             "query_node_transform",
                             MethodType(getattr(item,
@@ -101,7 +107,8 @@ def find_plugins(matchengine: MatchEngine):
                                        matchengine))
             elif issubclass(item, QueryNodeClinicalIDsSubsetter):
                 if item_name == matchengine.query_node_subsetter_class:
-                    log.info(f"Loading QueryNodeClinicalIDsSubsetter {item_name} type: {item}")
+                    if matchengine.debug:
+                        log.info(f"Loading QueryNodeClinicalIDsSubsetter {item_name} type: {item}")
                     setattr(matchengine,
                             "extended_query_node_clinical_ids_subsetter",
                             MethodType(getattr(item,
@@ -114,7 +121,8 @@ def find_plugins(matchengine: MatchEngine):
                                        matchengine))
             elif issubclass(item, QueryNodeContainerTransformer):
                 if item_name == matchengine.query_node_container_transformer_class:
-                    log.info(f"Loading QueryNodeContainerTransformer {item_name} type: {item}")
+                    if matchengine.debug:
+                        log.info(f"Loading QueryNodeContainerTransformer {item_name} type: {item}")
                     setattr(matchengine,
                             "query_node_container_transform",
                             MethodType(getattr(item,
