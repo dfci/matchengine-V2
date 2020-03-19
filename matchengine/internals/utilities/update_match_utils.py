@@ -27,7 +27,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
         for match in matches:
             match['_updated'] = updated_time
     if protocol_no not in matchengine.matches:
-        log.info(f"Trial {protocol_no} was not matched on, not updating trial matches")
+        log.info(f"{matchengine.match_criteria_transform.trial_collection} {protocol_no} was not matched on, not updating {matchengine.match_criteria_transform.trial_collection} matches")
         if not matchengine.skip_run_log_entry:
             matchengine.task_q.put_nowait(RunLogUpdateTask(protocol_no))
         await matchengine.task_q.join()
