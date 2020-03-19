@@ -543,7 +543,15 @@ class MatchEngine(object):
         for protocol_no in self.protocol_nos:
             trial = self.trials[protocol_no]
             trial_last_update = trial.get('_updated', default_datetime)
-            query = {self.match_criteria_transform.match_trial_link_id: protocol_no, "_created": {'$gte': trial_last_update}}
+            trial_identifier = self.match_criteria_transform.trial_identifier
+
+            # If trial identifier is the same as mongoDB _id,
+            # prefix identifier with trial collection name to avoid
+            # duplicated key issues
+            if trial_identifier == '_id':
+                trial_identifier = self.match_criteria_transform.trial_collection + trial_identifier
+
+            query = {trial_identifier: protocol_no, "_created": {'$gte': trial_last_update}}
             cursor = self.db_ro[f"run_log_{self.trial_match_collection}"].find(query).sort(
                 [("_created", pymongo.DESCENDING)])
             if self.match_on_closed:
