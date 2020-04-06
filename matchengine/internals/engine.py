@@ -483,7 +483,7 @@ class MatchEngine(object):
         """
         Get the trial matches for a given protocol number
         """
-        log.info(f"Begin Protocol No: {protocol_no}")
+        log.info(f"Begin {self.match_criteria_transform.trial_identifier}: {protocol_no}")
         task = self._loop.create_task(self._async_get_matches_for_trial(protocol_no))
         return self._loop.run_until_complete(task)
 
