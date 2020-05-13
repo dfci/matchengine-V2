@@ -13,7 +13,8 @@ if TYPE_CHECKING:
         TrialMatch,
         Cache,
         QueryNodeContainer,
-        ClinicalID, MatchReason)
+        ClinicalID, MatchReason
+    )
     from typing import (
         Dict,
         NoReturn,
@@ -52,16 +53,18 @@ class QueryNodeTransformer(object):
 
 
 class QueryNodeClinicalIDsSubsetter(object):
-    def genomic_query_node_clinical_ids_subsetter(self: MatchEngine,
-                                                  query_node: QueryNode,
-                                                  clinical_ids: Set[ClinicalID]) -> Set[
-        ClinicalID]:
+    def extended_query_node_clinical_ids_subsetter(
+            self: MatchEngine,
+            query_node: QueryNode,
+            clinical_ids: Set[ClinicalID]
+    ) -> Set[ClinicalID]:
         pass
 
-    def clinical_query_node_clinical_ids_subsetter(self: MatchEngine,
-                                                   query_node: QueryNode,
-                                                   clinical_ids: Set[ClinicalID]) -> Set[
-        ClinicalID]:
+    def clinical_query_node_clinical_ids_subsetter(
+            self: MatchEngine,
+            query_node: QueryNode,
+            clinical_ids: Set[ClinicalID]
+    ) -> Set[ClinicalID]:
         pass
 
 

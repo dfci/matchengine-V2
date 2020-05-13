@@ -3,7 +3,9 @@ from __future__ import annotations
 from argparse import Namespace
 from collections import defaultdict
 from unittest import TestCase
+import datetime
 
+from matchengine.tests.timetravel_and_override import _scope_handler
 from matchengine.internals.database_connectivity.mongo_connection import MongoDBConnection
 from matchengine.internals.load import load
 
@@ -122,6 +124,8 @@ class IntegrationTestMatchengineLoading(TestCase):
                          upsert_fields='')
         load(args)
         assert len(list(self.db_ro.clinical.find({}))) == 1
+        date_class = list(self.db_ro.clinical.find({}))[0]['BIRTH_DATE'].__class__
+        assert date_class is _scope_handler['datetime'] or date_class is _scope_handler['old_datetime']
 
     def test__load_clinical_json_dir(self):
         self._reset(do_reset_patient=True)
@@ -134,6 +138,8 @@ class IntegrationTestMatchengineLoading(TestCase):
                          upsert_fields='')
         load(args)
         assert len(list(self.db_ro.clinical.find({}))) == 2
+        date_class = list(self.db_ro.clinical.find({}))[0]['BIRTH_DATE'].__class__
+        assert date_class is _scope_handler['datetime'] or date_class is _scope_handler['old_datetime']
 
     def test__load_clinical_single_csv_file(self):
         self._reset(do_reset_patient=True)
@@ -146,6 +152,8 @@ class IntegrationTestMatchengineLoading(TestCase):
                          upsert_fields='')
         load(args)
         assert len(list(self.db_ro.clinical.find({}))) == 2
+        date_class = list(self.db_ro.clinical.find({}))[0]['BIRTH_DATE'].__class__
+        assert date_class is _scope_handler['datetime'] or date_class is _scope_handler['old_datetime']
 
     def test__load_genomic_single_json_file(self):
         self._reset(do_reset_patient=True)

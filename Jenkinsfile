@@ -42,7 +42,7 @@ node {
 
                     sh "cat SECRETS_JSON.json"
 
-                    sh 'apt-get update && apt-get install -y graphviz'
+                    sh 'apt-get update && apt-get install -y libgraphviz-dev graphviz'
 
                     sh """
                        python setup.py install && \
