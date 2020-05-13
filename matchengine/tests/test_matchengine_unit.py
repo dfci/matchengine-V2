@@ -23,6 +23,7 @@ class TestMatchEngine(TestCase):
         self.me.plugin_dir = 'matchengine/tests/plugins'
         self.me.match_document_creator_class = 'TestTrialMatchDocumentCreator'
         self.me.visualize_match_paths = False
+        self.me.debug = False
         with open('matchengine/tests/config.json') as config_file_handle:
             self.config = json.load(config_file_handle)
 
