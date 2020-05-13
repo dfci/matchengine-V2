@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 
 async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol_no: str):
-    # TODO: Verify match updating without --force still works before go live
     """
     Update trial matches by diff'ing the newly created trial matches against existing matches in
     the db. Delete matches by adding {is_disabled: true} and insert all new matches.
@@ -28,17 +27,17 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
         for match in matches:
             match['_updated'] = updated_time
     if protocol_no not in matchengine.matches:
-        log.info(f"Trial {protocol_no} was not matched on, not updating trial matches")
+        log.info(f"{matchengine.match_criteria_transform.trial_collection} {protocol_no} was not matched on, not updating {matchengine.match_criteria_transform.trial_collection} matches")
         if not matchengine.skip_run_log_entry:
             matchengine.task_q.put_nowait(RunLogUpdateTask(protocol_no))
         await matchengine.task_q.join()
         return
-    log.info(f"Updating trial matches for {protocol_no}")
+    log.info(f"Updating matches for {protocol_no}")
     if not matchengine.drop:
         if not matchengine.matches[protocol_no]:
             matchengine.task_q.put_nowait(
                 UpdateTask(
-                    [UpdateMany(filter={'protocol_no': protocol_no,
+                    [UpdateMany(filter={matchengine.match_criteria_transform.match_trial_link_id: protocol_no,
                                         'clinical_id': {'$in': list(
                                             matchengine.clinical_ids_for_protocol_cache[protocol_no])}},
                                 update={'$set': {"is_disabled": True,
@@ -96,7 +95,7 @@ async def get_all_except(matchengine: MatchEngine,
         clinical_ids = matchengine.clinical_run_log_entries[protocol_no] - clinical_ids
 
     query = {
-        'protocol_no': protocol_no,
+        matchengine.match_criteria_transform.match_trial_link_id: protocol_no,
         "clinical_id": {
             '$in': [clinical_id for clinical_id in clinical_ids]
         }
@@ -138,7 +137,8 @@ async def get_matches_to_disable(matchengine: MatchEngine,
                                  new_matches_hashes: list,
                                  protocol_no: str,
                                  sample_id: str) -> list:
-    matches_to_disable_query = MongoQuery({'protocol_no': protocol_no,
+
+    matches_to_disable_query = MongoQuery({matchengine.match_criteria_transform.match_trial_link_id: protocol_no,
                                            'sample_id': sample_id,
                                            'is_disabled': False,
                                            'hash': {'$nin': new_matches_hashes}})

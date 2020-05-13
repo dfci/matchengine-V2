@@ -39,7 +39,7 @@ class RunLogTest(TestCase):
     possible combinations of trial and/or patient data changes, and the subsequent expected states
     of the trial_match collection as the matchengine is run on changing and updated data.
 
-    It is assumed that if a patient's genomic document is updated or added, the corresponding
+    It is assumed that if a patient's extended_attributes document is updated or added, the corresponding
     clinical document's _updated date is updated as well.
     """
 

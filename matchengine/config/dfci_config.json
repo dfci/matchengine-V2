@@ -1,5 +1,131 @@
 {
-  "match_criteria": {
+  "trial_collection": "trial",
+  "trial_identifier": "protocol_no",
+  "match_trial_link_id": "protocol_no",
+  "ctml_collection_mappings": {
+    "clinical": {
+      "query_collection": "clinical",
+      "join_field": "_id",
+      "id_field": "_id",
+      "trial_key_mappings": {
+        "AGE_NUMERICAL": {
+          "sample_key": "BIRTH_DATE_INT",
+          "sample_value": "age_range_to_date_int_query"
+        },
+        "ONCOTREE_PRIMARY_DIAGNOSIS": {
+          "sample_key": "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
+          "sample_value": "external_file_mapping",
+          "file": "oncotree_mapping.json"
+        },
+        "GENDER": {
+          "sample_key": "GENDER",
+          "sample_value": "nomap"
+        },
+        "TMB_NUMERICAL": {
+          "sample_key": "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
+          "sample_value": "tmb_range_to_query"
+        },
+        "HER2_STATUS": {
+          "ignore": true
+        },
+        "PR_STATUS": {
+          "ignore": true
+        },
+        "ER_STATUS": {
+          "ignore": true
+        },
+        "DISEASE_STATUS": {
+          "ignore": true
+        }
+      }
+    },
+    "genomic": {
+      "query_collection": "genomic",
+      "join_field": "CLINICAL_ID",
+      "id_field": "_id",
+      "trial_key_mappings": {
+        "HUGO_SYMBOL": {
+          "sample_key": "TRUE_HUGO_SYMBOL",
+          "sample_value": "nomap"
+        },
+        "EXON": {
+          "sample_key": "TRUE_TRANSCRIPT_EXON",
+          "sample_value": "nomap"
+        },
+        "PROTEIN_CHANGE": {
+          "sample_key": "TRUE_PROTEIN_CHANGE",
+          "sample_value": "nomap"
+        },
+        "WILDCARD_PROTEIN_CHANGE": {
+          "sample_key": "TRUE_PROTEIN_CHANGE",
+          "sample_value": "wildcard_regex"
+        },
+        "VARIANT_CLASSIFICATION": {
+          "sample_key": "TRUE_VARIANT_CLASSIFICATION",
+          "sample_value": "nomap"
+        },
+        "VARIANT_CATEGORY": {
+          "sample_key": "VARIANT_CATEGORY",
+          "sample_value": "variant_category_map"
+        },
+        "CNV_CALL": {
+          "sample_key": "CNV_CALL",
+          "sample_value": "cnv_map"
+        },
+        "WILDTYPE": {
+          "sample_key": "WILDTYPE",
+          "sample_value": "nomap"
+        },
+        "MMR_STATUS": {
+          "sample_key": "MMR_STATUS",
+          "sample_value": "mmr_ms_map"
+        },
+        "MS_STATUS": {
+          "sample_key": "MMR_STATUS",
+          "sample_value": "mmr_ms_map"
+        },
+        "APOBEC_SIGNATURE": {
+          "sample_key": "APOBEC_STATUS",
+          "sample_value": "nomap"
+        },
+        "POLE_SIGNATURE": {
+          "sample_key": "POLE_STATUS",
+          "sample_value": "nomap"
+        },
+        "TOBACCO_SIGNATURE": {
+          "sample_key": "TABACCO_STATUS",
+          "sample_value": "nomap"
+        },
+        "TEMOZOLOMIDE_SIGNATURE": {
+          "sample_key": "TEMOZOLOMIDE_STATUS",
+          "sample_value": "nomap"
+        },
+        "UVA_SIGNATURE": {
+          "sample_key": "UVA_STATUS",
+          "sample_value": "nomap"
+        },
+        "DISPLAY_NAME": {
+          "ignore": true
+        },
+        "FUSION_PARTNER_HUGO_SYMBOL": {
+          "sample_key": "FUSION_PARTNER_HUGO_SYMBOL",
+          "sample_value": "nomap"
+        }
+      }
+    },
+    "prior_treatments": {
+      "query_collection": "prior_treatments",
+      "join_field": "CLINICAL_ID",
+      "id_field": "_id",
+      "trial_key_mappings": {
+        "DRUG": {
+          "sample_key": "DRUG",
+          "sample_value": "nomap"
+        }
+      }
+    }
+  },
+  "projections": {
     "genomic": [
       "TRUE_CDNA_CHANGE",
       "REFERENCE_ALLELE",
@@ -29,6 +155,9 @@
       "RIGHT_PARTNER_GENE",
       "STRUCTURAL_VARIANT_TYPE"
     ],
+    "prior_treatments": [
+      "DRUG"
+    ],
     "clinical": [
       "REPORT_DATE",
       "GENDER",
@@ -46,14 +175,6 @@
       "_summary"
     ]
   },
-  "extra_initial_mapping_fields": {
-    "clinical": [
-      [
-        "PANEL_VERSION",
-        "raw"
-      ]
-    ]
-  },
   "extra_initial_lookup_fields": {
     "clinical": [
       [
@@ -61,108 +182,6 @@
         "date"
       ]
     ]
-  },
-  "trial_key_mappings": {
-    "genomic": {
-      "HUGO_SYMBOL": {
-        "sample_key": "TRUE_HUGO_SYMBOL",
-        "sample_value": "nomap"
-      },
-      "EXON": {
-        "sample_key": "TRUE_TRANSCRIPT_EXON",
-        "sample_value": "nomap"
-      },
-      "PROTEIN_CHANGE": {
-        "sample_key": "TRUE_PROTEIN_CHANGE",
-        "sample_value": "nomap"
-      },
-      "WILDCARD_PROTEIN_CHANGE": {
-        "sample_key": "TRUE_PROTEIN_CHANGE",
-        "sample_value": "wildcard_regex"
-      },
-      "VARIANT_CLASSIFICATION": {
-        "sample_key": "TRUE_VARIANT_CLASSIFICATION",
-        "sample_value": "nomap"
-      },
-      "VARIANT_CATEGORY": {
-        "sample_key": "VARIANT_CATEGORY",
-        "sample_value": "variant_category_map"
-      },
-      "CNV_CALL": {
-        "sample_key": "CNV_CALL",
-        "sample_value": "cnv_map"
-      },
-      "WILDTYPE": {
-        "sample_key": "WILDTYPE",
-        "sample_value": "nomap"
-      },
-      "MMR_STATUS": {
-        "sample_key": "MMR_STATUS",
-        "sample_value": "mmr_ms_map"
-      },
-      "MS_STATUS": {
-        "sample_key": "MMR_STATUS",
-        "sample_value": "mmr_ms_map"
-      },
-      "APOBEC_SIGNATURE": {
-        "sample_key": "APOBEC_STATUS",
-        "sample_value": "nomap"
-      },
-      "POLE_SIGNATURE": {
-        "sample_key": "POLE_STATUS",
-        "sample_value": "nomap"
-      },
-      "TOBACCO_SIGNATURE": {
-        "sample_key": "TABACCO_STATUS",
-        "sample_value": "nomap"
-      },
-      "TEMOZOLOMIDE_SIGNATURE": {
-        "sample_key": "TEMOZOLOMIDE_STATUS",
-        "sample_value": "nomap"
-      },
-      "UVA_SIGNATURE": {
-        "sample_key": "UVA_STATUS",
-        "sample_value": "nomap"
-      },
-      "DISPLAY_NAME": {
-        "ignore": true
-      },
-      "FUSION_PARTNER_HUGO_SYMBOL": {
-        "sample_key": "FUSION_PARTNER_HUGO_SYMBOL",
-        "sample_value": "nomap"
-      }
-    },
-    "clinical": {
-      "AGE_NUMERICAL": {
-        "sample_key": "BIRTH_DATE_INT",
-        "sample_value": "age_range_to_date_int_query"
-      },
-      "ONCOTREE_PRIMARY_DIAGNOSIS": {
-        "sample_key": "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
-        "sample_value": "external_file_mapping",
-        "file": "oncotree_mapping.json"
-      },
-      "GENDER": {
-        "sample_key": "GENDER",
-        "sample_value": "nomap"
-      },
-      "TMB_NUMERICAL": {
-        "sample_key": "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
-        "sample_value": "tmb_range_to_query"
-      },
-      "HER2_STATUS": {
-        "ignore": true
-      },
-      "PR_STATUS": {
-        "ignore": true
-      },
-      "ER_STATUS": {
-        "ignore": true
-      },
-      "DISEASE_STATUS": {
-        "ignore": true
-      }
-    }
   },
   "trial_match_sorting": [
     {

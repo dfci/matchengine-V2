@@ -51,10 +51,10 @@ if __name__ == "__main__":
                             'ex: mongodb://localhost:27017/matchminer. '
                             'See https://docs.mongodb.com/manual/reference/connection-string/ for more information.')
     param_clinical_help = 'Path to your clinical file. Default expected format is CSV.'
-    param_genomic_help = 'Path to your genomic file. Default expected format is CSV'
+    param_genomic_help = 'Path to your extended_attributes file. Default expected format is CSV'
     csv_output_help = 'Export a csv file of all trial match results'
     param_trial_format_help = 'File format of input trial data. Default is YML.'
-    param_patient_format_help = 'File format of input patient data (both clinical and genomic files). Default is CSV.'
+    param_patient_format_help = 'File format of input patient data (both clinical and extended_attributes files). Default is CSV.'
 
     parser = argparse.ArgumentParser()
     closed_help = 'Match on all closed trials and all suspended steps, arms and doses. Default is to skip.'
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     subp_p = subp.add_parser('load', help='Sets up your MongoDB for matching.')
     subp_p.add_argument('-t', dest='trial', default=None, help=param_trials_help)
     subp_p.add_argument('-c', dest='clinical', default=None, help=param_clinical_help)
-    subp_p.add_argument('-g', dest='genomic', default=None, help=param_genomic_help)
+    subp_p.add_argument('-g', dest='extended_attributes', default=None, help=param_genomic_help)
     subp_p.add_argument('--trial-format', dest='trial_format', default='json', action='store', choices=['yml', 'json'],
                         help=param_trial_format_help)
     subp_p.add_argument('--patient-format', dest='patient_format', default='json', action='store',

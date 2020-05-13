@@ -68,7 +68,7 @@ class DFCIQueryTransformers(QueryTransformerContainer):
 
         trial_value, negate = self.transform.is_negate(trial_value)
 
-        # if a curation calls for a Structural Variant, search the free text in the genomic document under
+        # if a curation calls for a Structural Variant, search the free text in the extended_attributes document under
         # STRUCTURAL_VARIANT_COMMENT for mention of the TRUE_HUGO_SYMBOL
         if trial_value == 'Structural Variation':
             sample_value = variant_category_map.get(trial_value.lower())
@@ -83,15 +83,15 @@ class DFCIQueryTransformers(QueryTransformerContainer):
 
     def wildcard_regex(self, **kwargs):
         """
-        When trial curation criteria include a wildcard prefix (e.g. WILDCARD_PROTEIN_CHANGE), a genomic query must
-        use a $regex to search for all genomic documents which match the protein prefix.
+        When trial curation criteria include a wildcard prefix (e.g. WILDCARD_PROTEIN_CHANGE), a extended_attributes query must
+        use a $regex to search for all extended_attributes documents which match the protein prefix.
 
         E.g.
         Trial curation match clause:
-        | genomic:
+        | extended_attributes:
         |    wildcard_protein_change: p.R132
 
-        Patient genomic data:
+        Patient extended_attributes data:
         |    true_protein_change: p.R132H
 
         The above should match in a mongo query.
