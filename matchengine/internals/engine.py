@@ -452,6 +452,7 @@ class MatchEngine(object):
             if not self.match_on_deceased:
                 query = {
                     'clinical_id': {'$in': list(self.clinical_deceased)},
+                    'is_disabled': False,
                     match_identifier: protocol_number
                 }
                 update = {
@@ -674,14 +675,17 @@ class MatchEngine(object):
     def get_clinical_ids_for_protocol(self, protocol_no: str, age_criterion: Set[str]) -> Set(ObjectId):
         """
         Take protocol from args and lookup all run_log entries after protocol_no._updated_date.
-        Subset self.clinical_ids which have already been run since the trial's been updated.
 
+        Subset clinical ids associated with arguments passed, which have already
+        been run since the trial's been updated.
         """
 
         if self.ignore_run_log:
             self._clinical_ids_for_protocol_cache[protocol_no] = self.clinical_ids
+
         if protocol_no in self._clinical_ids_for_protocol_cache:
             return self._clinical_ids_for_protocol_cache[protocol_no]
+
         # run logs since trial has been last updated
         run_log_entries = self._run_log_history[protocol_no]
 
