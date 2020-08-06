@@ -656,10 +656,10 @@ class MatchEngine(object):
                     self.match_criteria_transform.custom_status_key_name in trial:
 
                 # be case insensitive when checking trial open/close status
-                trial_status_key = trial[self.match_criteria_transform.custom_status_key_name]
-                trial_status_key = trial_status_key.lower().strip() if isinstance(trial_status_key, str) else trial_status_key
+                trial_status_val = trial[self.match_criteria_transform.custom_status_key_name]
+                trial_status_val = trial_status_val.lower().strip() if isinstance(trial_status_val, str) else trial_status_val
 
-                if trial_status_key in self.match_criteria_transform.custom_open_to_accrual_vals:
+                if trial_status_val in self.match_criteria_transform.custom_open_to_accrual_vals:
                     trials_to_match.add(protocol_no)
 
         return trials_to_match
