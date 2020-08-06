@@ -473,7 +473,7 @@ class MatchEngine(object):
         """
         for protocol_no in self.protocol_nos:
             if protocol_no not in self._trials_to_match_on:
-                logging.info((f'Trial {protocol_no} '
+                logging.info((f'{self.match_criteria_transform.trial_identifier} {protocol_no} '
                               f'has status {self.trials[protocol_no]["status"]}, skipping'))
                 self._matches[protocol_no] = dict()
                 self._clinical_ids_for_protocol_cache[protocol_no] = self.get_clinical_ids_for_protocol(protocol_no,
