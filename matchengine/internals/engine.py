@@ -473,7 +473,7 @@ class MatchEngine(object):
         """
         for protocol_no in self.protocol_nos:
             if protocol_no not in self._trials_to_match_on:
-                logging.info((f'{self.match_criteria_transform.trial_identifier} {protocol_no} '
+                logging.info((f'{self.match_criteria_transform.trial_collection} {protocol_no} '
                               f'has status {self.trials[protocol_no]["status"]}, skipping'))
                 self._matches[protocol_no] = dict()
                 self._clinical_ids_for_protocol_cache[protocol_no] = self.get_clinical_ids_for_protocol(protocol_no,
@@ -525,7 +525,7 @@ class MatchEngine(object):
         if not self.skip_run_log_entry:
             self.create_run_log_entry(protocol_no, clinical_ids_to_run)
         if not clinical_ids_to_run:
-            log.info(f"No need to re-run trial {protocol_no}; skipping")
+            log.info(f"No need to re-run {self.match_criteria_transform.trial_collection} {protocol_no}; skipping")
             return {}
         for task in tasks:
             self._task_q.put_nowait(QueryTask(*task,
