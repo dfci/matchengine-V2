@@ -12,6 +12,9 @@ setup(
         "matchengine.internals.utilities",
         "matchengine.plugins"
     ],
+    author='Eric Marriott, Ethan Siegel',
+    author_email='esiegel@ds.dfci.harvard.edu',
+    description='Open source engine for matching cancer patients to precision medicine clinical trials (V2).',
     entrypoints={
         "console-scripts": [
             "matchengine =  matchengine.main"
