@@ -709,7 +709,6 @@ class MatchEngine(object):
         if protocol_no in self._clinical_ids_for_protocol_cache:
             return self._clinical_ids_for_protocol_cache[protocol_no]
 
-
         # get run logs since trial has been last updated
         run_log_entries = self._run_log_history[protocol_no]
 
