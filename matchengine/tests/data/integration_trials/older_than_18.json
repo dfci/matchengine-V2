@@ -1,0 +1,39 @@
+{
+  "protocol_no": "18-0000",
+  "status": "Open to Accrual",
+  "treatment_list": {
+    "step": [
+      {
+        "step_internal_id": 3211,
+        "step_code": "1",
+        "step_type": "Registration",
+        "arm": [
+          {
+            "arm_code": "DOSE",
+            "arm_description": "DOSE: DOSE ESCALATION",
+            "arm_suspended": "N",
+            "dose_level": [
+              {
+                "level_suspended": "N",
+                "level_code": "-1",
+                "level_internal_id": 1234
+              }
+            ],
+            "match": [
+              {
+                "and": [
+                  {
+                    "clinical": {
+                      "age_numerical": ">18"
+                    }
+                  }
+                ]
+              }
+            ],
+            "arm_internal_id": 27517
+          }
+        ]
+      }
+    ]
+  }
+}

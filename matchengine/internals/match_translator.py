@@ -18,7 +18,8 @@ from matchengine.internals.typing.matchengine_types import (
     MultiCollectionQuery,
     QueryNode,
     QueryTransformerResult,
-    QueryNodeContainer)
+    QueryNodeContainer
+)
 
 if TYPE_CHECKING:
     from typing import (
@@ -52,7 +53,17 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
         # include top level match clauses
         if key == 'match':
             parent_path = ParentPath(tuple())
-            yield parent_path, val
+            match_clause_data = MatchClauseData(val,
+                                                None,
+                                                None,
+                                                None,
+                                                None,
+                                                None,
+                                                parent_path,
+                                                None,
+                                                None,
+                                                trial[matchengine.match_criteria_transform.trial_identifier])
+            yield match_clause_data
         else:
             process_q.append((tuple(), key, val))
 
@@ -62,6 +73,7 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
         if parent_value.__class__ is dict:
             for inner_key, inner_value in parent_value.items():
                 parent_path = ParentPath(path + (parent_key, inner_key))
+                # this funky logic is so that level/internal is None if node is not a match clause
                 level = MatchClauseLevel(
                     matchengine.match_criteria_transform.level_mapping.get(
                         next(
@@ -106,7 +118,7 @@ def extract_match_clauses_from_trial(matchengine: MatchEngine, protocol_no: str)
                                           parent_path,
                                           level,
                                           parent_value,
-                                          trial['protocol_no'])
+                                          trial[matchengine.match_criteria_transform.trial_identifier])
                 else:
                     process_q.append((path + (parent_key,), inner_key, inner_value))
         elif parent_value.__class__ is list:
@@ -158,7 +170,7 @@ def create_match_tree(matchengine, match_clause_data: MatchClauseData) -> MatchT
         parent_id, values = process_q.pop()
         parent_is_and = True if graph.nodes[parent_id].get('is_and', False) else False
 
-        # label is 'and', 'or', 'genomic' or 'clinical'
+        # label is 'and', 'or', 'extended_attributes' or 'clinical'
         for label, value in values.items():
             if label.startswith('and'):
                 criteria_list = list()
@@ -259,7 +271,7 @@ def translate_match_path(matchengine,
                          match_clause_data: MatchClauseData,
                          match_criterion: MatchCriterion) -> MultiCollectionQuery:
     """
-    Translate the keys/values from the trial curation into keys/values used in a genomic/clinical document.
+    Translate the keys/values from the trial curation into keys/values used in a extended_attributes/clinical document.
     Uses an external config file ./config/config.json
 
     """
@@ -267,15 +279,14 @@ def translate_match_path(matchengine,
     query_cache = set()
     for node in match_criterion.criteria_list:
         for criteria in node.criteria:
-            for genomic_or_clinical, values in criteria.items():
-                initial_query_node = QueryNode(genomic_or_clinical, node.node_id, criteria, node.depth, list(), None)
+            for node_name, values in criteria.items():
+                trial_key_mappings = matchengine.match_criteria_transform.ctml_collection_mappings[node_name][
+                    'trial_key_mappings']
+                initial_query_node = QueryNode(node_name, node.node_id, criteria, node.depth, list(), None)
                 query_nodes = list()
                 query_nodes.append(initial_query_node)
                 for trial_key, trial_value in values.items():
-                    trial_key_settings = matchengine.match_criteria_transform.trial_key_mappings[
-                        genomic_or_clinical].get(
-                        trial_key.upper(),
-                        dict())
+                    trial_key_settings = trial_key_mappings.get(trial_key.upper(), dict())
 
                     if trial_key_settings.get('ignore', False):
                         continue
@@ -286,7 +297,7 @@ def translate_match_path(matchengine,
                     sample_function_args = dict(sample_key=trial_key.upper(),
                                                 trial_value=trial_value,
                                                 parent_path=match_clause_data.parent_path,
-                                                trial_path=genomic_or_clinical,
+                                                trial_path=node_name,
                                                 trial_key=trial_key)
                     sample_function_args.update(trial_key_settings)
                     result: QueryTransformerResult = sample_function(**sample_function_args)
@@ -319,5 +330,6 @@ def translate_match_path(matchengine,
                             query_cache.add(query_node_hash)
                             query_node_container.query_nodes.append(query_node)
                 matchengine.query_node_container_transform(query_node_container)
-                getattr(multi_collection_query, genomic_or_clinical).append(query_node_container)
+                node_type = 'clinical' if node_name == 'clinical' else 'extended_attributes'
+                getattr(multi_collection_query, node_type).append(query_node_container)
     return multi_collection_query

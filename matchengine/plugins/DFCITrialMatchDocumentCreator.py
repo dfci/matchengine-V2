@@ -138,7 +138,7 @@ def get_clinical_details(clinical_doc, query):
 
 
 def format_exclusion_match(trial_match: TrialMatch):
-    """Format the genomic alteration for genomic documents that matched a negative clause of a match tree"""
+    """Format the extended_attributes alteration for extended_attributes documents that matched a negative clause of a match tree"""
     query = trial_match.match_reason.query_node.extract_raw_query()
 
     true_hugo = 'TRUE_HUGO_SYMBOL'
@@ -229,7 +229,7 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
 
     def create_trial_matches(self, trial_match: TrialMatch, new_trial_match: Dict) -> Dict:
         """
-        Create a trial match document to be inserted into the db. Add clinical, genomic, and trial details as specified
+        Create a trial match document to be inserted into the db. Add clinical, extended_attributes, and trial details as specified
         in config.json
         """
         query = trial_match.match_reason.extract_raw_query()
@@ -237,12 +237,18 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         new_trial_match.update({'cancer_type_match': get_cancer_type_match(trial_match)})
 
         if trial_match.match_reason.reason_name == 'genomic':
-            genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.genomic_id, None)
+            genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.reference_id, None)
             if genomic_doc is None:
                 new_trial_match.update(format_trial_match_k_v(format_exclusion_match(trial_match)))
             else:
                 new_trial_match.update(
                     format_trial_match_k_v(get_genomic_details(genomic_doc, trial_match)))
+        elif trial_match.match_reason.reason_name == 'prior_treatments':
+            prior_treatments_doc = self.cache.docs[trial_match.match_reason.genomic_id]
+            new_trial_match.update({"prior_treatment_id": trial_match.match_reason.genomic_id})
+            new_trial_match.update(
+                {k: v for k, v in prior_treatments_doc.items() if
+                 not k.startswith('_')})
         elif trial_match.match_reason.reason_name == 'clinical':
             new_trial_match.update(
                 format_trial_match_k_v(get_clinical_details(clinical_doc, query)))

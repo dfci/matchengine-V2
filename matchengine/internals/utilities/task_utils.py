@@ -95,8 +95,9 @@ async def run_index_update_task(matchengine: MatchEngine, task: IndexUpdateTask,
 
 
 async def run_query_task(matchengine: MatchEngine, task, worker_id):
+    trial_identifier = matchengine.match_criteria_transform.trial_identifier
     if matchengine.debug:
-        log.info((f"Worker: {worker_id}, protocol_no: {task.trial['protocol_no']} got new QueryTask, "
+        log.info((f"Worker: {worker_id}, {trial_identifier}: {task.trial[trial_identifier]} got new QueryTask, "
                   f"{matchengine._task_q.qsize()} tasks left in queue"))
     try:
         results: Dict[ClinicalID, List[MatchReason]] = await matchengine.run_query(task.query,
@@ -141,13 +142,13 @@ async def run_query_task(matchengine: MatchEngine, task, worker_id):
                 # generate sort_order and hash fields after all fields are added
                 new_match_proto = matchengine.pre_process_trial_matches(match_context_data)
                 match_document = matchengine.create_trial_matches(match_context_data, new_match_proto)
-                sort_order = get_sort_order(matchengine.config['trial_match_sorting'], match_document)
+                sort_order = get_sort_order(matchengine, match_document)
                 match_document['sort_order'] = sort_order
                 to_hash = {key: match_document[key] for key in match_document if key not in {'hash', 'is_disabled'}}
                 match_document['hash'] = nested_object_hash(to_hash)
                 match_document['_me_id'] = matchengine.run_id.hex
 
-                matchengine.matches.setdefault(task.trial['protocol_no'],
+                matchengine.matches.setdefault(task.trial[trial_identifier],
                                                dict()).setdefault(match_document['sample_id'],
                                                                   list()).append(match_document)
                 by_sample_id[match_document['sample_id']].append(match_document)
@@ -204,13 +205,13 @@ async def run_run_log_update_task(matchengine: MatchEngine, task: RunLogUpdateTa
     try:
         if matchengine.debug:
             log.info(f"Worker {worker_id} got new RunLogUpdateTask {task.protocol_no}")
+            logging.error(matchengine.run_log_entries[task.protocol_no])
+
         dont_need_insert, _ = await asyncio.gather(
-            matchengine.async_db_ro.get_collection(clinical_run_history_collection).distinct(
-                "clinical_id"),
-            matchengine.async_db_rw[run_log_collection].insert_one(
-                matchengine.run_log_entries[task.protocol_no]))
-        new_clinical_run_log_docs = set(
-            matchengine.clinical_run_log_entries[task.protocol_no]) - set(dont_need_insert)
+            matchengine.async_db_ro.get_collection(clinical_run_history_collection).distinct("clinical_id"),
+            matchengine.async_db_rw[run_log_collection].insert_one(matchengine.run_log_entries[task.protocol_no])
+        )
+        new_clinical_run_log_docs = set(matchengine.clinical_run_log_entries[task.protocol_no]) - set(dont_need_insert)
         clinical_update_ops = [
             InsertOne({"clinical_id": clinical_id, "run_history": list()})
             for clinical_id

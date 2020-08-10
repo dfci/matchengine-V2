@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from pymongo import UpdateMany, InsertOne
 
 from matchengine.internals.typing.matchengine_types import RunLogUpdateTask, UpdateTask, MongoQuery
+from matchengine.internals.utilities.list_utils import chunk_list
 from matchengine.internals.utilities.utilities import perform_db_call
 
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +18,6 @@ if TYPE_CHECKING:
 
 
 async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol_no: str):
-    # TODO: Verify match updating without --force still works before go live
     """
     Update trial matches by diff'ing the newly created trial matches against existing matches in
     the db. Delete matches by adding {is_disabled: true} and insert all new matches.
@@ -28,24 +28,28 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
         for match in matches:
             match['_updated'] = updated_time
     if protocol_no not in matchengine.matches:
-        log.info(f"Trial {protocol_no} was not matched on, not updating trial matches")
+        log.info(f"{matchengine.match_criteria_transform.trial_collection} {protocol_no} was not matched on, not updating {matchengine.match_criteria_transform.trial_collection} matches")
+        if not matchengine.skip_run_log_entry:
+            matchengine.task_q.put_nowait(RunLogUpdateTask(protocol_no))
+        await matchengine.task_q.join()
         return
-    log.info(f"Updating trial matches for {protocol_no}")
+    log.info(f"Updating matches for {protocol_no}")
     if not matchengine.drop:
         if not matchengine.matches[protocol_no]:
-            matchengine.task_q.put_nowait(
-                UpdateTask(
-                    [UpdateMany(filter={'protocol_no': protocol_no,
-                                        'clinical_id': {'$in': list(
-                                            matchengine.clinical_ids_for_protocol_cache[protocol_no])}},
-                                update={'$set': {"is_disabled": True,
-                                                 '_updated': updated_time}})],
-                    protocol_no
+            for chunk in chunk_list(list(matchengine.clinical_ids_for_protocol_cache[protocol_no]),
+                                    matchengine.chunk_size):
+                matchengine.task_q.put_nowait(
+                    UpdateTask(
+                        [UpdateMany(filter={matchengine.match_criteria_transform.match_trial_link_id: protocol_no,
+                                            'clinical_id': {'$in': chunk}},
+                                    update={'$set': {"is_disabled": True,
+                                                     '_updated': updated_time}})],
+                        protocol_no
+                    )
                 )
-            )
         else:
             matches_to_disable = await get_all_except(matchengine, protocol_no, matches_by_sample_id)
-            delete_ops = await get_delete_ops(matches_to_disable)
+            delete_ops = await get_delete_ops(matches_to_disable, matchengine)
             matchengine.task_q.put_nowait(UpdateTask(delete_ops, protocol_no))
 
     for sample_id in matches_by_sample_id.keys():
@@ -72,7 +76,8 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
                                          m['hash'] in disabled]
             ops = get_update_operations(matches_to_disable,
                                         matches_to_insert,
-                                        matches_to_mark_available)
+                                        matches_to_mark_available,
+                                        matchengine)
         else:
             ops = [InsertOne(document=trial_match) for trial_match in
                    matches_by_sample_id[sample_id]]
@@ -93,7 +98,7 @@ async def get_all_except(matchengine: MatchEngine,
         clinical_ids = matchengine.clinical_run_log_entries[protocol_no] - clinical_ids
 
     query = {
-        'protocol_no': protocol_no,
+        matchengine.match_criteria_transform.match_trial_link_id: protocol_no,
         "clinical_id": {
             '$in': [clinical_id for clinical_id in clinical_ids]
         }
@@ -112,11 +117,14 @@ async def get_all_except(matchengine: MatchEngine,
     return [result for result in results]
 
 
-async def get_delete_ops(matches_to_disable: list) -> list:
+async def get_delete_ops(matches_to_disable: list, matchengine: MatchEngine) -> list:
     updated_time = datetime.datetime.now()
     hashes = [result['hash'] for result in matches_to_disable]
-    return [UpdateMany(filter={'hash': {'$in': hashes}},
-                       update={'$set': {"is_disabled": True, '_updated': updated_time}})]
+    ops = list()
+    for chunk in chunk_list(hashes, matchengine.chunk_size):
+        ops.append(UpdateMany(filter={'hash': {'$in': chunk}},
+                              update={'$set': {"is_disabled": True, '_updated': updated_time}}))
+    return ops
 
 
 async def get_existing_matches(matchengine: MatchEngine, new_matches_hashes: list) -> list:
@@ -135,7 +143,8 @@ async def get_matches_to_disable(matchengine: MatchEngine,
                                  new_matches_hashes: list,
                                  protocol_no: str,
                                  sample_id: str) -> list:
-    matches_to_disable_query = MongoQuery({'protocol_no': protocol_no,
+
+    matches_to_disable_query = MongoQuery({matchengine.match_criteria_transform.match_trial_link_id: protocol_no,
                                            'sample_id': sample_id,
                                            'is_disabled': False,
                                            'hash': {'$nin': new_matches_hashes}})
@@ -151,20 +160,23 @@ async def get_matches_to_disable(matchengine: MatchEngine,
 
 def get_update_operations(matches_to_disable: list,
                           matches_to_insert: list,
-                          matches_to_mark_available: list) -> list:
+                          matches_to_mark_available: list,
+                          matchengine: MatchEngine) -> list:
     ops = list()
     updated_time = datetime.datetime.now()
     disable_hashes = [trial_match['hash'] for trial_match in matches_to_disable]
-    ops.append(UpdateMany(filter={'hash': {'$in': disable_hashes}},
-                          update={'$set': {'is_disabled': True,
-                                           '_updated': updated_time}}))
+    for chunk in chunk_list(disable_hashes, matchengine.chunk_size):
+        ops.append(UpdateMany(filter={'hash': {'$in': chunk}},
+                              update={'$set': {'is_disabled': True,
+                                               '_updated': updated_time}}))
     for to_insert in matches_to_insert:
         ops.append(InsertOne(document=to_insert))
 
     available_hashes = [trial_match['hash'] for trial_match in matches_to_mark_available]
-    ops.append(UpdateMany(filter={'hash': {'$in': available_hashes}},
-                          update={'$set': {'is_disabled': False,
-                                           '_updated': updated_time}}))
+    for chunk in chunk_list(available_hashes, matchengine.chunk_size):
+        ops.append(UpdateMany(filter={'hash': {'$in': chunk}},
+                              update={'$set': {'is_disabled': False,
+                                               '_updated': updated_time}}))
     return ops
 
 

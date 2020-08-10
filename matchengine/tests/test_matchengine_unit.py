@@ -23,6 +23,7 @@ class TestMatchEngine(TestCase):
         self.me.plugin_dir = 'matchengine/tests/plugins'
         self.me.match_document_creator_class = 'TestTrialMatchDocumentCreator'
         self.me.visualize_match_paths = False
+        self.me.debug = False
         with open('matchengine/tests/config.json') as config_file_handle:
             self.config = json.load(config_file_handle)
 
@@ -184,7 +185,7 @@ class TestMatchEngine(TestCase):
         match_paths = translate_match_path(self.me, match_clause_data=match_clause_data,
                                            match_criterion=MatchCriterion([MatchCriteria({}, 0, 0)]))
         assert len(match_paths.clinical) == 0
-        assert len(match_paths.genomic) == 0
+        assert len(match_paths.extended_attributes) == 0
 
     def test_comparable_dict(self):
         assert nested_object_hash({}) == nested_object_hash({})
