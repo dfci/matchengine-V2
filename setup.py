@@ -31,7 +31,7 @@ setup(
         "Pandas>=0.25.0",
         "pymongo>=3.8.0",
         "networkx>=2.3",
-        "motor>=2.0.0"
+        "motor==2.0.0"
     ],
     include_package_data=True,
     python_requires='>=3.7',
