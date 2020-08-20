@@ -514,7 +514,7 @@ class MatchEngine(object):
                         # check if node has any age criteria, to know to check for newly qualifying patients
                         # or patients aging out
                         for k, v in criteria.get('clinical', dict()).items():
-                            if k.lower() == 'age_numerical':
+                            if k == 'age_numerical_tmp':
                                 age_criteria.add(v)
                 if self.debug:
                     log.info(f"Query: {query}")
