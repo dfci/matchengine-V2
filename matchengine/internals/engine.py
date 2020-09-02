@@ -692,7 +692,7 @@ class MatchEngine(object):
             '_created': self.starttime
         }
 
-
+        # set clinical ids run during current run in memory
         self.clinical_run_log_entries[protocol_no] = clinical_ids
 
     def get_clinical_ids_for_protocol(self, protocol_no: str, age_criterion: Set[str]) -> Set(ObjectId):
