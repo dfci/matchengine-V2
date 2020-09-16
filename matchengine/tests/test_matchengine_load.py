@@ -88,7 +88,7 @@ class IntegrationTestMatchengineLoading(TestCase):
                          trial='matchengine/tests/data/integration_trials/',
                          upsert_fields='')
         load(args)
-        assert len(list(self.db_ro.trial.find({}))) == 16
+        assert len(list(self.db_ro.trial.find({}))) == 18
 
     def test__load_trial_single_yaml(self):
         self._reset(do_reset_trials=True)

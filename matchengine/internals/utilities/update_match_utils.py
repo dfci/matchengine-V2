@@ -27,7 +27,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
     for matches in matches_by_sample_id.values():
         for match in matches:
             match['_updated'] = updated_time
-    if protocol_no not in matchengine.matches or protocol_no not in matchengine._trials_to_match_on:
+    if protocol_no not in matchengine.matches:
         log.info(f"{matchengine.match_criteria_transform.trial_collection} {protocol_no} was not matched on, not updating {matchengine.match_criteria_transform.trial_collection} matches")
         if not matchengine.skip_run_log_entry:
             matchengine.task_q.put_nowait(RunLogUpdateTask(protocol_no))
@@ -44,8 +44,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
                     UpdateTask(
                         [UpdateMany(filter={matchengine.match_criteria_transform.match_trial_link_id: protocol_no,
                                             'clinical_id': {'$in': chunk}},
-                                    update={'$set': {"is_disabled": True,
-                                                     '_updated': updated_time}})],
+                                    update={'$set': {"is_disabled": True}})],
                         protocol_no
                     )
                 )
