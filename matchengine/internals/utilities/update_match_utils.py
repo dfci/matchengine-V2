@@ -27,7 +27,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
     for matches in matches_by_sample_id.values():
         for match in matches:
             match['_updated'] = updated_time
-    if protocol_no not in matchengine.matches:
+    if protocol_no not in matchengine.matches or protocol_no not in matchengine._trials_to_match_on:
         log.info(f"{matchengine.match_criteria_transform.trial_collection} {protocol_no} was not matched on, not updating {matchengine.match_criteria_transform.trial_collection} matches")
         if not matchengine.skip_run_log_entry:
             matchengine.task_q.put_nowait(RunLogUpdateTask(protocol_no))
@@ -35,6 +35,8 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
         return
     log.info(f"Updating matches for {protocol_no}")
     if not matchengine.drop:
+
+        # If no matches are found, disable all match records by sample id
         if not matchengine.matches[protocol_no]:
             for chunk in chunk_list(list(matchengine.clinical_ids_for_protocol_cache[protocol_no]),
                                     matchengine.chunk_size):
@@ -48,6 +50,7 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
                     )
                 )
         else:
+            # Get matches to disable and issue queries
             matches_to_disable = await get_all_except(matchengine, protocol_no, matches_by_sample_id)
             delete_ops = await get_delete_ops(matches_to_disable, matchengine)
             matchengine.task_q.put_nowait(UpdateTask(delete_ops, protocol_no))
@@ -56,13 +59,12 @@ async def async_update_matches_by_protocol_no(matchengine: MatchEngine, protocol
         if not matchengine.drop:
             new_matches_hashes = [match['hash'] for match in matches_by_sample_id[sample_id]]
 
-            # get existing state of trial match collection
+            # get existing matches in db with identical hashes to newly found matches
             existing = await get_existing_matches(matchengine, new_matches_hashes)
             existing_hashes = {result['hash'] for result in existing}
             disabled = {result['hash'] for result in existing if result['is_disabled']}
 
-            # insert matches in new_matches_hashes if they don't already exist
-            # disable matches NOT in new_matches_hashes
+            # insert new matches if they don't already exist. disable everything else
             matches_to_insert = get_matches_to_insert(matches_by_sample_id,
                                                       existing_hashes,
                                                       sample_id)
@@ -92,8 +94,13 @@ async def get_all_except(matchengine: MatchEngine,
                          protocol_no: str,
                          trial_matches_by_sample_id: dict) -> list:
     """Return all matches except ones matching current protocol_no"""
+
+    # get clinical ids with matches
     clinical_ids = {matchengine.sample_mapping[sample_id] for sample_id in trial_matches_by_sample_id.keys()}
 
+    # if protocol has been run previously, subtract clinical ids from current run from
+    # previously run clinical ids for a specific protocol. The remainder are ids
+    # which were run previously, but not in the current run.
     if protocol_no in matchengine.clinical_run_log_entries:
         clinical_ids = matchengine.clinical_run_log_entries[protocol_no] - clinical_ids
 
@@ -128,6 +135,12 @@ async def get_delete_ops(matches_to_disable: list, matchengine: MatchEngine) -> 
 
 
 async def get_existing_matches(matchengine: MatchEngine, new_matches_hashes: list) -> list:
+    """
+    Get matches in db which have the same hashes as newly found matches.
+    :param matchengine:
+    :param new_matches_hashes:
+    :return:
+    """
     matches_to_not_change_query = MongoQuery({'hash': {'$in': new_matches_hashes}})
     projection = {"hash": 1, "is_disabled": 1}
     matches = await asyncio.gather(
@@ -143,11 +156,27 @@ async def get_matches_to_disable(matchengine: MatchEngine,
                                  new_matches_hashes: list,
                                  protocol_no: str,
                                  sample_id: str) -> list:
+    """
+    Get matches to disable by looking for existing, enabled matches whose
+    hashes are not present in newly generated matches during current run.
 
-    matches_to_disable_query = MongoQuery({matchengine.match_criteria_transform.match_trial_link_id: protocol_no,
-                                           'sample_id': sample_id,
-                                           'is_disabled': False,
-                                           'hash': {'$nin': new_matches_hashes}})
+    Done for every sample_id
+
+    :param matchengine:
+    :param new_matches_hashes:
+    :param protocol_no:
+    :param sample_id:
+    :return:
+    """
+    query = {
+        matchengine.match_criteria_transform.match_trial_link_id: protocol_no,
+        'sample_id': sample_id,
+        'is_disabled': False,
+        'hash': {
+            '$nin': new_matches_hashes
+        }
+    }
+    matches_to_disable_query = MongoQuery(query)
     projection = {"hash": 1, "is_disabled": 1}
     matches = await asyncio.gather(
         perform_db_call(matchengine,

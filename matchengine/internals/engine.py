@@ -650,8 +650,12 @@ class MatchEngine(object):
         for protocol_no, trial in trials.items():
             summary_status_open = trial.get("_summary", dict()).get("status", [dict()])[0].get("value", str()).lower() in {"open to accrual"}
 
+            # By default, first check if _summary.status.value: "open to accrual"
+            # as this is DFCI's default implementation
             if self.match_on_closed or summary_status_open:
                 trials_to_match.add(protocol_no)
+
+            # Otherwise, use trial status configuration as defined in config.json
             elif self.match_criteria_transform.use_custom_trial_status_key is not None and \
                     self.match_criteria_transform.custom_status_key_name in trial:
 
@@ -692,7 +696,7 @@ class MatchEngine(object):
             '_created': self.starttime
         }
 
-
+        # set clinical ids run during current run in memory
         self.clinical_run_log_entries[protocol_no] = clinical_ids
 
     def get_clinical_ids_for_protocol(self, protocol_no: str, age_criterion: Set[str]) -> Set(ObjectId):
