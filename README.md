@@ -5,4 +5,4 @@ Welcome to the documentation for the matchengine! The Matchengine is a system de
 The matchengine can be used on local instances that provide access to private data. If you are interested in the development of new features, or in setting up a local instance of the MatchMiner system, please see the documentation, or contact [matchminer@dfci.harvard.edu](https://app.gitbook.com/@matchminer/s/matchminer)
 
 # Documentation
-[Gitbook docs](https://matchminer.gitbook.io/matchminer/matchengine-v2/introduction)
+[Gitbook documentation](https://matchminer.gitbook.io/matchminer/matchengine-v2/introduction)
