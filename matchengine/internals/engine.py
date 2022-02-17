@@ -613,7 +613,8 @@ class MatchEngine(object):
                     self._clinical_data.items()}
         else:
             return {clinical_id: clinical_data['SAMPLE_ID'] for clinical_id, clinical_data in
-                    self._clinical_data.items() if clinical_data['VITAL_STATUS'].lower() == 'alive'}
+                    self._clinical_data.items() if (clinical_data['VITAL_STATUS'] is not None and clinical_data['VITAL_STATUS'].lower() == 'alive')}
+
 
     def get_trials(self) -> Dict[str, Trial]:
         """
