@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import operator
+import re
 from collections import defaultdict
 from functools import reduce
 from typing import TYPE_CHECKING, Dict
@@ -72,6 +73,11 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                 matchengine.cache.in_process.setdefault(query_hash, set()).update(need_new)
 
                 if need_new:
+                    # recompile query into case insensitive
+                    if "ONCOTREE_PRIMARY_DIAGNOSIS_NAME" in query_part.query:
+                        for i, old_query in enumerate(query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']['$in']):
+                            ignore_case_query = re.compile(old_query, re.IGNORECASE)
+                            query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']['$in'][i] = ignore_case_query
                     new_query = {'$and': [{join_field: {'$in': list(need_new)}}, query_part.query]}
                     if matchengine.debug:
                         log.info(f"{query_part.query}")
