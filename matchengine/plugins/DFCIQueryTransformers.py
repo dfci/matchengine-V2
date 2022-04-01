@@ -121,5 +121,16 @@ class DFCIQueryTransformers(QueryTransformerContainer):
         sample_value = mmr_map[trial_value]
         return QueryTransformerResult({sample_key: sample_value}, negate)
 
+    def molecular_function_map(self, **kwargs):
+        molecular_function_map = {
+            'Activating': {"$in": ["Gain-of-function", "Likely Gain-of-function"]},
+            'Inactivating': {"$in": ["Loss-of-function", "Likely Loss-of-function", "Unknown"]}
+        }
+        trial_value = kwargs['trial_value']
+        trial_value, negate = self.transform.is_negate(trial_value)
+        sample_key = kwargs['sample_key']
+        sample_value = molecular_function_map[trial_value]
+        ret = QueryTransformerResult({sample_key: sample_value}, negate)
+        return ret;
 
 __export__ = ["DFCIQueryTransformers"]
