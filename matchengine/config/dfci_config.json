@@ -120,7 +120,7 @@
         },
         "MOLECULAR_FUNCTION": {
           "sample_key": "MUTATION_EFFECT",
-          "sample_value": "nomap"
+          "sample_value": "molecular_function_map"
         }
       }
     },
@@ -165,7 +165,8 @@
       "LEFT_PARTNER_GENE",
       "RIGHT_PARTNER_GENE",
       "STRUCTURAL_VARIANT_TYPE",
-      "MOLECULAR_FUNCTION"
+      "MOLECULAR_FUNCTION",
+      "MUTATION_EFFECT"
     ],
     "prior_treatments": [
       "DRUG"
