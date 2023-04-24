@@ -274,19 +274,41 @@ async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_ext
     return results
 
 
+# def get_valid_reasons(matchengine: MatchEngine, possible_reasons, clinical_ids, genomic_ids):
+#     valid_reasons = {}
+#     for clinical_id, reasons in possible_reasons.items():
+#         if clinical_id in clinical_ids:
+#             list_o_reasons = list()
+#             for reason in reasons:
+#                 if ((reason.__class__ is ExtendedMatchReason
+#                      and (reason.query_node.exclusion or reason.reference_id in genomic_ids[
+#                             reason.query_node.query_level]))
+#                         or (reason.__class__ is ClinicalMatchReason
+#                             and (matchengine.report_all_clinical_reasons
+#                                  or frozenset(reason.query_part.query.keys())
+#                                  in c))):
+#                     list_o_reasons.append(reason)
+#                 valid_reasons[clinical_id] = list_o_reasons
+#
+#     return valid_reasons
+
 def get_valid_reasons(matchengine: MatchEngine, possible_reasons, clinical_ids, genomic_ids):
     valid_reasons = {}
     for clinical_id, reasons in possible_reasons.items():
         if clinical_id in clinical_ids:
             list_o_reasons = list()
             for reason in reasons:
-                if ((reason.__class__ is ExtendedMatchReason
-                     and (reason.query_node.exclusion or reason.reference_id in genomic_ids[
-                            reason.query_node.query_level]))
-                        or (reason.__class__ is ClinicalMatchReason
-                            and (matchengine.report_all_clinical_reasons
-                                 or frozenset(reason.query_part.query.keys())
-                                 in matchengine.match_criteria_transform.valid_clinical_reasons))):
+                should_add_reason = False
+                if reason.__class__ is ExtendedMatchReason:
+                    if (reason.query_node.exclusion or reason.reference_id in
+                            genomic_ids[reason.query_node.query_level]):
+                        should_add_reason = True
+                elif reason.__class__ is ClinicalMatchReason:
+                    keys = frozenset(reason.query_part.query.keys())
+                    if matchengine.report_all_clinical_reasons or \
+                            keys.issubset(matchengine.match_criteria_transform.valid_clinical_reasons):
+                        should_add_reason = True
+                if should_add_reason:
                     list_o_reasons.append(reason)
                 valid_reasons[clinical_id] = list_o_reasons
 
