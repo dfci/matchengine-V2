@@ -133,4 +133,21 @@ class DFCIQueryTransformers(QueryTransformerContainer):
         ret = QueryTransformerResult({sample_key: sample_value}, negate)
         return ret;
 
+    # return all matches for genomic query
+    def genomic_dummy_map(self, **kwargs):
+        trial_value = kwargs['trial_value']
+        sample_key = kwargs['sample_key']
+        return QueryTransformerResult({'CLINICAL_ID': {'$ne': ''}}, False);
+
+    # map 'true' 'false' to 'positive' 'negative', other values such as 'NA', 'Unknown' and 'equivocal' are not mapped
+    def true_false_map(self, **kwargs):
+        trial_value = kwargs['trial_value']
+        sample_key = kwargs['sample_key']
+        if trial_value.upper() == 'TRUE':
+            return QueryTransformerResult({sample_key: 'Positive'}, False)
+        elif trial_value.upper() == 'FALSE':
+            return QueryTransformerResult({sample_key: 'Negative'}, False)
+        else:
+            return QueryTransformerResult({sample_key: trial_value}, False)
+
 __export__ = ["DFCIQueryTransformers"]

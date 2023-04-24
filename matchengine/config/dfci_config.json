@@ -31,15 +31,15 @@
         },
         "HER2_STATUS": {
           "sample_key": "HER2_STATUS",
-          "sample_value": "nomap"
+          "sample_value": "true_false_map"
         },
         "PR_STATUS": {
           "sample_key": "PR_STATUS",
-          "sample_value": "nomap"
+          "sample_value": "true_false_map"
         },
         "ER_STATUS": {
           "sample_key": "ER_STATUS",
-          "sample_value": "nomap"
+          "sample_value": "true_false_map"
         },
         "DISEASE_STATUS": {
           "ignore": true
@@ -121,6 +121,10 @@
         "MOLECULAR_FUNCTION": {
           "sample_key": "MUTATION_EFFECT",
           "sample_value": "molecular_function_map"
+        },
+        "MATCH_ALL": {
+          "sample_key": "MATCH_ALL",
+          "sample_value": "genomic_dummy_map"
         }
       }
     },
