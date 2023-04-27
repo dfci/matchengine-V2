@@ -77,12 +77,14 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                     if "ONCOTREE_PRIMARY_DIAGNOSIS_NAME" in query_part.query:
                         if "$in" in query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']:
                             for i, old_query in enumerate(query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']['$in']):
-                                ignore_case_query = re.compile(old_query, re.IGNORECASE)
+                                ignore_case_query = {'$regex': f'^{old_query}$', '$options': 'i'}
                                 query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']['$in'][i] = ignore_case_query
                         else:
-                            ignore_case_query = re.compile(query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME'], re.IGNORECASE)
+                            org_query = query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME'];
+                            ignore_case_query = {'$regex': f'^{org_query}$', '$options': 'i'}
                             query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME'] = ignore_case_query
                     new_query = {'$and': [{join_field: {'$in': list(need_new)}}, query_part.query]}
+
                     if matchengine.debug:
                         log.info(f"{query_part.query}")
                     projection = {id_field: 1, join_field: 1}
