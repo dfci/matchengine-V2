@@ -73,18 +73,23 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                 matchengine.cache.in_process.setdefault(query_hash, set()).update(need_new)
 
                 if need_new:
-                    # recompile query into case insensitive
+                    # recompile the query to be case insensitive
+                    # convert the $in into a list of $or conditions so we can use $regex inside a $in
+                    # mongo has a limitation that cannot use $regex within a $in
+                    # using regex
                     if "ONCOTREE_PRIMARY_DIAGNOSIS_NAME" in query_part.query:
                         if "$in" in query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']:
-                            for i, old_query in enumerate(query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']['$in']):
-                                ignore_case_query = {'$regex': f'^{old_query}$', '$options': 'i'}
-                                query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']['$in'][i] = ignore_case_query
+                            new_conditions = [
+                                {'ONCOTREE_PRIMARY_DIAGNOSIS_NAME': {'$regex': f'^{old_query}$', '$options': 'i'}} for
+                                old_query in query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']['$in']]
+                            del query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']  # Remove old query from query_part
+                            query_part.query['$or'] = new_conditions  # Add new conditions to query_part
                         else:
                             org_query = query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME'];
                             ignore_case_query = {'$regex': f'^{org_query}$', '$options': 'i'}
                             query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME'] = ignore_case_query
-                    new_query = {'$and': [{join_field: {'$in': list(need_new)}}, query_part.query]}
 
+                    new_query = {'$and': [{join_field: {'$in': list(need_new)}}, query_part.query]}
                     if matchengine.debug:
                         log.info(f"{query_part.query}")
                     projection = {id_field: 1, join_field: 1}
