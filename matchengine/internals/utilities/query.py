@@ -89,7 +89,14 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                             ignore_case_query = {'$regex': f'^{org_query}$', '$options': 'i'}
                             query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME'] = ignore_case_query
 
-                    new_query = {'$and': [{join_field: {'$in': list(need_new)}}, query_part.query]}
+                    # Exclude documents where 'ONCOTREE_PRIMARY_DIAGNOSIS_NAME' is 'NA'
+                    new_query = {
+                        '$and': [
+                            {join_field: {'$in': list(need_new)}},
+                            query_part.query,
+                            {'ONCOTREE_PRIMARY_DIAGNOSIS_NAME': {'$ne': 'NA'}}
+                        ]
+                    }
                     if matchengine.debug:
                         log.info(f"{query_part.query}")
                     projection = {id_field: 1, join_field: 1}
@@ -184,6 +191,7 @@ async def execute_extended_queries(
                 projection = {id_field: 1, join_field: 1}
                 genomic_docs = await matchengine.async_db_ro[collection].find(new_query, projection).to_list(None)
                 if matchengine.debug:
+                    # this prints the genomic query + clinical IDs that were queried and results
                     log.info(f"{new_query} returned {genomic_docs}")
 
                 for genomic_doc in genomic_docs:
