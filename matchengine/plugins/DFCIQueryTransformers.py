@@ -124,7 +124,7 @@ class DFCIQueryTransformers(QueryTransformerContainer):
     def molecular_function_map(self, **kwargs):
         molecular_function_map = {
             'Activating': {"$in": ["Gain-of-function", "Likely Gain-of-function"]},
-            'Inactivating': {"$in": ["Loss-of-function", "Likely Loss-of-function", "Unknown"]}
+            'Inactivating': {"$in": ["Loss-of-function", "Likely Loss-of-function"]}
         }
         trial_value = kwargs['trial_value']
         trial_value, negate = self.transform.is_negate(trial_value)
