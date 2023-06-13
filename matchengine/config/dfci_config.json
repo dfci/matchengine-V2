@@ -3,7 +3,7 @@
   "trial_identifier": "protocol_no",
   "match_trial_link_id": "protocol_no",
   "trial_status_key": {
-    "key_name": null,
+    "key_name": "summary",
     "open_to_accrual_values": ["open to accrual"]
   },
   "ctml_collection_mappings": {
@@ -30,13 +30,16 @@
           "sample_value": "tmb_range_to_query"
         },
         "HER2_STATUS": {
-          "ignore": true
+          "sample_key": "HER2_STATUS",
+          "sample_value": "true_false_map"
         },
         "PR_STATUS": {
-          "ignore": true
+          "sample_key": "PR_STATUS",
+          "sample_value": "true_false_map"
         },
         "ER_STATUS": {
-          "ignore": true
+          "sample_key": "ER_STATUS",
+          "sample_value": "true_false_map"
         },
         "DISEASE_STATUS": {
           "ignore": true
@@ -114,6 +117,14 @@
         "FUSION_PARTNER_HUGO_SYMBOL": {
           "sample_key": "FUSION_PARTNER_HUGO_SYMBOL",
           "sample_value": "nomap"
+        },
+        "MOLECULAR_FUNCTION": {
+          "sample_key": "MUTATION_EFFECT",
+          "sample_value": "molecular_function_map"
+        },
+        "MATCH_ALL": {
+          "sample_key": "MATCH_ALL",
+          "sample_value": "genomic_dummy_map"
         }
       }
     },
@@ -157,7 +168,9 @@
       "UVA_STATUS",
       "LEFT_PARTNER_GENE",
       "RIGHT_PARTNER_GENE",
-      "STRUCTURAL_VARIANT_TYPE"
+      "STRUCTURAL_VARIANT_TYPE",
+      "MOLECULAR_FUNCTION",
+      "MUTATION_EFFECT"
     ],
     "prior_treatments": [
       "DRUG"
@@ -169,7 +182,12 @@
       "MRN",
       "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
       "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
-      "VITAL_STATUS"
+      "PATIENT_ID",
+      "VITAL_STATUS",
+      "AGE",
+      "HER2_STATUS",
+      "PR_STATUS",
+      "ER_STATUS"
     ],
     "trial": [
       "protocol_no",
@@ -275,7 +293,8 @@
       "UVA_STATUS",
       "LEFT_PARTNER_GENE",
       "RIGHT_PARTNER_GENE",
-      "TRUE_HUGO_SYMBOL"
+      "TRUE_HUGO_SYMBOL",
+      "MOLECULAR_FUNCTION"
     ],
     "clinical": [
       "GENDER",
@@ -284,7 +303,10 @@
       "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
       "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
       "VITAL_STATUS",
-      "BIRTH_DATE_INT"
+      "BIRTH_DATE_INT",
+      "HER2_STATUS",
+      "PR_STATUS",
+      "ER_STATUS"
     ],
     "trial_match": [
       "hash",

@@ -34,7 +34,7 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
         alteration.append(hugo_symbol)
 
     # add mutation
-    if true_protein is not None:
+    if true_protein is not None and true_protein:
         alteration.append(f' {true_protein}')
         is_variant = ('variant'
                       if {'protein_change', 'wildcard_protein_change'}.intersection(
@@ -235,6 +235,9 @@ class DFCITrialMatchDocumentCreator(TrialMatchDocumentCreator):
         query = trial_match.match_reason.extract_raw_query()
         clinical_doc = self.cache.docs[trial_match.match_reason.clinical_id]
         new_trial_match.update({'cancer_type_match': get_cancer_type_match(trial_match)})
+        # Add in additional fields we need for frontend
+        if ('arm_description' in trial_match.match_clause_data.match_clause_additional_attributes):
+            new_trial_match.update({'arm_description': trial_match.match_clause_data.match_clause_additional_attributes['arm_description']})
 
         if trial_match.match_reason.reason_name == 'genomic':
             genomic_doc = self.cache.docs.setdefault(trial_match.match_reason.reference_id, None)

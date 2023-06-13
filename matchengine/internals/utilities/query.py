@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import operator
+import re
 from collections import defaultdict
 from functools import reduce
 from typing import TYPE_CHECKING, Dict
@@ -72,7 +73,30 @@ async def execute_clinical_queries(matchengine: MatchEngine,
                 matchengine.cache.in_process.setdefault(query_hash, set()).update(need_new)
 
                 if need_new:
-                    new_query = {'$and': [{join_field: {'$in': list(need_new)}}, query_part.query]}
+                    # recompile the query to be case insensitive
+                    # convert the $in into a list of $or conditions so we can use $regex inside a $in
+                    # mongo has a limitation that cannot use $regex within a $in
+                    # using regex
+                    if "ONCOTREE_PRIMARY_DIAGNOSIS_NAME" in query_part.query:
+                        if "$in" in query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']:
+                            new_conditions = [
+                                {'ONCOTREE_PRIMARY_DIAGNOSIS_NAME': {'$regex': f'^{old_query}$', '$options': 'i'}} for
+                                old_query in query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']['$in']]
+                            del query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME']  # Remove old query from query_part
+                            query_part.query['$or'] = new_conditions  # Add new conditions to query_part
+                        else:
+                            org_query = query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME'];
+                            ignore_case_query = {'$regex': f'^{org_query}$', '$options': 'i'}
+                            query_part.query['ONCOTREE_PRIMARY_DIAGNOSIS_NAME'] = ignore_case_query
+
+                    # Exclude documents where 'ONCOTREE_PRIMARY_DIAGNOSIS_NAME' is 'NA'
+                    new_query = {
+                        '$and': [
+                            {join_field: {'$in': list(need_new)}},
+                            query_part.query,
+                            {'ONCOTREE_PRIMARY_DIAGNOSIS_NAME': {'$ne': 'NA'}}
+                        ]
+                    }
                     if matchengine.debug:
                         log.info(f"{query_part.query}")
                     projection = {id_field: 1, join_field: 1}
@@ -167,6 +191,7 @@ async def execute_extended_queries(
                 projection = {id_field: 1, join_field: 1}
                 genomic_docs = await matchengine.async_db_ro[collection].find(new_query, projection).to_list(None)
                 if matchengine.debug:
+                    # this prints the genomic query + clinical IDs that were queried and results
                     log.info(f"{new_query} returned {genomic_docs}")
 
                 for genomic_doc in genomic_docs:
@@ -264,19 +289,41 @@ async def get_docs_results(matchengine: MatchEngine, needed_clinical, needed_ext
     return results
 
 
+# def get_valid_reasons(matchengine: MatchEngine, possible_reasons, clinical_ids, genomic_ids):
+#     valid_reasons = {}
+#     for clinical_id, reasons in possible_reasons.items():
+#         if clinical_id in clinical_ids:
+#             list_o_reasons = list()
+#             for reason in reasons:
+#                 if ((reason.__class__ is ExtendedMatchReason
+#                      and (reason.query_node.exclusion or reason.reference_id in genomic_ids[
+#                             reason.query_node.query_level]))
+#                         or (reason.__class__ is ClinicalMatchReason
+#                             and (matchengine.report_all_clinical_reasons
+#                                  or frozenset(reason.query_part.query.keys())
+#                                  in c))):
+#                     list_o_reasons.append(reason)
+#                 valid_reasons[clinical_id] = list_o_reasons
+#
+#     return valid_reasons
+
 def get_valid_reasons(matchengine: MatchEngine, possible_reasons, clinical_ids, genomic_ids):
     valid_reasons = {}
     for clinical_id, reasons in possible_reasons.items():
         if clinical_id in clinical_ids:
             list_o_reasons = list()
             for reason in reasons:
-                if ((reason.__class__ is ExtendedMatchReason
-                     and (reason.query_node.exclusion or reason.reference_id in genomic_ids[
-                            reason.query_node.query_level]))
-                        or (reason.__class__ is ClinicalMatchReason
-                            and (matchengine.report_all_clinical_reasons
-                                 or frozenset(reason.query_part.query.keys())
-                                 in matchengine.match_criteria_transform.valid_clinical_reasons))):
+                should_add_reason = False
+                if reason.__class__ is ExtendedMatchReason:
+                    if (reason.query_node.exclusion or reason.reference_id in
+                            genomic_ids[reason.query_node.query_level]):
+                        should_add_reason = True
+                elif reason.__class__ is ClinicalMatchReason:
+                    keys = frozenset(reason.query_part.query.keys())
+                    if matchengine.report_all_clinical_reasons or \
+                            keys.issubset(matchengine.match_criteria_transform.valid_clinical_reasons):
+                        should_add_reason = True
+                if should_add_reason:
                     list_o_reasons.append(reason)
                 valid_reasons[clinical_id] = list_o_reasons
 

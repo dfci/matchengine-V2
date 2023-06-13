@@ -56,15 +56,15 @@ def load(args: Namespace):
 def load_trials(db_rw, args: Namespace):
     if args.trial_format == 'json':
         load_trials_json(args, db_rw)
-    elif args.trial_format == 'yaml':
+    elif args.trial_format == 'yml':
         load_trials_yaml(args, db_rw)
 
 
 def load_trials_yaml(args: Namespace, db_rw):
     if os.path.isdir(args.trial):
-        load_dir(args, db_rw, "yaml", args.trial, 'trial')
+        load_dir(args, db_rw, "yml", args.trial, 'trial')
     else:
-        load_file(db_rw, 'yaml', args.trial, 'trial')
+        load_file(db_rw, 'yml', args.trial, 'trial')
 
 
 def load_trials_json(args: Namespace, db_rw):
@@ -172,7 +172,7 @@ def load_file(db_rw, filetype: str, path: str, collection: str):
                 db_rw[collection].insert_one(row)
         else:
             raw_file_data = file_handle.read()
-            if filetype == 'yaml':
+            if filetype == 'yml':
                 data = yaml.safe_load_all(raw_file_data)
                 db_rw[collection].insert_many(data)
             elif filetype == 'json':
