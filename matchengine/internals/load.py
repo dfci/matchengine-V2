@@ -129,6 +129,20 @@ def load_trials_json(args: Namespace, db_rw):
 ########################
 # patient data loading
 ########################
+
+def load_clinical_via_api(file_path: str):
+    with ExitStack() as stack:
+        db_rw = stack.enter_context(MongoDBConnection(read_only=False, db="matchminer", async_init=False))
+        load_file(db_rw, 'csv', file_path, 'clinical')
+
+def load_genomic_via_api(file_path: str):
+    with ExitStack() as stack:
+        db_rw = stack.enter_context(MongoDBConnection(read_only=False, db="matchminer", async_init=False))
+        db_ro = stack.enter_context(MongoDBConnection(read_only=True, db="matchminer", async_init=False))
+        if len(list(db_ro.clinical.find({}))) == 0:
+            raise RuntimeError("No clinical documents in db. Please load clinical documents before loading genomic.")
+        load_file(db_rw, 'csv', file_path, 'genomic')
+
 def load_clinical(db_rw, args: Namespace):
     if args.patient_format == 'json':
 
