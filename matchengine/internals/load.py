@@ -5,6 +5,7 @@ import logging
 import os
 from argparse import Namespace
 from contextlib import ExitStack
+from typing import List
 
 import yaml
 from bson import json_util
@@ -14,6 +15,12 @@ from matchengine.internals.database_connectivity.mongo_connection import MongoDB
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('matchengine')
 
+def load_from_variable(data, data_format='json'):
+    with ExitStack() as stack:
+        db_rw = stack.enter_context(MongoDBConnection(read_only=False, db="matchminer", async_init=False))
+        log.info('Adding trial(s) to mongo...')
+        if data_format == 'json':
+            load_from_memory(db_rw, data)
 
 def load(args: Namespace):
     """
@@ -66,6 +73,20 @@ def load_trials_yaml(args: Namespace, db_rw):
     else:
         load_file(db_rw, 'yml', args.trial, 'trial')
 
+def load_from_memory(db_rw, json_list: List[dict]):
+    for data in json_list:
+        if is_valid_single_json_dict(data):
+            for key in list(data.keys()):
+                if key == 'BIRTH_DATE':
+                    data[key] = convert_birthdate(data[key])
+                    data['BIRTH_DATE_INT'] = int(data[key].strftime('%Y%m%d'))
+            db_rw.trial.insert_one(data)
+
+def is_valid_single_json_dict(json_dict: dict):
+    """Check if a JSON file is a single object or an array of JSON objects"""
+    if json_dict.__class__ is list:
+        return False
+    return True
 
 def load_trials_json(args: Namespace, db_rw):
     # load a directory of json files
