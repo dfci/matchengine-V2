@@ -142,6 +142,7 @@ def load_genomic_via_api(file_path: str):
         if len(list(db_ro.clinical.find({}))) == 0:
             raise RuntimeError("No clinical documents in db. Please load clinical documents before loading genomic.")
         load_file(db_rw, 'csv', file_path, 'genomic')
+        map_clinical_to_genomic(db_rw, db_ro)
 
 def load_clinical(db_rw, args: Namespace):
     if args.patient_format == 'json':
