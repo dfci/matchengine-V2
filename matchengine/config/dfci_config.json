@@ -187,7 +187,8 @@
       "AGE",
       "HER2_STATUS",
       "PR_STATUS",
-      "ER_STATUS"
+      "ER_STATUS",
+      "STUDY_ID"
     ],
     "trial": [
       "protocol_no",
@@ -306,7 +307,8 @@
       "BIRTH_DATE_INT",
       "HER2_STATUS",
       "PR_STATUS",
-      "ER_STATUS"
+      "ER_STATUS",
+      "STUDY_ID"
     ],
     "trial_match": [
       "hash",
