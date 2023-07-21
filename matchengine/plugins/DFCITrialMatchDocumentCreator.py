@@ -26,7 +26,7 @@ def get_genomic_details(genomic_doc: Dict, trial_match: TrialMatch):
     is_variant = 'gene'
 
     # add wildtype calls
-    if wildtype:
+    if wildtype and wildtype.lower == 'true':
         alteration.append('wt ')
 
     # add gene
