@@ -26,6 +26,7 @@ def main(run_args):
             db_secrets_class=run_args.db_secrets_class,
             report_all_clinical_reasons=run_args.report_all_clinical_reasons,
             ignore_run_log=run_args.ignore_run_log,
+            ignore_report_date=run_args.ignore_report_date,
             skip_run_log_entry=run_args.skip_run_log_entry,
             trial_match_collection=run_args.trial_match_collection,
             drop=run_args.drop or run_args.drop_and_exit,
@@ -67,6 +68,7 @@ if __name__ == "__main__":
     db_name_help = ("Specify a custom db name to load trials and/or patient data into. If no value is passed, "
                     "db name will be take from SECRETS_JSON file.")
     run_log_help = "Ignore the run log and run on all specified sample IDs/protocol nos"
+    ignore_report_date_help = "Ignore the report date when matching structural variations"
     base_dir = os.path.dirname(__file__)
     subp = parser.add_subparsers(help='sub-command help')
     subp_p = subp.add_parser('load', help='Sets up your MongoDB for matching.')
@@ -88,6 +90,8 @@ if __name__ == "__main__":
     subp_p.add_argument("--match-on-closed", dest="match_on_closed", action="store_true", default=False,
                         help=closed_help)
     subp_p.add_argument("--force", dest="ignore_run_log", action="store_true", default=False, help=run_log_help)
+    subp_p.add_argument("--ignore-report-date", dest="ignore_report_date", action="store_true", default=False,
+                        help=ignore_report_date_help)
     subp_p.add_argument("--skip-run-log-entry",
                         dest="skip_run_log_entry",
                         action="store_true",
