@@ -63,7 +63,7 @@ class DFCIQueryNodeClinicalIDSubsetter(QueryNodeClinicalIDsSubsetter):
                                                    clinical_ids: Iterable[ClinicalID]) -> Tuple[bool, Set[ClinicalID]]:
         # DFCI provided structural variant data in a structured format only starting Dec. 1st 2018
         # Patients with reports from before this date should not have structural variants shown in UI
-        if query_node.get_query_part_by_key('STRUCTURED_SV') is not None:
+        if query_node.get_query_part_by_key('STRUCTURED_SV') is not None and self.ignore_report_date is False:
             return True, {
                 clinical_id
                 for clinical_id
@@ -75,7 +75,8 @@ class DFCIQueryNodeClinicalIDSubsetter(QueryNodeClinicalIDsSubsetter):
                     datetime.datetime(1900, 1, 1, 1, 1, 1, 1)
                 ) >= datetime.datetime(2018, 12, 1, 0, 0, 0, 0)
             }
-        elif query_node.get_query_part_by_key('STRUCTURAL_VARIANT_COMMENT') is not None:
+        elif query_node.get_query_part_by_key('STRUCTURAL_VARIANT_COMMENT') is not None \
+                and self.ignore_report_date is False:
             return True if query_node.exclusion else False, {
                 clinical_id
                 for clinical_id

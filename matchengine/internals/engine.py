@@ -143,6 +143,7 @@ class MatchEngine(object):
             db_secrets_class: str = None,
             report_all_clinical_reasons: bool = False,
             ignore_run_log: bool = False,
+            ignore_report_date: bool = False,
             skip_run_log_entry: bool = False,
             trial_match_collection: str = "trial_match",
             drop: bool = False,
@@ -161,6 +162,7 @@ class MatchEngine(object):
         self.run_id = uuid.uuid4()
         self.run_log_entries = dict()
         self.ignore_run_log = ignore_run_log
+        self.ignore_report_date = ignore_report_date
         self.skip_run_log_entry = skip_run_log_entry
         self.clinical_run_log_entries = dict()
         self._protocol_nos_param = list(protocol_nos) if protocol_nos is not None else protocol_nos
