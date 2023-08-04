@@ -195,6 +195,7 @@
       "nct_id",
       "treatment_list",
       "status",
+      "short_title",
       "_summary"
     ]
   },
