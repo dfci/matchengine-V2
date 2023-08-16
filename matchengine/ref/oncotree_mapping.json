@@ -110,6 +110,9 @@
   "Anaplastic Thyroid Cancer": [
     "Anaplastic Thyroid Cancer"
   ],
+  "Adenocarcinoma In Situ": [
+    "Adenocarcinoma In Situ"
+  ],
   "Angiocentric Glioma": [
     "Angiocentric Glioma"
   ],
@@ -297,7 +300,8 @@
     "Bowel",
     "Signet Ring Cell Type of the Appendix",
     "High-Grade Neuroendocrine Carcinoma of the Colon and Rectum",
-    "Appendiceal Adenocarcinoma"
+    "Appendiceal Adenocarcinoma",
+    "Colon Adenocarcinoma In Situ"
   ],
   "Breast": [
     "Breast Invasive Lobular Carcinoma",
@@ -348,6 +352,9 @@
   ],
   "Breast Invasive Carcinosarcoma, NOS": [
     "Breast Invasive Carcinosarcoma, NOS"
+  ],
+  "Breast Invasive Carcinoma, NOS": [
+    "Breast Invasive Carcinoma, NOS"
   ],
   "Breast Invasive Ductal Carcinoma": [
     "Breast Invasive Ductal Carcinoma"
@@ -679,6 +686,9 @@
   "Colon Adenocarcinoma": [
     "Colon Adenocarcinoma"
   ],
+  "Colon Adenocarcinoma In Situ": [
+    "Colon Adenocarcinoma In Situ"
+  ],
   "Colonic Type Adenocarcinoma of the Appendix": [
     "Colonic Type Adenocarcinoma of the Appendix"
   ],
@@ -687,7 +697,8 @@
     "Colorectal Adenocarcinoma",
     "Colon Adenocarcinoma",
     "Mucinous Adenocarcinoma of the Colon and Rectum",
-    "Rectal Adenocarcinoma"
+    "Rectal Adenocarcinoma",
+    "Colon Adenocarcinoma In Situ"
   ],
   "Combined Small Cell Lung Carcinoma": [
     "Combined Small Cell Lung Carcinoma"
@@ -1271,7 +1282,8 @@
     "Breast Invasive Ductal Carcinoma",
     "Invasive Breast Carcinoma",
     "Breast Invasive Carcinosarcoma, NOS",
-    "Breast Invasive Mixed Mucinous Carcinoma"
+    "Breast Invasive Mixed Mucinous Carcinoma",
+    "Breast Invasive Carcinoma, NOS"
   ],
   "Invasive Hydatidiform Mole": [
     "Invasive Hydatidiform Mole"
@@ -1406,10 +1418,15 @@
     "Small Cell Lung Cancer",
     "Inflammatory Myofibroblastic Lung Tumor",
     "Atypical Lung Carcinoid",
-    "Large Cell Neuroendocrine Carcinoma"
+    "Large Cell Neuroendocrine Carcinoma",
+    "Lung Adenocarcinoma In Situ",
+    "Pleomorphic Carcinoma of the Lung"
   ],
   "Lung Adenocarcinoma": [
     "Lung Adenocarcinoma"
+  ],
+  "Lung Adenocarcinoma In Situ": [
+    "Lung Adenocarcinoma In Situ"
   ],
   "Lung Adenosquamous Carcinoma": [
     "Lung Adenosquamous Carcinoma"
@@ -1808,7 +1825,8 @@
     "Large Cell Lung Carcinoma With Rhabdoid Phenotype",
     "Large Cell Lung Carcinoma",
     "Poorly Differentiated Non-Small Cell Lung Cancer",
-    "Salivary Gland-Type Tumor of the Lung"
+    "Salivary Gland-Type Tumor of the Lung",
+    "Pleomorphic Carcinoma of the Lung"
   ],
   "Ocular Melanoma": [
     "Uveal Melanoma",
@@ -1865,7 +1883,8 @@
     "Neuroendocrine Carcinoma, NOS",
     "Other",
     "Acinar Cell Carcinoma, NOS",
-    "Mixed Cancer Types"
+    "Mixed Cancer Types",
+    "Adenocarcinoma In Situ"
   ],
   "Other Uterine Tumor": [
     "Other Uterine Tumor"
@@ -2109,6 +2128,9 @@
   ],
   "Plasmacytoid/Signet Ring Cell Bladder Carcinoma": [
     "Plasmacytoid/Signet Ring Cell Bladder Carcinoma"
+  ],
+  "Pleomorphic Carcinoma of the Lung": [
+    "Pleomorphic Carcinoma of the Lung"
   ],
   "Pleomorphic Liposarcoma": [
     "Pleomorphic Liposarcoma"
@@ -3531,6 +3553,10 @@
     "Ewing Sarcoma",
     "Renal Angiomyolipoma",
     "Large Cell Neuroendocrine Carcinoma",
-    "Breast Invasive Carcinoma, NOS"
+    "Breast Invasive Carcinoma, NOS",
+    "Pleomorphic Carcinoma of the Lung",
+    "Lung Adenocarcinoma In Situ",
+    "Colon Adenocarcinoma In Situ",
+    "Adenocarcinoma In Situ"
   ]
 }
