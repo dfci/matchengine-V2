@@ -171,7 +171,7 @@ def load_genomic(db_rw, db_ro, args: Namespace, ):
 
 
 def map_clinical_to_genomic(db_rw, db_ro):
-    """Ensure that all genomic docs are linked to their corresponding clinical docs by _id"""
+    """Ensure that all genomic docs are linked to their corresponding clinical docs by _id""" 
     clinical_docs = list(db_ro.clinical.find({}, {"_id": 1, "SAMPLE_ID": 1}))
     clinical_dict = dict(zip([i['SAMPLE_ID'] for i in clinical_docs], [i['_id'] for i in clinical_docs]))
 
