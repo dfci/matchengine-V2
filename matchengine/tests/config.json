@@ -57,7 +57,7 @@
         },
         "VARIANT_CLASSIFICATION": {
           "sample_key": "TRUE_VARIANT_CLASSIFICATION",
-          "sample_value": "nomap"
+          "sample_value": "nomap" 
         },
         "VARIANT_CATEGORY": {
           "sample_key": "VARIANT_CATEGORY",
