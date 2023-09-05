@@ -100,7 +100,7 @@ class BaseTransformers(QueryTransformerContainer):
             numeric = '0' + numeric
         split_time = numeric.split('.')
         years = int(split_time[0] if split_time[0].isdigit() else 0)
-        return QueryTransformerResult({"$expr": {operator_map[operator]: [sample_key, years]}}, False)
+        return QueryTransformerResult({sample_key: {operator_map[operator]: years}}, False)
 
     def nomap(self, **kwargs):
         trial_path = kwargs['trial_path']
