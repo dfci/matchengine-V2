@@ -600,11 +600,13 @@ class MatchEngine(object):
                 in self._clinical_data.items()
                 if clinical_data['VITAL_STATUS'] == 'deceased'}
 
+    # use the BIRTH_DATE_INT field, otherwise return the age field
     def get_clinical_birth_dates(self) -> Dict[ClinicalID, int]:
-        return {clinical_id: clinical_data['BIRTH_DATE_INT']
-                for clinical_id, clinical_data
-                in self._clinical_data.items()
-                }
+        for clinical_id, clinical_data in self._clinical_data.items():
+            if 'BIRTH_DATE_INT' in clinical_data:
+                return {clinical_id: clinical_data['BIRTH_DATE_INT']}
+            else:
+                return {clinical_id: clinical_data['AGE']}
 
     def get_clinical_ids_from_sample_ids(self) -> Dict[ClinicalID, str]:
         """

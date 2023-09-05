@@ -82,6 +82,26 @@ class BaseTransformers(QueryTransformerContainer):
         query_date = current_date + (- relativedelta(years=years, months=months))
         return QueryTransformerResult({sample_key: {operator_map[operator]: int(query_date.strftime('%Y%m%d'))}}, False)
 
+    # straight comparison of a year value to the age field
+    def age_expression_query(self, **kwargs):
+        sample_key = kwargs['sample_key']
+        trial_value = kwargs['trial_value']
+        operator_map = {
+            "==": "$eq",
+            "<=": "$lte",
+            ">=": "$gte",
+            ">": "$gt",
+            "<": "$lt"
+        }
+        # funky logic is because 1 month curation is curated as "0.083" (1/12 a year)
+        operator = ''.join([i for i in trial_value if not i.isdigit() and i != '.'])
+        numeric = "".join([i for i in trial_value if i.isdigit() or i == '.'])
+        if numeric.startswith('.'):
+            numeric = '0' + numeric
+        split_time = numeric.split('.')
+        years = int(split_time[0] if split_time[0].isdigit() else 0)
+        return QueryTransformerResult({"$expr": {operator_map[operator]: [{"$toInt": "$" + sample_key}, years]}}, False)
+
     def nomap(self, **kwargs):
         trial_path = kwargs['trial_path']
         trial_key = kwargs['trial_key']

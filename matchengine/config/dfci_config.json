@@ -16,6 +16,10 @@
           "sample_key": "BIRTH_DATE_INT",
           "sample_value": "age_range_to_date_int_query"
         },
+        "AGE_EXPRESSION": {
+          "sample_key": "AGE_EXPRESSION",
+          "sample_value": "age_expression_query"
+        },
         "ONCOTREE_PRIMARY_DIAGNOSIS": {
           "sample_key": "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
           "sample_value": "external_file_mapping",
