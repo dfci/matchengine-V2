@@ -17,7 +17,7 @@
           "sample_value": "age_range_to_date_int_query"
         },
         "AGE_EXPRESSION": {
-          "sample_key": "AGE_EXPRESSION",
+          "sample_key": "AGE",
           "sample_value": "age_expression_query"
         },
         "ONCOTREE_PRIMARY_DIAGNOSIS": {
