@@ -567,7 +567,7 @@ class MatchEngine(object):
         query: Dict = {}
         if self.sample_ids is not None:
             query.update({"SAMPLE_ID": {"$in": list(self.sample_ids)}})
-        projection = {'_id': 1, 'SAMPLE_ID': 1, 'VITAL_STATUS': 1, 'BIRTH_DATE_INT': 1}
+        projection = {'_id': 1, 'SAMPLE_ID': 1, 'VITAL_STATUS': 1, 'BIRTH_DATE_INT': 1, 'AGE': 1}
         if not self.ignore_run_log:
             projection.update({'_updated': 1, 'run_history': 1})
         projection.update({

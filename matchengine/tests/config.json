@@ -274,7 +274,8 @@
       "ONCOTREE_PRIMARY_DIAGNOSIS_NAME",
       "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
       "VITAL_STATUS",
-      "BIRTH_DATE_INT"
+      "BIRTH_DATE_INT",
+      "AGE"
     ],
     "trial_match": [
       "hash",

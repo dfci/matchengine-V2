@@ -80,6 +80,8 @@ def load_from_memory(db_rw, json_list: List[dict]):
                 if key == 'BIRTH_DATE':
                     data[key] = convert_birthdate(data[key])
                     data['BIRTH_DATE_INT'] = int(data[key].strftime('%Y%m%d'))
+                if key == 'AGE':
+                    data[key] = int(data[key])
             db_rw.trial.insert_one(data)
 
 def is_valid_single_json_dict(json_dict: dict):
@@ -205,6 +207,8 @@ def load_file(db_rw, filetype: str, path: str, collection: str):
                     if key == 'BIRTH_DATE':
                         row[key] = convert_birthdate(row[key])
                         row['BIRTH_DATE_INT'] = int(row[key].strftime('%Y%m%d'))
+                    if key == 'AGE':
+                        row[key] = int(row[key])
                 db_rw[collection].insert_one(row)
         else:
             raw_file_data = file_handle.read()
@@ -218,6 +222,8 @@ def load_file(db_rw, filetype: str, path: str, collection: str):
                         if key == 'BIRTH_DATE':
                             data[key] = convert_birthdate(data[key])
                             data['BIRTH_DATE_INT'] = int(data[key].strftime('%Y%m%d'))
+                        if key == 'AGE':
+                            data[key] = int(data[key])
                     db_rw[collection].insert_one(data)
 
 

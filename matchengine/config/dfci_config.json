@@ -310,6 +310,7 @@
       "TUMOR_MUTATIONAL_BURDEN_PER_MEGABASE",
       "VITAL_STATUS",
       "BIRTH_DATE_INT",
+      "AGE",
       "HER2_STATUS",
       "PR_STATUS",
       "ER_STATUS",
