@@ -75,7 +75,7 @@ class BaseTransformers(QueryTransformerContainer):
         numeric = "".join([i for i in trial_value if i.isdigit() or i == '.'])
         if numeric.startswith('.'):
             numeric = '0' + numeric
-        split_time = numeric.split('.')
+        split_time = numeric.split('.') 
         years = int(split_time[0] if split_time[0].isdigit() else 0)
         months_fraction = float('0.' + split_time[1]) if len(split_time) > 1 else 0
         months = round(months_fraction * 12)
