@@ -35,14 +35,14 @@ def main(run_args):
             bypass_warnings=run_args.bypass_warnings
     ) as me:
         me.get_matches_for_all_trials()
-        if not args.dry:
+        if not run_args.dry:
             me.update_all_matches()
 
         if run_args.csv_output:
             me.create_output_csv()
 
 
-if __name__ == "__main__":
+def run_cli():
     param_trials_help = ('Path to your trial data file or a directory containing a file for each trial.'
                          'Default expected format is YML.')
     param_mongo_uri_help = ('Your MongoDB URI. If you do not supply one, for matching, it will default to whatever'
@@ -129,3 +129,7 @@ if __name__ == "__main__":
     subp_p.set_defaults(func=main)
     args = parser.parse_args()
     args.func(args)
+
+
+if __name__ == "__main__":
+    run_cli()
