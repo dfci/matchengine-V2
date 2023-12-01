@@ -1,0 +1,13 @@
+# Start by ignoring everything:
+*
+
+# Include things needed for installation:
+!/setup.py
+!/README.md
+
+# Include Python and JSON files in the package:
+!/matchengine/**/*.py
+!/matchengine/**/*.json
+
+# Exclude the tests:
+/matchengine/tests
