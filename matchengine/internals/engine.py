@@ -108,15 +108,17 @@ class MatchEngine(object):
     def __exit__(self, exception_type, exception_value, exception_traceback):
         """
         Teardown database connections (async + synchronous) and async workers gracefully.
+        Workers must be drained before connections are closed, otherwise in-flight tasks
+        will attempt to use a closed motor client and raise InvalidOperation.
         """
-        if self.db_init:
-            self._async_db_ro.__exit__(exception_type, exception_value, exception_traceback)
-            self._async_db_rw.__exit__(exception_type, exception_value, exception_traceback)
-            self._db_ro.__exit__(exception_type, exception_value, exception_traceback)
         if not self.loop.is_closed():
             self._loop.run_until_complete(self._async_exit())
             self._loop.stop()
             self._loop.close()
+        if self.db_init:
+            self._async_db_ro.__exit__(exception_type, exception_value, exception_traceback)
+            self._async_db_rw.__exit__(exception_type, exception_value, exception_traceback)
+            self._db_ro.__exit__(exception_type, exception_value, exception_traceback)
 
     def __init__(
             self,
@@ -194,6 +196,7 @@ class MatchEngine(object):
         log.info(f"Connected to database {self.db_ro.name}")
         # TODO: check how this flag works with run log
         self._drop = drop
+
         if self._drop:
             log.info((f"Dropping all matches"
                       "\n\t"
@@ -261,6 +264,7 @@ class MatchEngine(object):
             asyncio.set_event_loop(self._loop)
 
         self._loop.run_until_complete(self._async_init(db_name))
+        log.info("Finished asynchronous initialization")
 
 
     def check_run_log_flags(self,
@@ -466,6 +470,7 @@ class MatchEngine(object):
                     self.task_q.put_nowait(UpdateTask([UpdateMany(query, update)],
                                                       protocol_number))
             self.update_matches_for_protocol_number(protocol_number)
+        self._loop.run_until_complete(self._task_q.join())
 
     def get_matches_for_all_trials(self) -> Dict[str, Dict[str, List]]:
         """
@@ -967,7 +972,7 @@ class MatchEngine(object):
         if protocol_nos is None and sample_ids is None:
             self.db_rw.get_collection(self.trial_match_collection).drop()
         else:
-            self.db_rw.get_collection(self.trial_match_collection).remove(drop_query)
+            self.db_rw.get_collection(self.trial_match_collection).delete_many(drop_query)
 
     @property
     def trials_to_match_on(self):

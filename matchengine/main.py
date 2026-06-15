@@ -71,13 +71,13 @@ def run_cli():
     subp_p = subp.add_parser('load', help='Sets up your MongoDB for matching.')
     subp_p.add_argument('-t', dest='trial', default=None, help=param_trials_help)
     subp_p.add_argument('-c', dest='clinical', default=None, help=param_clinical_help)
-    subp_p.add_argument('-g', dest='extended_attributes', default=None, help=param_genomic_help)
+    subp_p.add_argument('-g', dest='genomic', default=None, help=param_genomic_help)
     subp_p.add_argument('--trial-format', dest='trial_format', default='json', action='store', choices=['yml', 'json'],
                         help=param_trial_format_help)
     subp_p.add_argument('--patient-format', dest='patient_format', default='json', action='store',
                         choices=['csv', 'json'],
                         help=param_patient_format_help)
-    subp_p.add_argument('--db', dest='db_name', default='', required=False, help=db_name_help)
+    subp_p.add_argument('--db', dest='db_name', default=None, required=False, help=db_name_help)
     subp_p.add_argument("--plugin-dir", dest="plugin_dir",
                         default=os.path.join(base_dir, "plugins"), help="Location of plugin directory")
     subp_p.set_defaults(func=load)

@@ -20,9 +20,9 @@ setup(
     install_requires=[
         "python-dateutil>=2.8.0",
         "PyYAML>=5.1",
-        "pymongo>=3.8.0,<4",
+        "pymongo>=4.0",
         "networkx>=2.3",
-        "motor==2.0.0"
+        "motor>=3.0.0"
     ],
     include_package_data=True,
     python_requires='>=3.7',

@@ -32,12 +32,12 @@ class IntegrationTestMatchengine(TestCase):
             assert setup_db.name == 'integration'
 
             if not kwargs.get("skip_sample_id_reset", False):
-                setup_db.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
+                setup_db.clinical.update_one({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
                                          {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Non-Small Cell Lung Cancer",
                                                    "_updated": datetime.datetime(2001, 1, 1, 1, 1, 1, 1)}})
 
             if not kwargs.get("skip_vital_status_reset", False):
-                setup_db.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
+                setup_db.clinical.update_one({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
                                          {"$set": {"VITAL_STATUS": "alive",
                                                    "_updated": datetime.datetime(2001, 1, 1, 1, 1, 1, 1)}})
 
@@ -58,7 +58,7 @@ class IntegrationTestMatchengine(TestCase):
                 for trial_path in trials_to_load:
                     with open(trial_path) as trial_file_handle:
                         trial = json.load(trial_file_handle)
-                    setup_db.trial.insert(trial)
+                    setup_db.trial.insert_one(trial)
             if kwargs.get('do_rm_clinical_run_history', False):
                 setup_db.clinical_run_history_trial_match.drop()
 
@@ -145,7 +145,7 @@ class IntegrationTestMatchengine(TestCase):
         self.me.get_matches_for_all_trials()
         for protocol_no in self.me.trials.keys():
             self.me.update_matches_for_protocol_number(protocol_no)
-        assert self.me.db_ro.trial_match.count() == 48
+        assert self.me.db_ro.trial_match.count_documents({}) == 48
 
     def test_wildcard_protein_change(self):
         self._reset(do_reset_trial_matches=True,

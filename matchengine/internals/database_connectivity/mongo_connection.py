@@ -68,7 +68,7 @@ class MongoDBConnection(object):
 
         if not hasattr(self, 'secrets'):
             self.secrets = DefaultDBSecrets().get_secrets()
-        self.db = db if db is not None else self.secrets.DB
+        self.db = db if db else self.secrets.DB
 
     def __enter__(self):
         username = self.secrets.RO_USERNAME if self.read_only else self.secrets.RW_USERNAME

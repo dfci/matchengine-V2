@@ -56,12 +56,12 @@ class RunLogTest(TestCase):
             assert setup_db.name == 'integration'
 
             if not kwargs.get("skip_sample_id_reset", False):
-                setup_db.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
+                setup_db.clinical.update_one({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
                                          {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Non-Small Cell Lung Cancer",
                                                    "_updated": datetime.datetime(2001, 1, 1, 1, 1, 1, 1)}})
 
             if not kwargs.get("skip_vital_status_reset", False):
-                setup_db.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
+                setup_db.clinical.update_one({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
                                          {"$set": {"VITAL_STATUS": "alive",
                                                    "_updated": datetime.datetime(2001, 1, 1, 1, 1, 1, 1)}})
 
@@ -82,7 +82,7 @@ class RunLogTest(TestCase):
                 for trial_path in trials_to_load:
                     with open(trial_path) as trial_file_handle:
                         trial = json.load(trial_file_handle)
-                    setup_db.trial.insert(trial)
+                    setup_db.trial.insert_one(trial)
             if kwargs.get('do_rm_clinical_run_history', False):
                 setup_db.clinical_run_history_trial_match.drop()
 
@@ -144,7 +144,7 @@ class RunLogTest(TestCase):
             skip_vital_status_reset=False
         )
         assert self.me.db_rw.name == 'integration'
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
                                       {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
                                                 "_updated": datetime.datetime.now()}})
         self.me.get_matches_for_all_trials()
@@ -181,7 +181,7 @@ class RunLogTest(TestCase):
         assert len(run_log_trial_match) == 2
         assert len(clinical_run_history_trial_match['run_history']) == 2
         assert len(list(self.me.db_ro.trial_match.find({"clinical_id": ObjectId("5d3778bf4fbf195d68cdf4d5")}))) == 0
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
                                       {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Lung Adenocarcinoma",
                                                 "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)}})
 
@@ -229,7 +229,7 @@ class RunLogTest(TestCase):
             report_all_clinical=False
         )
         assert self.me.db_rw.name == 'integration'
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
                                       {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
                                                 "_updated": datetime.datetime.now()}})
         self.me.get_matches_for_all_trials()
@@ -241,7 +241,7 @@ class RunLogTest(TestCase):
         assert len(trial_matches) == 0
         assert len(run_log_trial_match) == 1
         assert len(clinical_run_history_trial_match) == 1392
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
                                       {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Medullary Carcinoma of the Colon",
                                                 "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)}})
 
@@ -316,7 +316,7 @@ class RunLogTest(TestCase):
             report_all_clinical=False
         )
         assert self.me.db_rw.name == 'integration'
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
                                       {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
                                                 "_updated": datetime.datetime.now()}})
         self.me.get_matches_for_all_trials()
@@ -364,7 +364,7 @@ class RunLogTest(TestCase):
             report_all_clinical=False,
             skip_sample_id_reset=False
         )
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799d86756630d8dd065b8"},
                                       {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
                                                 "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)}})
 
@@ -424,7 +424,7 @@ class RunLogTest(TestCase):
             skip_sample_id_reset=False
         )
 
-        self.me.db_rw.trial.update({"protocol_no": "10-007"},
+        self.me.db_rw.trial.update_one({"protocol_no": "10-007"},
                                    {"$set": {"unused_field": "ricky_bobby",
                                              "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
                                              }})
@@ -484,17 +484,17 @@ class RunLogTest(TestCase):
             skip_sample_id_reset=False
         )
 
-        self.me.db_rw.trial.update({"protocol_no": "10-007"},
+        self.me.db_rw.trial.update_one({"protocol_no": "10-007"},
                                    {"$set": {"treatment_list.step.0.arm.1.arm_suspended": "N",
                                              "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
                                              }})
         # update non-match
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799df6756630d8dd068bb"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799df6756630d8dd068bb"},
                                       {"$set": {"ONCOTREE_PRIMARY_DIAGNOSIS_NAME": "Gibberish",
                                                 "_updated": datetime.datetime.now()}})
 
         # update matching
-        self.me.db_rw.genomic.insert({
+        self.me.db_rw.genomic.insert_one({
             "SAMPLE_ID": "5d2799da6756630d8dd066a6",
             "clinical_id": ObjectId("5d2799da6756630d8dd066a6"),
             "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1),
@@ -515,7 +515,7 @@ class RunLogTest(TestCase):
         assert len(run_log_trial_match) == 2
         assert len(non_match) == 0
 
-        self.me.db_rw.genomic.remove({"TRUE_HUGO_SYMBOL": "sonic_the_hedgehog"})
+        self.me.db_rw.genomic.delete_many({"TRUE_HUGO_SYMBOL": "sonic_the_hedgehog"})
 
     def test_run_log_6(self):
         """
@@ -557,12 +557,12 @@ class RunLogTest(TestCase):
             skip_sample_id_reset=False
         )
 
-        self.me.db_rw.trial.update({"protocol_no": "10-007"},
+        self.me.db_rw.trial.update_one({"protocol_no": "10-007"},
                                    {"$set": {"treatment_list.step.0.arm.1.arm_suspended": "N",
                                              "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
                                              }})
 
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
                                       {"$set": {"VITAL_STATUS": "deceased",
                                                 "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
                                                 }})
@@ -590,7 +590,7 @@ class RunLogTest(TestCase):
             skip_sample_id_reset=False
         )
 
-        self.me.db_rw.trial.update({"protocol_no": "10-007"},
+        self.me.db_rw.trial.update_one({"protocol_no": "10-007"},
                                    {"$set": {"unused_field": "ricky_bobby",
                                              "_updated": datetime.datetime(2002, 2, 1, 1, 1, 1, 1)
                                              }})
@@ -646,11 +646,11 @@ class RunLogTest(TestCase):
             skip_sample_id_reset=False
         )
 
-        self.me.db_rw.trial.update({"protocol_no": "10-007"},
+        self.me.db_rw.trial.update_one({"protocol_no": "10-007"},
                                    {"$set": {"treatment_list.step.0.arm.0.match.0.and.0.hugo_symbol": "BRAF",
                                              "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)}})
 
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
                                       {"$set": {"VITAL_STATUS": "deceased",
                                                 "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)}})
 
@@ -697,7 +697,7 @@ class RunLogTest(TestCase):
         assert len(disabled_trial_matches) == 0
         assert len(run_log_trial_match) == 1
 
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
                                       {"$set": {"VITAL_STATUS": "deceased",
                                                 "_updated": datetime.datetime(2002, 2, 1, 1, 1, 1, 1)}})
 
@@ -727,7 +727,7 @@ class RunLogTest(TestCase):
         assert len(disabled_trial_matches) == 2
         assert len(run_log_trial_match) == 2
 
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
                                       {"$set": {"VITAL_STATUS": "alive",
                                                 "_updated": datetime.datetime(2002, 2, 1, 1, 1, 1, 1)}})
 
@@ -764,7 +764,7 @@ class RunLogTest(TestCase):
         assert len(no_match) == 0
         assert len(known_match) == 0
 
-        self.me.db_rw.trial.update({"protocol_no": "10-001"},
+        self.me.db_rw.trial.update_one({"protocol_no": "10-001"},
                                    {"$set": {"treatment_list.step.0.arm.0.arm_suspended": "N",
                                              "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
                                              }})
@@ -825,7 +825,7 @@ class RunLogTest(TestCase):
         assert len(run_log_trial_match) == 1
         assert len(no_match) == 0
 
-        self.me.db_rw.trial.update({"protocol_no": "10-001"},
+        self.me.db_rw.trial.update_one({"protocol_no": "10-001"},
                                    {"$set": {"unused_field": "ricky_bobby",
                                              "_updated": datetime.datetime(2002, 1, 1, 1, 1, 1, 1)
                                              }})
@@ -879,7 +879,7 @@ class RunLogTest(TestCase):
         assert len(no_match) == 0
         assert len(run_log_trial_match) == 1
 
-        self.me.db_rw.clinical.update({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
+        self.me.db_rw.clinical.update_one({"SAMPLE_ID": "5d2799da6756630d8dd066a6"},
                                       {"$set": {"VITAL_STATUS": "deceased",
                                                 "_updated": datetime.datetime(2002, 2, 1, 1, 1, 1, 1)}})
 

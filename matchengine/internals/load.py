@@ -31,21 +31,24 @@ def load(args: Namespace):
     with ExitStack() as stack:
         db_rw = stack.enter_context(MongoDBConnection(read_only=False, db=args.db_name, async_init=False))
         db_ro = stack.enter_context(MongoDBConnection(read_only=True, db=args.db_name, async_init=False))
-        log.info(f"Database: {args.db_name}")
+        log.info(f"Database (args): {args.db_name!r} | Database (actual connection): {db_rw.name!r}")
         if args.trial:
             log.info('Adding trial(s) to mongo...')
-            load_trials(db_rw, args)
+            count = load_trials(db_rw, args)
+            log.info(f'Loaded {count} document(s) into the trial collection.')
 
         if args.clinical:
             log.info('Adding clinical data to mongo...')
-            load_clinical(db_rw, args)
+            count = load_clinical(db_rw, args)
+            log.info(f'Loaded {count} document(s) into the clinical collection.')
 
         if args.genomic:
             if len(list(db_ro.clinical.find({}))) == 0:
                 log.warning("No clinical documents in db. Please load clinical documents before loading genomic.")
 
             log.info('Adding genomic data to mongo...')
-            load_genomic(db_rw, db_ro, args)
+            count = load_genomic(db_rw, db_ro, args)
+            log.info(f'Loaded {count} document(s) into the genomic collection.')
 
         log.info('Done.')
 
@@ -55,30 +58,32 @@ def load(args: Namespace):
 #################
 def load_trials(db_rw, args: Namespace):
     if args.trial_format == 'json':
-        load_trials_json(args, db_rw)
+        return load_trials_json(args, db_rw)
     elif args.trial_format == 'yaml':
-        load_trials_yaml(args, db_rw)
+        return load_trials_yaml(args, db_rw)
+    return 0
 
 
 def load_trials_yaml(args: Namespace, db_rw):
     if os.path.isdir(args.trial):
-        load_dir(args, db_rw, "yaml", args.trial, 'trial')
+        return load_dir(args, db_rw, "yaml", args.trial, 'trial')
     else:
-        load_file(db_rw, 'yaml', args.trial, 'trial')
+        return load_file(db_rw, 'yaml', args.trial, 'trial')
 
 
 def load_trials_json(args: Namespace, db_rw):
     # load a directory of json files
     if os.path.isdir(args.trial):
-        load_dir(args, db_rw, "json", args.trial, 'trial')
+        return load_dir(args, db_rw, "json", args.trial, 'trial')
     else:
         # path leads to a single JSON file
         if is_valid_single_json(args.trial):
-            load_file(db_rw, 'json', args.trial, 'trial')
+            return load_file(db_rw, 'json', args.trial, 'trial')
 
         else:
             with open(args.trial) as file:
                 json_raw = file.read()
+                count = 0
                 success = None
                 try:
                     # mongoexport by default exports each object on a new line
@@ -86,6 +91,7 @@ def load_trials_json(args: Namespace, db_rw):
                     for doc in json_array:
                         data = json.loads(doc)
                         db_rw.trial.insert_one(data)
+                        count += 1
                     success = True
                 except json.decoder.JSONDecodeError as e:
                     log.debug(f"{e}")
@@ -95,6 +101,7 @@ def load_trials_json(args: Namespace, db_rw):
                         json_array = json.loads(json_raw)
                         for doc in json_array:
                             db_rw.trial.insert_one(doc)
+                            count += 1
                         success = True
                     except json.decoder.JSONDecodeError as e:
                         log.debug(f"{e}")
@@ -103,6 +110,7 @@ def load_trials_json(args: Namespace, db_rw):
                                 'Cannot read json format. JSON documents must be either newline separated, '
                                 'in an array, or loaded as separate documents ')
                             raise Exception("Unknown JSON Format")
+                return count
 
 
 ########################
@@ -110,28 +118,28 @@ def load_trials_json(args: Namespace, db_rw):
 ########################
 def load_clinical(db_rw, args: Namespace):
     if args.patient_format == 'json':
-
-        # load directory of clinical json files
         if os.path.isdir(args.clinical):
-            load_dir(args, db_rw, 'json', args.clinical, 'clinical')
+            return load_dir(args, db_rw, 'json', args.clinical, 'clinical')
         else:
-            load_file(db_rw, 'json', args.clinical, 'clinical')
-
+            return load_file(db_rw, 'json', args.clinical, 'clinical')
     elif args.patient_format == 'csv':
-        load_file(db_rw, 'csv', args.clinical, 'clinical')
+        return load_file(db_rw, 'csv', args.clinical, 'clinical')
+    return 0
 
 
-def load_genomic(db_rw, db_ro, args: Namespace, ):
+def load_genomic(db_rw, db_ro, args: Namespace):
     if args.patient_format == 'json':
-        # load directory of clinical json files
         if os.path.isdir(args.genomic):
-            load_dir(args, db_rw, 'json', args.genomic, 'genomic')
+            count = load_dir(args, db_rw, 'json', args.genomic, 'genomic')
         else:
-            load_file(db_rw, 'json', args.genomic, 'genomic')
+            count = load_file(db_rw, 'json', args.genomic, 'genomic')
     elif args.patient_format == 'csv':
-        load_file(db_rw, 'csv', args.genomic, 'genomic')
+        count = load_file(db_rw, 'csv', args.genomic, 'genomic')
+    else:
+        count = 0
 
     map_clinical_to_genomic(db_rw, db_ro)
+    return count
 
 
 def map_clinical_to_genomic(db_rw, db_ro):
@@ -153,14 +161,17 @@ def map_clinical_to_genomic(db_rw, db_ro):
 # util functions
 ##################
 def load_dir(args: Namespace, db_rw, filetype: str, path: str, collection: str):
+    count = 0
     for filename in os.listdir(path):
         if filename.endswith(f".{filetype}"):
             val = vars(args)[collection]
             full_path = val + filename if val[-1] == '/' else val + '/' + filename
-            load_file(db_rw, filetype, full_path, collection)
+            count += load_file(db_rw, filetype, full_path, collection)
+    return count
 
 
 def load_file(db_rw, filetype: str, path: str, collection: str):
+    count = 0
     with open(path) as file_handle:
         if filetype == 'csv':
             file_handle = csv.DictReader(file_handle, delimiter=',')
@@ -170,11 +181,13 @@ def load_file(db_rw, filetype: str, path: str, collection: str):
                         row[key] = convert_birthdate(row[key])
                         row['BIRTH_DATE_INT'] = int(row[key].strftime('%Y%m%d'))
                 db_rw[collection].insert_one(row)
+                count += 1
         else:
             raw_file_data = file_handle.read()
             if filetype == 'yaml':
-                data = yaml.safe_load_all(raw_file_data)
+                data = list(yaml.safe_load_all(raw_file_data))
                 db_rw[collection].insert_many(data)
+                count = len(data)
             elif filetype == 'json':
                 if is_valid_single_json(path):
                     data = json_util.loads(raw_file_data)
@@ -183,6 +196,8 @@ def load_file(db_rw, filetype: str, path: str, collection: str):
                             data[key] = convert_birthdate(data[key])
                             data['BIRTH_DATE_INT'] = int(data[key].strftime('%Y%m%d'))
                     db_rw[collection].insert_one(data)
+                    count = 1
+    return count
 
 
 def convert_birthdate(birth_date):
